@@ -83,14 +83,7 @@ namespace Joveler.LZ4
         #endregion
 
         #region Fields
-        internal enum LongBits
-        {
-            Long64 = 0, // Windows, Linux 32bit
-            Long32 = 1, // Linux 64bit
-        }
-
         internal static IntPtr hModule;
-        internal static LongBits LongBitType { get; set; }
         internal static bool Loaded => hModule != IntPtr.Zero;
         #endregion
 

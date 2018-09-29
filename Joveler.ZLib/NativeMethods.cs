@@ -99,22 +99,6 @@ namespace Joveler.ZLib
                     GlobalCleanup();
                     throw new ArgumentException($"[{libPath}] is not valid zlibwapi.dll");
                 }
-
-                if (bufferSize < 0)
-                    throw new ArgumentOutOfRangeException(nameof(bufferSize));
-                if (bufferSize < 4096)
-                    bufferSize = 4096;
-                NativeMethods.BufferSize = bufferSize;
-
-                try
-                {
-                    NativeMethods.LoadFuntions();
-                }
-                catch (Exception)
-                {
-                    GlobalCleanup();
-                    throw;
-                }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
@@ -145,24 +129,24 @@ namespace Joveler.ZLib
                     NativeMethods.Linux.dlsym(NativeMethods.hModule, "adler32") == IntPtr.Zero)
                 {
                     GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not valid libz.so");
+                    throw new ArgumentException($"[{libPath}] is not a valid libz.so");
                 }
+            }
+            
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            if (bufferSize < 4096)
+                bufferSize = 4096;
+            NativeMethods.BufferSize = bufferSize;
 
-                if (bufferSize < 0)
-                    throw new ArgumentOutOfRangeException(nameof(bufferSize));
-                if (bufferSize < 4096)
-                    bufferSize = 4096;
-                NativeMethods.BufferSize = bufferSize;
-
-                try
-                {
-                    NativeMethods.LoadFuntions();
-                }
-                catch (Exception)
-                {
-                    GlobalCleanup();
-                    throw;
-                }
+            try
+            {
+                NativeMethods.LoadFuntions();
+            }
+            catch (Exception)
+            {
+                GlobalCleanup();
+                throw;
             }
         }
 

@@ -44,6 +44,7 @@ namespace Joveler.XZ
 
         private LzmaStream _lzmaStream;
         private GCHandle _lzmaStreamPin;
+        private static int _bufferSize = 64 * 1024;
 
         private int _internalBufPos = 0;
         private const int ReadDone = -1;
@@ -99,7 +100,7 @@ namespace Joveler.XZ
 
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
-            _internalBuf = new byte[NativeMethods.BufferSize];
+            _internalBuf = new byte[_bufferSize];
 
             switch (mode)
             {
@@ -146,7 +147,7 @@ namespace Joveler.XZ
                 case LzmaMode.Decompress:
                     { // Reference : 02_decompress.c
                         if (1 < threads)
-                            Trace.TraceWarning("Mulithread decompression is not supported");
+                            Trace.TraceWarning("Multithreaded decompression is not supported");
                         LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, ulong.MaxValue, LzmaDecodingFlag.CONCATENATED);
                         XZException.CheckLzmaError(ret);
                         break;
@@ -204,31 +205,58 @@ namespace Joveler.XZ
         #endregion
 
         #region Global - (Static) GlobalInit, GlobalCleanup
-        public static void GlobalInit(string dllPath, int bufferSize = 64 * 1024)
+        public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
         {
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
 
-            if (dllPath == null)
-                throw new ArgumentNullException(nameof(dllPath));
-            if (!File.Exists(dllPath))
-                throw new FileNotFoundException("Specified dll does not exist");
-
-            NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(dllPath);
-            if (NativeMethods.hModule == IntPtr.Zero)
-                throw new ArgumentException($"Unable to load [{dllPath}]", new Win32Exception());
-
-            // Check if dll is valid (liblzma.dll)
-            if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                GlobalCleanup();
-                throw new ArgumentException($"[{dllPath}] is not a valid liblzma library");
-            }
+                if (libPath == null)
+                    throw new ArgumentNullException(nameof(libPath));
+                if (!File.Exists(libPath))
+                    throw new FileNotFoundException("Specified dll does not exist");
 
+                NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
+                if (NativeMethods.hModule == IntPtr.Zero)
+                    throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+
+                // Check if dll is valid (liblzma.dll)
+                if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
+                {
+                    GlobalCleanup();
+                    throw new ArgumentException($"[{libPath}] is not a valid liblzma library");
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (libPath == null)
+                    libPath = "/lib/x86_64-linux-gnu/liblzma.so.5"; // Try to call system-installed lz4
+                if (!File.Exists(libPath))
+                    throw new ArgumentException("Specified .so file does not exist");
+
+                NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
+                if (NativeMethods.hModule == IntPtr.Zero)
+                    throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
+
+                // Check if dll is valid (liblzma.dll)
+                if (NativeMethods.Linux.dlsym(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
+                {
+                    GlobalCleanup();
+                    throw new ArgumentException($"[{libPath}] is not a valid liblzma.so");
+                }
+            }
+            
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            if (bufferSize < 4096)
+                bufferSize = 4096;
+            _bufferSize = bufferSize;
+            
             try
             {
-                NativeMethods.LoadFuntions();
-                NativeMethods.BufferSize = bufferSize;
+                NativeMethods.LoadFunctions();
+                _bufferSize = bufferSize;
             }
             catch (Exception)
             {

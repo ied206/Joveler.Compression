@@ -52,7 +52,7 @@ namespace Joveler.LZ4
         private readonly byte[] _workBuf;
 
         // Compression
-        private static int _srcBufSizeMax = 64 * 1024; // 64K
+        private static int _bufferSize = 64 * 1024; // 64K
         private readonly uint _destBufSize;
 
         // Decompression
@@ -117,11 +117,11 @@ namespace Joveler.LZ4
                             AutoFlush = 1,
                         };
 
-                        UIntPtr frameSizeVal = NativeMethods.FrameCompressionBound((UIntPtr)_srcBufSizeMax, prefs);
+                        UIntPtr frameSizeVal = NativeMethods.FrameCompressionBound((UIntPtr)_bufferSize, prefs);
                         Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
 
                         uint frameSize = frameSizeVal.ToUInt32();
-                        if (_srcBufSizeMax < frameSize)
+                        if (_bufferSize < frameSize)
                             _destBufSize = frameSize;
 
                         _workBuf = new byte[_destBufSize];
@@ -129,7 +129,7 @@ namespace Joveler.LZ4
                         UIntPtr headerSizeVal;
                         fixed (byte* dest = &_workBuf[0])
                         {
-                            headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)_srcBufSizeMax, prefs);
+                            headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
                         }
                         LZ4FrameException.CheckLZ4Error(headerSizeVal);
                         Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
@@ -152,7 +152,7 @@ namespace Joveler.LZ4
                         if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
                             throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
 
-                        _workBuf = new byte[_srcBufSizeMax];
+                        _workBuf = new byte[_bufferSize];
 
                         break;
                     }
@@ -212,32 +212,57 @@ namespace Joveler.LZ4
         #endregion
 
         #region Global - (Static) GlobalInit, GlobalCleanup
-        public static void GlobalInit(string dllPath, int bufferSize = 64 * 1024)
+        public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
         {
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
 
-            if (dllPath == null)
-                throw new ArgumentNullException(nameof(dllPath));
-            if (!File.Exists(dllPath))
-                throw new FileNotFoundException("Specified dll does not exist");
-
-            NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(dllPath);
-            if (NativeMethods.hModule == IntPtr.Zero)
-                throw new ArgumentException($"Unable to load [{dllPath}]", new Win32Exception());
-
-            // Check if dll is valid (liblz4.so.1.8.2.dll)
-            if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                GlobalCleanup();
-                throw new ArgumentException($"[{dllPath}] is not a valid LZ4 library");
-            }
+                if (libPath == null)
+                    throw new ArgumentNullException(nameof(libPath));
+                if (!File.Exists(libPath))
+                    throw new FileNotFoundException("Specified dll does not exist");
 
-            _srcBufSizeMax = bufferSize;
+                NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
+                if (NativeMethods.hModule == IntPtr.Zero)
+                    throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+
+                // Check if dll is valid (liblz4.so.1.8.2.dll)
+                if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
+                {
+                    GlobalCleanup();
+                    throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (libPath == null)
+                    libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4
+                if (!File.Exists(libPath))
+                    throw new ArgumentException("Specified .so file does not exist");
+
+                NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
+                if (NativeMethods.hModule == IntPtr.Zero)
+                    throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
+
+                // Check if dll is valid libz.so
+                if (NativeMethods.Linux.dlsym(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
+                {
+                    GlobalCleanup();
+                    throw new ArgumentException($"[{libPath}] is not a valid liblz4.so");
+                }
+            }
+            
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            if (bufferSize < 4096)
+                bufferSize = 4096;
+            _bufferSize = bufferSize;
+            
             try
             {
                 NativeMethods.LoadFuntions();
-
                 FrameVersion = NativeMethods.GetFrameVersion();
             }
             catch (Exception)
@@ -422,7 +447,7 @@ namespace Joveler.LZ4
 
             while (0 < count)
             {
-                int srcWorkSize = _srcBufSizeMax < count ? _srcBufSizeMax : count;
+                int srcWorkSize = _bufferSize < count ? _bufferSize : count;
 
                 UIntPtr outSizeVal;
                 fixed (byte* dest = &_workBuf[0])

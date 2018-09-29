@@ -28,10 +28,14 @@
   -->
 
   <ItemGroup>
-    <ZLibInteropFiles Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
-                                  '$(MSBuildThisFileDirectory)' != '' And
-                                   HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                        Include="$(MSBuildThisFileDirectory)Precompiled\**\zlibwapi.dll" />
+    <JovelerZLibWindowsPrecompiled Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
+                                              '$(MSBuildThisFileDirectory)' != '' And
+                                              HasTrailingSlash('$(MSBuildThisFileDirectory)')"
+                                    Include="$(MSBuildThisFileDirectory)Precompiled\**\zlibwapi.dll"/>
+    <JovelerZLibLinuxPrecompiled Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
+                                            '$(MSBuildThisFileDirectory)' != '' And
+                                            HasTrailingSlash('$(MSBuildThisFileDirectory)')"
+                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\libz.so.1.2.11"/>
   </ItemGroup>
 
   <!--
@@ -41,10 +45,17 @@
   -->
 
   <ItemGroup Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
-                        '@(ZLibInteropFiles)' != ''">
-    <None Include="@(ZLibInteropFiles)">
+                        '@(JovelerZLibWindowsPrecompiled)' != ''">
+    <None Include="@(JovelerZLibWindowsPrecompiled)">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
+                        '@(JovelerZLibLinuxPrecompiled)' != ''">
+    <None Include="@(JovelerZLibLinuxPrecompiled)">
+      <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
@@ -54,27 +65,39 @@
   ******************************************************************************
   -->
 
-  <Target Name="CopyZLibInteropFiles"
-          Condition="'$(CopyZLibInteropFiles)' != 'false' And
+  <Target Name="CopyJovelerZLibWindowsPrecompiled"
+          Condition="'$(CopyJovelerZLibWindowsPrecompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')"
-          Inputs="@(ZLibInteropFiles)"
-          Outputs="@(ZLibInteropFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+          Inputs="@(JovelerZLibWindowsPrecompiled)"
+          Outputs="@(JovelerZLibWindowsPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
     <!--
-        NOTE: Copy "zlibwapi.dll" and all related files, for every
-              architecture that we support, to the build output directory.
+        NOTE: Copy "zlibwapi.dll" and all related files, for every architecture that we support, to the build output directory.
     -->
-    <Copy SourceFiles="@(ZLibInteropFiles)"
-          DestinationFiles="@(ZLibInteropFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(JovelerZLibWindowsPrecompiled)"
+          DestinationFiles="@(JovelerZLibWindowsPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+  <Target Name="CopyJovelerZLibLinuxPrecompiled"
+          Condition="'$(CopyJovelerZLibLinuxPrecompiled)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')"
+          Inputs="@(JovelerZLibLinuxPrecompiled)"
+          Outputs="@(JovelerZLibLinuxPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+    <!--
+        NOTE: Copy "zlibwapi.dll" and all related files, for every architecture that we support, to the build output directory.
+    -->
+    <Copy SourceFiles="@(JovelerZLibLinuxPrecompiled)"
+          DestinationFiles="@(JovelerZLibLinuxPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
   ******************************************************************************
   -->
 
-  <Target Name="CleanZLibInteropFiles"
-          Condition="'$(CleanZLibInteropFiles)' != 'false' And
+  <Target Name="CleanJovelerZLibWindowsPrecompiled"
+          Condition="'$(CleanJovelerZLibWindowsPrecompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')">
@@ -82,7 +105,18 @@
         NOTE: Delete "zlibwapi.dll" and all related files, for every
               architecture that we support, from the build output directory.
     -->
-    <Delete Files="@(ZLibInteropFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Delete Files="@(JovelerZLibWindowsPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+  <Target Name="CleanJovelerZLibLinuxPrecompiled"
+          Condition="'$(CleanJovelerZLibLinuxPrecompiled)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')">
+    <!--
+        NOTE: Delete "zlibwapi.dll" and all related files, for every
+              architecture that we support, from the build output directory.
+    -->
+    <Delete Files="@(JovelerZLibLinuxPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
@@ -94,15 +128,18 @@
   <PropertyGroup>
     <PostBuildEventDependsOn>
       $(PostBuildEventDependsOn);
-      CopyZLibInteropFiles;
+      CopyJovelerZLibWindowsPrecompiled;
+      CopyJovelerZLibLinuxPrecompiled;
     </PostBuildEventDependsOn>
     <BuildDependsOn>
       $(BuildDependsOn);
-      CopyZLibInteropFiles;
+      CopyJovelerZLibWindowsPrecompiled;
+      CopyJovelerZLibLinuxPrecompiled;
     </BuildDependsOn>
     <CleanDependsOn>
       $(CleanDependsOn);
-      CleanZLibInteropFiles;
+      CleanJovelerZLibWindowsPrecompiled;
+      CleanJovelerZLibLinuxPrecompiled;
     </CleanDependsOn>
   </PropertyGroup>
 </Project>

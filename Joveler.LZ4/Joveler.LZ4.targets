@@ -28,10 +28,10 @@
   -->
 
   <ItemGroup>
-    <JovelerLZ4ExcludePrecompiled Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
+    <JovelerLZ4Precompiled Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
                                   '$(MSBuildThisFileDirectory)' != '' And
                                    HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                        Include="$(MSBuildThisFileDirectory)Precompiled\**\liblz4.so.1.8.2.dll" />
+                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\liblz4.so.*" />
   </ItemGroup>
 
   <!--
@@ -41,10 +41,10 @@
   -->
 
   <ItemGroup Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
-                        '@(JovelerLZ4ExcludePrecompiled)' != ''">
-    <None Include="@(JovelerLZ4ExcludePrecompiled)">
+                        '@(JovelerLZ4Precompiled)' != ''">
+    <None Include="@(JovelerLZ4Precompiled)">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
@@ -54,35 +54,35 @@
   ******************************************************************************
   -->
 
-  <Target Name="CopyJovelerLZ4ExcludePrecompiled"
-          Condition="'$(CopyJovelerLZ4ExcludePrecompiled)' != 'false' And
+  <Target Name="CopyJovelerLZ4Precompiled"
+          Condition="'$(CopyJovelerLZ4Precompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')"
-          Inputs="@(JovelerLZ4ExcludePrecompiled)"
-          Outputs="@(JovelerLZ4ExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+          Inputs="@(JovelerLZ4Precompiled)"
+          Outputs="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
     <!--
-        NOTE: Copy "liblz4.so.1.8.2.dll" and all related files, for every
+        NOTE: Copy "liblz4.so.1.8.3.dll" and all related files, for every
               architecture that we support, to the build output directory.
     -->
-    <Copy SourceFiles="@(JovelerLZ4ExcludePrecompiled)"
-          DestinationFiles="@(JovelerLZ4ExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(JovelerLZ4Precompiled)"
+          DestinationFiles="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
   ******************************************************************************
   -->
 
-  <Target Name="CleanJovelerLZ4ExcludePrecompiled"
-          Condition="'$(CleanJovelerLZ4ExcludePrecompiled)' != 'false' And
+  <Target Name="CleanJovelerLZ4Precompiled"
+          Condition="'$(CleanJovelerLZ4Precompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')">
     <!--
-        NOTE: Delete "liblz4.so.1.8.2.dll" and all related files, for every
+        NOTE: Delete "liblz4.so.1.8.3.dll" and all related files, for every
               architecture that we support, from the build output directory.
     -->
-    <Delete Files="@(JovelerLZ4ExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Delete Files="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--

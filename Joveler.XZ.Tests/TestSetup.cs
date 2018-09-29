@@ -27,7 +27,9 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Joveler.XZ.Tests
 {
@@ -43,8 +45,21 @@ namespace Joveler.XZ.Tests
             BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            string dllPath = Path.Combine(IntPtr.Size == 8 ? "x64" : "x86", "liblzma.dll");
-            XZStream.GlobalInit(dllPath);
+            string libPath = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+                    libPath = Path.Combine("x64", "liblzma.dll");
+                else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
+                    libPath = Path.Combine("x86", "liblzma.dll");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+                    libPath = Path.Combine("x64", "liblzma.so.5.2.4");
+            }
+
+            XZStream.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
@@ -62,6 +77,32 @@ namespace Joveler.XZ.Tests
             if (Path.GetDirectoryName(path) != null)
                 path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return path;
+        }
+        
+        public static int RunXZ(string tempArchiveFile)
+        {
+            string binary;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                binary = Path.Combine(TestSetup.SampleDir, "xz.exe");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                binary = Path.Combine(TestSetup.SampleDir, "xz.elf");
+            else
+                throw new PlatformNotSupportedException();
+
+            Process proc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = binary,
+                    Arguments = $"-k -d {tempArchiveFile}",
+                }
+            };
+            proc.Start();
+            proc.WaitForExit();
+            return proc.ExitCode;
         }
     }
 }

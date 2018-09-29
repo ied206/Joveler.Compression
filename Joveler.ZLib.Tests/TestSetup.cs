@@ -45,12 +45,16 @@ namespace Joveler.ZLib.Tests
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (IntPtr.Size == 8)
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
                     libPath = Path.Combine("x64", "zlibwapi.dll");
-                else
+                else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
                     libPath = Path.Combine("x86", "zlibwapi.dll");
             }
-            // else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {}
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+                    libPath = Path.Combine("x64", "libz.so.1.2.11");
+            }
 
             ZLibInit.GlobalInit(libPath);
 
@@ -77,11 +81,11 @@ namespace Joveler.ZLib.Tests
 
         public static int RunPigz(string tempArchiveFile)
         {
-            string pigzBinary;
+            string binary;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                pigzBinary = Path.Combine(TestSetup.SampleDir, "pigz.exe");
+                binary = Path.Combine(SampleDir, "pigz.exe");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                pigzBinary = "pigz";
+                binary = Path.Combine(SampleDir, "pigz.elf");
             else
                 throw new PlatformNotSupportedException();
 
@@ -91,7 +95,8 @@ namespace Joveler.ZLib.Tests
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    FileName = pigzBinary,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = binary,
                     Arguments = $"-k -d {tempArchiveFile}",
                 }
             };

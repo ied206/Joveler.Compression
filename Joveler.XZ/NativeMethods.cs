@@ -81,16 +81,8 @@ namespace Joveler.XZ
         #endregion
 
         #region Fields
-        internal enum LongBits
-        {
-            Long64 = 0, // Windows, Linux 32bit
-            Long32 = 1, // Linux 64bit
-        }
-
         internal static IntPtr hModule;
-        internal static LongBits LongBitType { get; set; }
         public static bool Loaded => hModule != IntPtr.Zero;
-        internal static int BufferSize { get; set; } = 64 * 1024;
         #endregion
 
         #region Windows kernel32 API
@@ -130,7 +122,7 @@ namespace Joveler.XZ
 #pragma warning restore IDE1006 // 명명 스타일
         #endregion
 
-        #region LoadFunctions, ResetFunctions
+        #region GetFuncPtr
         private static T GetFuncPtr<T>(string funcSymbol) where T : Delegate
         {
             IntPtr funcPtr;
@@ -153,8 +145,10 @@ namespace Joveler.XZ
 
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }
-
-        internal static void LoadFuntions()
+        #endregion
+        
+        #region LoadFunctions, ResetFunctions
+        internal static void LoadFunctions()
         {
             #region Base - LzmaCode, LzmaEnd, LzmaGetProgress
             LzmaCode = GetFuncPtr<lzma_code>("lzma_code");
