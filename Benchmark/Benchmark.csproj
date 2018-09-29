@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.11.1" />
+    <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.0.0-beta" />
+    <PackageReference Include="SharpCompress" Version="0.22.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Joveler.LZ4\Joveler.LZ4.csproj" />
+    <ProjectReference Include="..\Joveler.XZ\Joveler.XZ.csproj" />
+    <ProjectReference Include="..\Joveler.ZLib\Joveler.ZLib.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Joveler.ZLibWrapper</id>
+    <title>Joveler.ZLib</title>
+    <version>2.0.0</version>
+    <owners>ied206</owners>
+    <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
+    <licenseUrl>https://github.com/ied206/ZLibWrapper/blob/master/LICENSE</licenseUrl> 
+    <projectUrl>https://github.com/ied206/ZLibWrapper</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>C# wrapper library for native zlib.
+Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.</description>
+    <summary>C# wrapper library for native zlib.</summary>
+    <releaseNotes>- Support .Net Standard and Linux</releaseNotes>
+    <copyright>Copyright (c) 2017-2018 Hajin Jang</copyright>
+    <tags>zlib deflate gzip adler32 crc32</tags>
+    <dependencies>
+      <group targetFramework="net45"></group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\Joveler.ZLibWrapper.dll" target="lib\net45" />
+    <file src="bin\Release\Joveler.ZLibWrapper.pdb" target="lib\net45" />
+    <file src="Precompiled\x86\zlibwapi.dll" target="build\net45\Precompiled\x86" />
+    <file src="Precompiled\x64\zlibwapi.dll" target="build\net45\Precompiled\x64" />
+    <file src="ZLibWrapper.targets" target="build\net45\Joveler.ZLibWrapper.targets" />
+  </files>
+</package>
