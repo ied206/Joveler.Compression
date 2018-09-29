@@ -3,6 +3,8 @@ using BenchmarkDotNet.Running;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Benchmark
 {
@@ -79,8 +81,8 @@ namespace Benchmark
         {
             Program.NativeGlobalInit();
 
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "Samples"));
-
+            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+            
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
             Directory.CreateDirectory(_destDir);
@@ -247,7 +249,7 @@ namespace Benchmark
         {
             Program.NativeGlobalInit();
 
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "Samples"));
+            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
@@ -393,13 +395,40 @@ namespace Benchmark
         public static void NativeGlobalInit()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string arch = IntPtr.Size == 8 ? "x64" : "x86";
 
-            string zLibDllPath = Path.Combine(baseDir, arch, "zlibwapi.dll");
-            string xzDllPath = Path.Combine(baseDir, arch, "liblzma.dll");
-            string lz4DllPath = Path.Combine(baseDir, arch, "liblz4.so.1.8.2.dll");
+            string zlibDllPath = null;
+            string xzDllPath = null;
+            string lz4DllPath = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+                {
+                    zlibDllPath = Path.Combine(baseDir, "x64", "zlibwapi.dll");
+                    xzDllPath = Path.Combine(baseDir, "x64", "liblzma.dll");
+                    lz4DllPath = Path.Combine(baseDir, "x64", "liblz4.so.1.8.3");
+                }
+                else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
+                {
+                    zlibDllPath = Path.Combine(baseDir, "x86", "zlibwapi.dll");
+                    xzDllPath = Path.Combine(baseDir, "x86", "liblzma.dll");
+                    lz4DllPath = Path.Combine(baseDir, "x86", "liblz4.so.1.8.3");
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+                {
+                    zlibDllPath = Path.Combine(baseDir, "x64", "libz.so.1.2.11");
+                    xzDllPath = Path.Combine(baseDir, "x64", "liblzma.so.5.2.4");
+                    lz4DllPath = Path.Combine(baseDir, "x64", "liblz4.so.1.8.3");
+                }
+            }
+            
+            if (zlibDllPath == null || xzDllPath == null || lz4DllPath == null)
+                throw new PlatformNotSupportedException();
 
-            Joveler.ZLib.ZLibInit.GlobalInit(zLibDllPath, 64 * 1024);
+
+            Joveler.ZLib.ZLibInit.GlobalInit(zlibDllPath, 64 * 1024);
             Joveler.XZ.XZStream.GlobalInit(xzDllPath, 64 * 1024);
             Joveler.LZ4.LZ4FrameStream.GlobalInit(lz4DllPath, 64 * 1024);
         }

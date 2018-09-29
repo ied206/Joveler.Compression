@@ -30,6 +30,9 @@ bld/
 # Visual Studio Code
 .vscode/
 
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
