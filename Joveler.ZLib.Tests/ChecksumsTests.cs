@@ -185,7 +185,7 @@ namespace Joveler.ZLib.Tests
             using (Adler32Stream adler = new Adler32Stream(ms))
             {
                 fs.CopyTo(adler);
-                Assert.IsTrue(adler.Adler32 == 0xD77C7044);
+                Assert.IsTrue(adler.Checksum == 0xD77C7044);
             }
         }
 
@@ -199,7 +199,7 @@ namespace Joveler.ZLib.Tests
             using (Adler32Stream adler = new Adler32Stream(ms))
             {
                 fs.CopyTo(adler);
-                Assert.IsTrue(adler.Adler32 == 0x9B97EDAD);
+                Assert.IsTrue(adler.Checksum == 0x9B97EDAD);
             }
         }
 
@@ -213,7 +213,7 @@ namespace Joveler.ZLib.Tests
             using (Adler32Stream adler = new Adler32Stream(ms))
             {
                 fs.CopyTo(adler);
-                Assert.IsTrue(adler.Adler32 == 0x94B04C6F);
+                Assert.IsTrue(adler.Checksum == 0x94B04C6F);
             }
         }
 
@@ -226,7 +226,7 @@ namespace Joveler.ZLib.Tests
             {
                 byte[] bin = Encoding.UTF8.GetBytes("ABCDEF");
                 adler.Write(bin, 0, bin.Length);
-                Assert.IsTrue(adler.Adler32 == 0x057E0196);
+                Assert.IsTrue(adler.Checksum == 0x057E0196);
             }
         }
         #endregion

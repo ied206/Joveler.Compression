@@ -26,7 +26,6 @@
 */
 
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -37,20 +36,20 @@ namespace Joveler.XZ
     public class XZStream : Stream
     {
         #region Fields and Properties
-        private Stream _baseStream;
         private readonly LzmaMode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
         private LzmaStream _lzmaStream;
         private GCHandle _lzmaStreamPin;
+        internal static int BufferSize = 64 * 1024;
 
         private int _internalBufPos = 0;
         private const int ReadDone = -1;
         private readonly byte[] _internalBuf;
 
         // Property
-        public Stream BaseStream => _baseStream;
+        public Stream BaseStream { get; private set; }
 
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
@@ -92,14 +91,14 @@ namespace Joveler.XZ
             else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
                 threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
 
-            _baseStream = stream ?? throw new ArgumentNullException(nameof(stream));
+            BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
             _mode = mode;
             _leaveOpen = leaveOpen;
             _disposed = false;
 
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
-            _internalBuf = new byte[NativeMethods.BufferSize];
+            _internalBuf = new byte[BufferSize];
 
             switch (mode)
             {
@@ -146,7 +145,7 @@ namespace Joveler.XZ
                 case LzmaMode.Decompress:
                     { // Reference : 02_decompress.c
                         if (1 < threads)
-                            Trace.TraceWarning("Mulithread decompression is not supported");
+                            Trace.TraceWarning("Threaded decompression is not supported");
                         LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, ulong.MaxValue, LzmaDecodingFlag.CONCATENATED);
                         XZException.CheckLzmaError(ret);
                         break;
@@ -185,11 +184,11 @@ namespace Joveler.XZ
                     _lzmaStream = null;
                 }
 
-                if (_baseStream != null)
+                if (BaseStream != null)
                 {
                     if (!_leaveOpen)
-                        _baseStream.Dispose();
-                    _baseStream = null;
+                        BaseStream.Dispose();
+                    BaseStream = null;
                 }
 
                 _disposed = true;
@@ -200,98 +199,6 @@ namespace Joveler.XZ
         {
             Dispose(true);
             GC.SuppressFinalize(this);
-        }
-        #endregion
-
-        #region Global - (Static) GlobalInit, GlobalCleanup
-        public static void GlobalInit(string dllPath, int bufferSize = 64 * 1024)
-        {
-            if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
-
-            if (dllPath == null)
-                throw new ArgumentNullException(nameof(dllPath));
-            if (!File.Exists(dllPath))
-                throw new FileNotFoundException("Specified dll does not exist");
-
-            NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(dllPath);
-            if (NativeMethods.hModule == IntPtr.Zero)
-                throw new ArgumentException($"Unable to load [{dllPath}]", new Win32Exception());
-
-            // Check if dll is valid (liblzma.dll)
-            if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
-            {
-                GlobalCleanup();
-                throw new ArgumentException($"[{dllPath}] is not a valid liblzma library");
-            }
-
-            try
-            {
-                NativeMethods.LoadFuntions();
-                NativeMethods.BufferSize = bufferSize;
-            }
-            catch (Exception)
-            {
-                GlobalCleanup();
-                throw;
-            }
-        }
-
-        public static void GlobalCleanup()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            NativeMethods.ResetFunctions();
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                uint ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
-                Debug.Assert(ret != 0);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
-                Debug.Assert(ret == 0);
-            }
-            NativeMethods.hModule = IntPtr.Zero;
-        }
-        #endregion
-
-        #region Version - (Static)
-        public static Version LibraryVersion()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            /*
-             * Note from "lzma\version.h"
-             *
-             * The version number is of format xyyyzzzs where
-             *  - x = major
-             *  - yyy = minor
-             *  - zzz = revision
-             *  - s indicates stability: 0 = alpha, 1 = beta, 2 = stable
-             *
-             * The same xyyyzzz triplet is never reused with different stability levels.
-             * For example, if 5.1.0alpha has been released, there will never be 5.1.0beta
-             * or 5.1.0 stable.
-             */
-
-            int verInt = (int)NativeMethods.LzmaVersionNumber();
-            int major = verInt / 10000000;
-            int minor = verInt % 10000000 / 10000;
-            int revision = verInt % 10000 / 10;
-            int stability = verInt % 10;
-
-            return new Version(major, minor, revision, stability);
-        }
-
-        public static string LibraryVersionString()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            return NativeMethods.LzmaVersionString();
         }
         #endregion
 
@@ -330,7 +237,7 @@ namespace Joveler.XZ
                     if (_lzmaStream.AvailIn == 0)
                     {
                         // Read from _baseStream
-                        int baseReadSize = _baseStream.Read(_internalBuf, 0, _internalBuf.Length);
+                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
                         TotalIn += baseReadSize;
 
                         _internalBufPos = 0;
@@ -398,7 +305,7 @@ namespace Joveler.XZ
                     if (_lzmaStream.AvailOut == 0)
                     {
                         // Write to _baseStream
-                        _baseStream.Write(_internalBuf, 0, _internalBuf.Length);
+                        BaseStream.Write(_internalBuf, 0, _internalBuf.Length);
                         TotalOut += _internalBuf.Length;
 
                         // Reset NextOut and AvailOut
@@ -439,7 +346,7 @@ namespace Joveler.XZ
                     { // Write to _baseStream
                         // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially
                         // full. Calculate how much new data there is to be written to the output file.
-                        _baseStream.Write(_internalBuf, 0, _internalBufPos);
+                        BaseStream.Write(_internalBuf, 0, _internalBufPos);
                         TotalOut += _internalBufPos;
 
                         // Reset NextOut and AvailOut
@@ -459,7 +366,7 @@ namespace Joveler.XZ
         {
             if (_mode == LzmaMode.Decompress)
             {
-                _baseStream.Flush();
+                BaseStream.Flush();
                 return;
             }
 
@@ -482,7 +389,7 @@ namespace Joveler.XZ
                     }
                     _internalBufPos += writeSize;
 
-                    _baseStream.Write(_internalBuf, 0, _internalBufPos);
+                    BaseStream.Write(_internalBuf, 0, _internalBufPos);
                     TotalOut += _internalBufPos;
 
                     // Reset NextOut and AvailOut
@@ -496,11 +403,11 @@ namespace Joveler.XZ
                 }
             }
 
-            _baseStream.Flush();
+            BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == LzmaMode.Decompress && _baseStream.CanRead;
-        public override bool CanWrite => _mode == LzmaMode.Compress && _baseStream.CanWrite;
+        public override bool CanRead => _mode == LzmaMode.Decompress && BaseStream.CanRead;
+        public override bool CanWrite => _mode == LzmaMode.Compress && BaseStream.CanWrite;
         public override bool CanSeek => false;
 
         public override long Seek(long offset, SeekOrigin origin)

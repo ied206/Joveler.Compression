@@ -39,45 +39,45 @@ namespace Joveler.LZ4.Tests
     public class DecompressTests
     {
         [TestMethod]
-        [TestCategory("LZ4Lib")]
-        public void LZ4Lib_Decompress()
+        [TestCategory("Joveler.LZ4")]
+        public void Decompress()
         {
-            Decompress_Template("A.pdf.lz4", "A.pdf"); // -12
-            Decompress_Template("B.txt.lz4", "B.txt"); // -9
-            Decompress_Template("C.bin.lz4", "C.bin"); // -1
-        }
-
-        public void Decompress_Template(string lz4FileName, string originFileName)
-        {
-            byte[] decompDigest;
-            byte[] originDigest;
-
-            string lz4File = Path.Combine(TestSetup.SampleDir, lz4FileName);
-            string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
-            using (MemoryStream decompMs = new MemoryStream())
+            void Template(string lz4FileName, string originFileName)
             {
-                using (FileStream compFs = new FileStream(lz4File, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, LZ4Mode.Decompress))
+                byte[] decompDigest;
+                byte[] originDigest;
+
+                string lz4File = Path.Combine(TestSetup.SampleDir, lz4FileName);
+                string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
+                using (MemoryStream decompMs = new MemoryStream())
                 {
-                    lzs.CopyTo(decompMs);
-                    decompMs.Flush();
+                    using (FileStream compFs = new FileStream(lz4File, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, LZ4Mode.Decompress))
+                    {
+                        lzs.CopyTo(decompMs);
+                        decompMs.Flush();
 
-                    Assert.AreEqual(compFs.Length, lzs.TotalIn);
-                    Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                        Assert.AreEqual(compFs.Length, lzs.TotalIn);
+                        Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                    }
+                    decompMs.Position = 0;
+
+                    HashAlgorithm hash = SHA256.Create();
+                    decompDigest = hash.ComputeHash(decompMs);
                 }
-                decompMs.Position = 0;
 
-                HashAlgorithm hash = SHA256.Create();
-                decompDigest = hash.ComputeHash(decompMs);
+                using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    HashAlgorithm hash = SHA256.Create();
+                    originDigest = hash.ComputeHash(originFs);
+                }
+
+                Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
             }
 
-            using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                HashAlgorithm hash = SHA256.Create();
-                originDigest = hash.ComputeHash(originFs);
-            }
-
-            Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
+            Template("A.pdf.lz4", "A.pdf"); // -12
+            Template("B.txt.lz4", "B.txt"); // -9
+            Template("C.bin.lz4", "C.bin"); // -1
         }
     }
 }

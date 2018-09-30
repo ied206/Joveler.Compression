@@ -29,7 +29,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -40,73 +39,64 @@ namespace Joveler.LZ4.Tests
     public class CompressTests
     {
         [TestMethod]
-        [TestCategory("LZ4Lib")]
-        public void LZ4Lib_Compress()
+        [TestCategory("Joveler.LZ4")]
+        public void Compress()
         {
-            Compress_Template("A.pdf", LZ4CompLevel.Fast);
-            Compress_Template("B.txt", LZ4CompLevel.High);
-            Compress_Template("C.bin", LZ4CompLevel.VeryHigh);
-        }
-
-        public void Compress_Template(string sampleFileName, LZ4CompLevel compLevel)
-        {
-            if (sampleFileName == null)
-                throw new ArgumentNullException(nameof(sampleFileName));
-
-            string destDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            Directory.CreateDirectory(destDir);
-            try
+            void Template(string sampleFileName, LZ4CompLevel compLevel)
             {
-                string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
-                string tempLz4File = tempDecompFile + ".lz4";
+                if (sampleFileName == null)
+                    throw new ArgumentNullException(nameof(sampleFileName));
 
-                string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
-                using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, LZ4Mode.Compress, compLevel, true))
+                string destDir = Path.GetTempFileName();
+                File.Delete(destDir);
+                Directory.CreateDirectory(destDir);
+                try
                 {
-                    sampleFs.CopyTo(lzs);
-                    lzs.Flush();
+                    string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
+                    string tempLz4File = tempDecompFile + ".lz4";
 
-                    Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
-                    Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
-                }
-
-                Process proc = new Process
-                {
-                    StartInfo = new ProcessStartInfo
+                    string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+                    using (FileStream lz4CompFs =
+                        new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
+                    using (FileStream sampleFs =
+                        new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, LZ4Mode.Compress, compLevel, true))
                     {
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        FileName = Path.Combine(TestSetup.SampleDir, "lz4.exe"),
-                        Arguments = $"-k -d {tempLz4File}",
+                        sampleFs.CopyTo(lzs);
+                        lzs.Flush();
+
+                        Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
+                        Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
                     }
-                };
-                proc.Start();
-                proc.WaitForExit();
-                Assert.IsTrue(proc.ExitCode == 0);
 
-                byte[] decompDigest;
-                byte[] originDigest;
-                using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    HashAlgorithm hash = SHA256.Create();
-                    originDigest = hash.ComputeHash(fs);
+                    Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
+
+                    byte[] decompDigest;
+                    byte[] originDigest;
+                    using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        HashAlgorithm hash = SHA256.Create();
+                        originDigest = hash.ComputeHash(fs);
+                    }
+
+                    using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        HashAlgorithm hash = SHA256.Create();
+                        decompDigest = hash.ComputeHash(fs);
+                    }
+
+                    Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
                 }
-
-                using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                finally
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    decompDigest = hash.ComputeHash(fs);
+                    if (Directory.Exists(destDir))
+                        Directory.Delete(destDir, true);
                 }
+            }
 
-                Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
-            }
-            finally
-            {
-                if (Directory.Exists(destDir))
-                    Directory.Delete(destDir, true);
-            }
+            Template("A.pdf", LZ4CompLevel.Fast);
+            Template("B.txt", LZ4CompLevel.High);
+            Template("C.bin", LZ4CompLevel.VeryHigh);
         }
     }
 }

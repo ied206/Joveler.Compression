@@ -45,12 +45,25 @@ namespace Joveler.ZLib.Tests
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (IntPtr.Size == 8)
-                    libPath = Path.Combine("x64", "zlibwapi.dll");
-                else
-                    libPath = Path.Combine("x86", "zlibwapi.dll");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "zlibwapi.dll");
+                        break;
+                    case Architecture.X86:
+                        libPath = Path.Combine("x86", "zlibwapi.dll");
+                        break;
+                }
             }
-            // else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {}
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "libz.so");
+                        break;
+                }
+            }
 
             ZLibInit.GlobalInit(libPath);
 
@@ -77,11 +90,11 @@ namespace Joveler.ZLib.Tests
 
         public static int RunPigz(string tempArchiveFile)
         {
-            string pigzBinary;
+            string binary;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                pigzBinary = Path.Combine(TestSetup.SampleDir, "pigz.exe");
+                binary = Path.Combine(SampleDir, "pigz.exe");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                pigzBinary = "pigz";
+                binary = Path.Combine(SampleDir, "pigz.elf");
             else
                 throw new PlatformNotSupportedException();
 
@@ -91,7 +104,8 @@ namespace Joveler.ZLib.Tests
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    FileName = pigzBinary,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = binary,
                     Arguments = $"-k -d {tempArchiveFile}",
                 }
             };

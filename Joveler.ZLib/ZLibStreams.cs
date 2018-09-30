@@ -37,8 +37,7 @@ namespace Joveler.ZLib
     #region DeflateStream
     public class DeflateStream : Stream
     {
-        #region Fields
-        private Stream _baseStream;
+        #region Fields and Properties
         private readonly ZLibMode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
@@ -52,12 +51,10 @@ namespace Joveler.ZLib
 
         private readonly byte[] _internalBuf;
         private int _internalBufPos = 0;
-        #endregion
 
-        #region Properties
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
-        public Stream BaseStream => _baseStream;
+        public Stream BaseStream { get; private set; }
         #endregion
 
         #region Constructor
@@ -78,7 +75,7 @@ namespace Joveler.ZLib
             NativeMethods.CheckZLibLoaded();
 
             _leaveOpen = leaveOpen;
-            _baseStream = stream;
+            BaseStream = stream;
             _mode = mode;
             _internalBufPos = 0;
 
@@ -129,13 +126,13 @@ namespace Joveler.ZLib
         {
             if (disposing && !_disposed)
             {
-                if (_baseStream != null)
+                if (BaseStream != null)
                 {
                     if (_mode == ZLibMode.Compress)
                         Flush();
                     if (!_leaveOpen)
-                        _baseStream.Close();
-                    _baseStream = null;
+                        BaseStream.Close();
+                    BaseStream = null;
                 }
 
                 switch (NativeMethods.LongBitType)
@@ -214,7 +211,7 @@ namespace Joveler.ZLib
                                 {
                                     if (_zs32.AvailIn == 0)
                                     { // Compressed Data is no longer available in array, so read more from _stream
-                                        int baseReadSize = _baseStream.Read(_internalBuf, 0, _internalBuf.Length);
+                                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
                                         _internalBufPos = 0;
                                         _zs32.NextIn = pinRead;
@@ -251,7 +248,7 @@ namespace Joveler.ZLib
                                 {
                                     if (_zs64.AvailIn == 0)
                                     { // Compressed Data is no longer available in array, so read more from _stream
-                                        int baseReadSize = _baseStream.Read(_internalBuf, 0, _internalBuf.Length);
+                                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
                                         _internalBufPos = 0;
                                         _zs64.NextIn = pinRead;
@@ -313,7 +310,7 @@ namespace Joveler.ZLib
 
                                 if (_zs32.AvailOut == 0)
                                 {
-                                    _baseStream.Write(_internalBuf, 0, _internalBuf.Length);
+                                    BaseStream.Write(_internalBuf, 0, _internalBuf.Length);
                                     TotalOut += _internalBuf.Length;
 
                                     _internalBufPos = 0;
@@ -340,7 +337,7 @@ namespace Joveler.ZLib
 
                                 if (_zs64.AvailOut == 0)
                                 {
-                                    _baseStream.Write(_internalBuf, 0, _internalBuf.Length);
+                                    BaseStream.Write(_internalBuf, 0, _internalBuf.Length);
                                     TotalOut += _internalBuf.Length;
 
                                     _internalBufPos = 0;
@@ -360,7 +357,7 @@ namespace Joveler.ZLib
         {
             if (_mode == ZLibMode.Decompress)
             {
-                _baseStream.Flush();
+                BaseStream.Flush();
                 return;
             }
 
@@ -389,7 +386,7 @@ namespace Joveler.ZLib
                                         throw new ZLibException(ret, _zs32.LastErrorMsg);
                                 }
 
-                                _baseStream.Write(_internalBuf, 0, _internalBufPos);
+                                BaseStream.Write(_internalBuf, 0, _internalBufPos);
                                 TotalOut += _internalBufPos;
 
                                 _internalBufPos = 0;
@@ -420,7 +417,7 @@ namespace Joveler.ZLib
                                         throw new ZLibException(ret, _zs64.LastErrorMsg);
                                 }
 
-                                _baseStream.Write(_internalBuf, 0, _internalBufPos);
+                                BaseStream.Write(_internalBuf, 0, _internalBufPos);
                                 TotalOut += _internalBufPos;
 
                                 _internalBufPos = 0;
@@ -433,11 +430,11 @@ namespace Joveler.ZLib
                 }
             }
 
-            _baseStream.Flush();
+            BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == ZLibMode.Decompress && _baseStream.CanRead;
-        public override bool CanWrite => _mode == ZLibMode.Compress && _baseStream.CanWrite;
+        public override bool CanRead => _mode == ZLibMode.Decompress && BaseStream.CanRead;
+        public override bool CanWrite => _mode == ZLibMode.Compress && BaseStream.CanWrite;
         public override bool CanSeek => false;
 
         public override long Seek(long offset, SeekOrigin origin)

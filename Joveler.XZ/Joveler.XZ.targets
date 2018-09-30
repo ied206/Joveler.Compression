@@ -28,10 +28,10 @@
   -->
 
   <ItemGroup>
-    <JovelerXZExcludePrecompiled Condition="'$(JovelerXZExcludePrecompiled)' != 'true' And 
-                                  '$(MSBuildThisFileDirectory)' != '' And
-                                   HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                        Include="$(MSBuildThisFileDirectory)Precompiled\**\liblzma.dll" />
+    <JovelerXZPrecompiled  Condition="'$(JovelerXZExcludePrecompiled)' != 'true' And 
+                                      '$(MSBuildThisFileDirectory)' != '' And
+                                      HasTrailingSlash('$(MSBuildThisFileDirectory)')"
+                            Include="$(MSBuildThisFileDirectory)Precompiled\**\liblzma.*" />
   </ItemGroup>
 
   <!--
@@ -41,10 +41,10 @@
   -->
 
   <ItemGroup Condition="'$(JovelerXZExcludePrecompiled)' != 'true' And 
-                        '@(JovelerXZExcludePrecompiled)' != ''">
-    <None Include="@(JovelerXZExcludePrecompiled)">
+                        '@(JovelerXZPrecompiled)' != ''">
+    <None Include="@(JovelerXZPrecompiled)">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
@@ -54,27 +54,27 @@
   ******************************************************************************
   -->
 
-  <Target Name="CopyJovelerXZExcludePrecompiled"
-          Condition="'$(CopyJovelerXZExcludePrecompiled)' != 'false' And
+  <Target Name="CopyJovelerXZPrecompiled"
+          Condition="'$(CopyJovelerXZPrecompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')"
-          Inputs="@(JovelerXZExcludePrecompiled)"
-          Outputs="@(JovelerXZExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+          Inputs="@(JovelerXZPrecompiled)"
+          Outputs="@JovelerXZPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
     <!--
         NOTE: Copy "liblzma.dll" and all related files, for every
               architecture that we support, to the build output directory.
     -->
-    <Copy SourceFiles="@(JovelerXZExcludePrecompiled)"
-          DestinationFiles="@(JovelerXZExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(JovelerXZPrecompiled)"
+          DestinationFiles="@(JovelerXZPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
   ******************************************************************************
   -->
 
-  <Target Name="CleanJovelerXZExcludePrecompiled"
-          Condition="'$(CleanJovelerXZExcludePrecompiled)' != 'false' And
+  <Target Name="CleanJovelerXZPrecompiled"
+          Condition="'$(CleanJovelerXZPrecompiled)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')">
@@ -82,7 +82,7 @@
         NOTE: Delete "liblzma.dll" and all related files, for every
               architecture that we support, from the build output directory.
     -->
-    <Delete Files="@(JovelerXZExcludePrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Delete Files="@(JovelerXZPrecompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
@@ -94,15 +94,15 @@
   <PropertyGroup>
     <PostBuildEventDependsOn>
       $(PostBuildEventDependsOn);
-      CopyJovelerXZExcludePrecompiled;
+      CopyJovelerXZPrecompiled;
     </PostBuildEventDependsOn>
     <BuildDependsOn>
       $(BuildDependsOn);
-      CopyJovelerXZExcludePrecompiled;
+      CopyJovelerXZPrecompiled;
     </BuildDependsOn>
     <CleanDependsOn>
       $(CleanDependsOn);
-      CleanJovelerXZExcludePrecompiled;
+      CleanJovelerXZPrecompiled;
     </CleanDependsOn>
   </PropertyGroup>
 </Project>

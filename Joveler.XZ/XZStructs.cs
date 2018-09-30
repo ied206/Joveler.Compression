@@ -38,6 +38,7 @@ using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Local
 #pragma warning disable 169
 
+#pragma warning disable IDE0044
 namespace Joveler.XZ
 {
     #region Struct LzmaStream
@@ -125,7 +126,6 @@ namespace Joveler.XZ
         /// </summary>
         public ulong TotalOut = 0;
 
-#pragma warning disable IDE0044 // 읽기 전용 한정자 추가
         /// <summary>
         /// Custom memory allocation functions
         /// </summary>
@@ -154,7 +154,6 @@ namespace Joveler.XZ
         private UIntPtr ReservedInt4 = UIntPtr.Zero;
         private uint ReservedEnum1 = 0;
         private uint ReservedEnum2 = 0;
-#pragma warning restore IDE0044 // 읽기 전용 한정자 추가
     }
     #endregion
 
@@ -183,9 +182,7 @@ namespace Joveler.XZ
         /// is supported by the application. Otherwise it is possible that
         /// the application will decode the Stream incorrectly.
         /// </remarks>
-#pragma warning disable IDE0044
         private uint Version = 0;
-#pragma warning restore IDE0044
         /// <summary>
         /// Backward Size
         /// </summary>
@@ -210,7 +207,6 @@ namespace Joveler.XZ
         /// </summary>
         public LzmaCheck Check;
 
-#pragma warning disable IDE0044
         private uint ReservedEnum1;
         private uint ReservedEnum2;
         private uint ReservedEnum3;
@@ -225,7 +221,6 @@ namespace Joveler.XZ
         private byte ReservedBool8;
         private uint ReservedInt1;
         private uint ReservedInt2;
-#pragma warning restore IDE0044
     }
     #endregion
 
@@ -325,7 +320,6 @@ namespace Joveler.XZ
         /// </remarks>
         public LzmaCheck Check;
 
-#pragma warning disable IDE0044
         private uint ReservedEnum1;
         private uint ReservedEnum2;
         private uint ReservedEnum3;
@@ -341,7 +335,6 @@ namespace Joveler.XZ
         private IntPtr ReservedPtr2;
         private IntPtr ReservedPtr3;
         private IntPtr ReservedPtr4;
-#pragma warning restore IDE0044
     }
     #endregion
 
@@ -795,3 +788,4 @@ namespace Joveler.XZ
     }
     #endregion
 }
+#pragma warning restore IDE0044

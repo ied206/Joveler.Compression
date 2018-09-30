@@ -27,7 +27,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -38,29 +37,33 @@ namespace Joveler.XZ.Tests
     public class CompresssTests
     {
         [TestMethod]
-        [TestCategory("XZLib")]
-        public void XZLib_Compress()
+        [TestCategory("Joveler.XZ")]
+        public void Compress()
         {
-            Compress_Template("A.pdf", 1, 7);
-            Compress_Template("B.txt", 1, XZStream.DefaultPreset);
-            Compress_Template("C.bin", 1, 1);
+            Template("A.pdf", 1, 7);
+            Template("B.txt", 1, XZStream.DefaultPreset);
+            Template("C.bin", 1, 1);
         }
 
         [TestMethod]
-        [TestCategory("XZLib")]
-        public void XZLib_CompressMulti()
+        [TestCategory("Joveler.XZ")]
+        public void CompressMulti()
         {
-            Compress_Template("A.pdf", 2, 7);
-            Compress_Template("B.txt", 2, 3);
-            Compress_Template("C.bin", Environment.ProcessorCount, 1);
+            Template("A.pdf", 2, 7);
+            Template("B.txt", 2, 3);
+            Template("C.bin", Environment.ProcessorCount, 1);
         }
 
-        public void Compress_Template(string sampleFileName, int threads, uint preset)
+        private void Template(string sampleFileName, int threads, uint preset)
         {
-            string tempDecompFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            string tempXzFile = tempDecompFile + ".xz";
+            string destDir = Path.GetTempFileName();
+            File.Delete(destDir);
+            Directory.CreateDirectory(destDir);
             try
             {
+                string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
+                string tempXzFile = tempDecompFile + ".xz";
+
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream xzCompFs = new FileStream(tempXzFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -73,19 +76,7 @@ namespace Joveler.XZ.Tests
                     Assert.AreEqual(xzCompFs.Length, xzs.TotalOut);
                 }
 
-                Process proc = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        FileName = Path.Combine(TestSetup.SampleDir, "xz.exe"),
-                        Arguments = $"-k -d {tempXzFile}",
-                    }
-                };
-                proc.Start();
-                proc.WaitForExit();
-                Assert.IsTrue(proc.ExitCode == 0);
+                Assert.IsTrue(TestHelper.RunXZ(tempXzFile) == 0);
 
                 byte[] decompDigest;
                 byte[] originDigest;
@@ -102,14 +93,11 @@ namespace Joveler.XZ.Tests
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
-
             }
             finally
             {
-                if (File.Exists(tempXzFile))
-                    File.Delete(tempXzFile);
-                if (File.Exists(tempDecompFile))
-                    File.Delete(tempDecompFile);
+                if (Directory.Exists(destDir))
+                    Directory.Delete(destDir, true);
             }
         }
     }

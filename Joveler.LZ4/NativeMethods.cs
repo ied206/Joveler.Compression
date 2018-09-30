@@ -83,14 +83,7 @@ namespace Joveler.LZ4
         #endregion
 
         #region Fields
-        internal enum LongBits
-        {
-            Long64 = 0, // Windows, Linux 32bit
-            Long32 = 1, // Linux 64bit
-        }
-
         internal static IntPtr hModule;
-        internal static LongBits LongBitType { get; set; }
         internal static bool Loaded => hModule != IntPtr.Zero;
         #endregion
 
@@ -104,8 +97,7 @@ namespace Joveler.LZ4
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            internal static extern uint FreeLibrary(IntPtr hModule);
+            internal static extern int FreeLibrary(IntPtr hModule);
         }
         #endregion
 

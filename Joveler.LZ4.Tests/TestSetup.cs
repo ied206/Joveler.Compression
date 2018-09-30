@@ -27,7 +27,9 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Joveler.LZ4.Tests
 {
@@ -43,14 +45,36 @@ namespace Joveler.LZ4.Tests
             BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            string dllPath = Path.Combine(IntPtr.Size == 8 ? "x64" : "x86", "liblz4.so.1.8.2.dll");
-            LZ4FrameStream.GlobalInit(dllPath);
+            string libPath = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblz4.dll");
+                        break;
+                    case Architecture.X86:
+                        libPath = Path.Combine("x86", "liblz4.dll");
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblz4.so");
+                        break;
+                }
+            }
+
+            LZ4Init.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            LZ4FrameStream.GlobalCleanup();
+            LZ4Init.GlobalCleanup();
         }
     }
 
@@ -62,6 +86,32 @@ namespace Joveler.LZ4.Tests
             if (Path.GetDirectoryName(path) != null)
                 path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return path;
+        }
+
+        public static int RunLZ4(string tempArchiveFile, string destFile)
+        {
+            string binary;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                binary = Path.Combine(TestSetup.SampleDir, "lz4.exe");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                binary = Path.Combine(TestSetup.SampleDir, "lz4.elf");
+            else
+                throw new PlatformNotSupportedException();
+
+            Process proc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = binary,
+                    Arguments = $"-k -d {tempArchiveFile} {destFile}",
+                }
+            };
+            proc.Start();
+            proc.WaitForExit();
+            return proc.ExitCode;
         }
     }
 }

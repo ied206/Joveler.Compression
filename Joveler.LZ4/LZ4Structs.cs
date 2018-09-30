@@ -198,6 +198,7 @@ namespace Joveler.LZ4
         /// <summary>
         /// Fast compression, 0 through 2 is identical (default)
         /// </summary>
+        Default = 0,
         Fast = 0,
         High = 9,
         VeryHigh = 12,
