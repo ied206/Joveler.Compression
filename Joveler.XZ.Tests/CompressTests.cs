@@ -27,10 +27,8 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace Joveler.XZ.Tests
@@ -39,7 +37,7 @@ namespace Joveler.XZ.Tests
     public class CompresssTests
     {
         [TestMethod]
-        [TestCategory("XZLib")]
+        [TestCategory("Joveler.XZ")]
         public void Compress()
         {
             Template("A.pdf", 1, 7);
@@ -48,7 +46,7 @@ namespace Joveler.XZ.Tests
         }
 
         [TestMethod]
-        [TestCategory("XZLib")]
+        [TestCategory("Joveler.XZ")]
         public void CompressMulti()
         {
             Template("A.pdf", 2, 7);
@@ -65,7 +63,7 @@ namespace Joveler.XZ.Tests
             {
                 string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
                 string tempXzFile = tempDecompFile + ".xz";
-                
+
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream xzCompFs = new FileStream(tempXzFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))

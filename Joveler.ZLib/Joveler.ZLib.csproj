@@ -2,19 +2,22 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Title>Joveler.ZLib</Title>
-    <Version>1.9.0</Version>
+    <Version>2.0.0</Version>
     <Copyright>Copyright (c) 2017-2018 Hajin Jang</Copyright>
     <Description>C# wrapper library for native zlib.
-Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.</Description>
+Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
+Targets .Net Standard 2.0, supports Windows and Linux.</Description>
     <Authors>Jean-loup Gailly, Mark Adler, Hajin Jang</Authors>
-    <PackageLicenseUrl>https://github.com/ied206/ZLibWrapper/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/ied206/ZLibWrapper</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/ied206/ZLibWrapper</RepositoryUrl>
-    <PackageTags>zlib deflate gzip adler32 crc32</PackageTags>
-    <PackageReleaseNotes>Migrate to .Net Standard 2.0.</PackageReleaseNotes>
-    <AssemblyVersion>1.9.0.0</AssemblyVersion>
-    <FileVersion>1.9.0.0</FileVersion>
+    <PackageLicenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.ZLib/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
+    <PackageTags>zlib deflate gzip adler32 crc32 compression pinvoke interop</PackageTags>
+    <PackageReleaseNotes>- .Net Standard and Linux support</PackageReleaseNotes>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
     <LangVersion>latest</LangVersion>
+    <PackageId />
+    <Company>Joveler</Company>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

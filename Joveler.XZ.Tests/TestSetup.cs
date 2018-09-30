@@ -68,13 +68,13 @@ namespace Joveler.XZ.Tests
                 }
             }
 
-            XZStream.GlobalInit(libPath);
+            XZInit.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            XZStream.GlobalCleanup();
+            XZInit.GlobalCleanup();
         }
     }
 

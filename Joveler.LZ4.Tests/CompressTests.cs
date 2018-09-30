@@ -29,10 +29,8 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace Joveler.LZ4.Tests
@@ -41,7 +39,7 @@ namespace Joveler.LZ4.Tests
     public class CompressTests
     {
         [TestMethod]
-        [TestCategory("LZ4Lib")]
+        [TestCategory("Joveler.LZ4")]
         public void Compress()
         {
             void Template(string sampleFileName, LZ4CompLevel compLevel)

@@ -68,13 +68,13 @@ namespace Joveler.LZ4.Tests
                 }
             }
 
-            LZ4FrameStream.GlobalInit(libPath);
+            LZ4Init.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            LZ4FrameStream.GlobalCleanup();
+            LZ4Init.GlobalCleanup();
         }
     }
 
@@ -87,7 +87,7 @@ namespace Joveler.LZ4.Tests
                 path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return path;
         }
-        
+
         public static int RunLZ4(string tempArchiveFile)
         {
             string binary;

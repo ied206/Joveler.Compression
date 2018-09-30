@@ -5,10 +5,10 @@
     <title>Joveler.XZ</title>
     <version>1.0.0</version>
     <owners>ied206</owners>
-    <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
+    <authors>Hajin Jang</authors>
     <licenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.XZ/LICENSE</licenseUrl> 
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
-    <iconUrl></iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>C# wrapper library for native liblzma (XZ Utils).
 Targets .Net Standard 2.0, supports Windows and Linux.</description>

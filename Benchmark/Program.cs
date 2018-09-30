@@ -3,7 +3,6 @@ using BenchmarkDotNet.Running;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Benchmark
@@ -82,7 +81,7 @@ namespace Benchmark
             Program.NativeGlobalInit();
 
             _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
-            
+
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
             Directory.CreateDirectory(_destDir);
@@ -426,21 +425,20 @@ namespace Benchmark
                         break;
                 }
             }
-            
+
             if (zlibPath == null || xzPath == null || lz4Path == null)
                 throw new PlatformNotSupportedException();
 
-
             Joveler.ZLib.ZLibInit.GlobalInit(zlibPath, 64 * 1024);
-            Joveler.XZ.XZStream.GlobalInit(xzPath, 64 * 1024);
-            Joveler.LZ4.LZ4FrameStream.GlobalInit(lz4Path, 64 * 1024);
+            Joveler.XZ.XZInit.GlobalInit(xzPath, 64 * 1024);
+            Joveler.LZ4.LZ4Init.GlobalInit(lz4Path, 64 * 1024);
         }
 
         public static void NativeGlobalCleanup()
         {
             Joveler.ZLib.ZLibInit.GlobalCleanup();
-            Joveler.XZ.XZStream.GlobalCleanup();
-            Joveler.LZ4.LZ4FrameStream.GlobalCleanup();
+            Joveler.XZ.XZInit.GlobalCleanup();
+            Joveler.LZ4.LZ4Init.GlobalCleanup();
         }
 
         public static void Main(string[] args)

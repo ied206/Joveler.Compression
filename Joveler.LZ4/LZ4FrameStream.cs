@@ -28,11 +28,9 @@
 */
 
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace Joveler.LZ4
 {
@@ -41,7 +39,6 @@ namespace Joveler.LZ4
     {
         #region Fields and Properties
         // Field
-        private Stream _baseStream;
         private readonly LZ4Mode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
@@ -52,43 +49,43 @@ namespace Joveler.LZ4
         private readonly byte[] _workBuf;
 
         // Compression
-        private static int _bufferSize = 64 * 1024; // 64K
+        internal static int BufferSize = 64 * 1024; // 64K
         private readonly uint _destBufSize;
 
         // Decompression
-        private const int DecompDone = -1;
+        private const int DecompressComplete = -1;
         private bool _firstRead = true;
         private int _decompSrcIdx = 0;
         private int _decompSrcCount = 0;
 
         // Property
-        public Stream BaseStream => _baseStream;
+        public Stream BaseStream { get; private set; }
 
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
 
         // Const
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
-        private static uint FrameVersion;
-        private readonly byte[] FrameMagicNumber = new byte[4] { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
+        internal static uint FrameVersion;
+        private static readonly byte[] FrameMagicNumber = new byte[4] { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
         #endregion
 
         #region Constructor
         public LZ4FrameStream(Stream stream, LZ4Mode mode)
-            : this(stream, mode, 0, false) { }
+            : this(stream, mode, LZ4CompLevel.Default, false) { }
 
         public LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel)
             : this(stream, mode, compressionLevel, false) { }
 
         public LZ4FrameStream(Stream stream, LZ4Mode mode, bool leaveOpen)
-            : this(stream, mode, 0, leaveOpen) { }
+            : this(stream, mode, LZ4CompLevel.Default, leaveOpen) { }
 
         public unsafe LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel, bool leaveOpen)
         {
             if (!NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
 
-            _baseStream = stream ?? throw new ArgumentNullException(nameof(stream));
+            BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
             _mode = mode;
             _leaveOpen = leaveOpen;
             _disposed = false;
@@ -117,11 +114,11 @@ namespace Joveler.LZ4
                             AutoFlush = 1,
                         };
 
-                        UIntPtr frameSizeVal = NativeMethods.FrameCompressionBound((UIntPtr)_bufferSize, prefs);
+                        UIntPtr frameSizeVal = NativeMethods.FrameCompressionBound((UIntPtr)BufferSize, prefs);
                         Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
 
                         uint frameSize = frameSizeVal.ToUInt32();
-                        if (_bufferSize < frameSize)
+                        if (BufferSize < frameSize)
                             _destBufSize = frameSize;
 
                         _workBuf = new byte[_destBufSize];
@@ -129,13 +126,13 @@ namespace Joveler.LZ4
                         UIntPtr headerSizeVal;
                         fixed (byte* dest = &_workBuf[0])
                         {
-                            headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
+                            headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)BufferSize, prefs);
                         }
                         LZ4FrameException.CheckLZ4Error(headerSizeVal);
                         Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
 
                         int headerSize = (int)headerSizeVal.ToUInt32();
-                        _baseStream.Write(_workBuf, 0, headerSize);
+                        BaseStream.Write(_workBuf, 0, headerSize);
                         TotalOut += headerSize;
 
                         break;
@@ -146,13 +143,13 @@ namespace Joveler.LZ4
                         LZ4FrameException.CheckLZ4Error(ret);
 
                         byte[] headerBuf = new byte[4];
-                        int readHeaderSize = _baseStream.Read(headerBuf, 0, 4);
+                        int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
                         TotalIn += 4;
 
                         if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
                             throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
 
-                        _workBuf = new byte[_bufferSize];
+                        _workBuf = new byte[BufferSize];
 
                         break;
                     }
@@ -192,12 +189,12 @@ namespace Joveler.LZ4
 
                 }
 
-                if (_baseStream != null)
+                if (BaseStream != null)
                 {
                     Flush();
                     if (!_leaveOpen)
-                        _baseStream.Dispose();
-                    _baseStream = null;
+                        BaseStream.Dispose();
+                    BaseStream = null;
                 }
 
                 _disposed = true;
@@ -208,123 +205,6 @@ namespace Joveler.LZ4
         {
             Dispose(true);
             GC.SuppressFinalize(this);
-        }
-        #endregion
-
-        #region Global - (Static) GlobalInit, GlobalCleanup
-        public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
-        {
-            if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                if (libPath == null)
-                    throw new ArgumentNullException(nameof(libPath));
-                if (!File.Exists(libPath))
-                    throw new FileNotFoundException("Specified dll does not exist");
-
-                NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
-
-                // Check if dll is valid (liblz4.so.1.8.2.dll)
-                if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
-                }
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                if (libPath == null)
-                    libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4
-                if (!File.Exists(libPath))
-                    throw new ArgumentException("Specified .so file does not exist");
-
-                NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
-
-                // Check if dll is valid libz.so
-                if (NativeMethods.Linux.dlsym(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid liblz4.so");
-                }
-            }
-            
-            if (bufferSize < 0)
-                throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            if (bufferSize < 4096)
-                bufferSize = 4096;
-            _bufferSize = bufferSize;
-            
-            try
-            {
-                NativeMethods.LoadFuntions();
-                FrameVersion = NativeMethods.GetFrameVersion();
-            }
-            catch (Exception)
-            {
-                GlobalCleanup();
-                throw;
-            }
-        }
-
-        public static void GlobalCleanup()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            NativeMethods.ResetFuntcions();
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
-                Debug.Assert(ret != 0);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
-                Debug.Assert(ret == 0);
-            }
-            NativeMethods.hModule = IntPtr.Zero;
-        }
-        #endregion
-
-        #region Version - (Static)
-        public static Version LibraryVersion()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            /*
-                Definition from "lz4.h"
-
-                #define LZ4_VERSION_MAJOR    1 
-                #define LZ4_VERSION_MINOR    8 
-                #define LZ4_VERSION_RELEASE  1 
-
-                #define LZ4_VERSION_NUMBER (LZ4_VERSION_MAJOR *100*100 + LZ4_VERSION_MINOR *100 + LZ4_VERSION_RELEASE)
-
-                #define LZ4_LIB_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
-            */
-
-            int verInt = (int)NativeMethods.VersionNumber();
-            int major = verInt / 10000;
-            int minor = verInt % 10000 / 100;
-            int revision = verInt % 100;
-
-            return new Version(major, minor, revision);
-        }
-
-        public static string LibraryVersionString()
-        {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            return NativeMethods.VersionString();
         }
         #endregion
 
@@ -352,7 +232,7 @@ namespace Joveler.LZ4
             int destEndIdx = offset + count;
 
             // Reached end of stream
-            if (_decompSrcIdx == DecompDone)
+            if (_decompSrcIdx == DecompressComplete)
                 return 0;
 
             if (_firstRead)
@@ -388,13 +268,13 @@ namespace Joveler.LZ4
                 {
                     // Read from _baseStream
                     _decompSrcIdx = 0;
-                    _decompSrcCount = _baseStream.Read(_workBuf, 0, _workBuf.Length);
+                    _decompSrcCount = BaseStream.Read(_workBuf, 0, _workBuf.Length);
                     TotalIn += _decompSrcCount;
 
                     // _baseStream reached its end
                     if (_decompSrcCount == 0)
                     {
-                        _decompSrcIdx = DecompDone;
+                        _decompSrcIdx = DecompressComplete;
                         break;
                     }
                 }
@@ -447,7 +327,7 @@ namespace Joveler.LZ4
 
             while (0 < count)
             {
-                int srcWorkSize = _bufferSize < count ? _bufferSize : count;
+                int srcWorkSize = BufferSize < count ? BufferSize : count;
 
                 UIntPtr outSizeVal;
                 fixed (byte* dest = &_workBuf[0])
@@ -461,7 +341,7 @@ namespace Joveler.LZ4
                 Debug.Assert(outSizeVal.ToUInt64() < int.MaxValue, "BufferSize should be <2GB");
                 int outSize = (int)outSizeVal.ToUInt64();
 
-                _baseStream.Write(_workBuf, 0, outSize);
+                BaseStream.Write(_workBuf, 0, outSize);
                 TotalOut += outSize;
 
                 offset += srcWorkSize;
@@ -485,17 +365,17 @@ namespace Joveler.LZ4
             Debug.Assert(outSizeVal.ToUInt64() < int.MaxValue, "BufferSize should be <2GB");
             int outSize = (int)outSizeVal.ToUInt64();
 
-            _baseStream.Write(_workBuf, 0, outSize);
+            BaseStream.Write(_workBuf, 0, outSize);
             TotalOut += outSize;
         }
 
         public override void Flush()
         {
-            _baseStream.Flush();
+            BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == LZ4Mode.Decompress && _baseStream.CanRead;
-        public override bool CanWrite => _mode == LZ4Mode.Compress && _baseStream.CanWrite;
+        public override bool CanRead => _mode == LZ4Mode.Decompress && BaseStream.CanRead;
+        public override bool CanWrite => _mode == LZ4Mode.Compress && BaseStream.CanWrite;
         public override bool CanSeek => false;
 
         public override long Seek(long offset, SeekOrigin origin)

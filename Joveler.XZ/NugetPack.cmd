@@ -7,6 +7,6 @@ SET NUGET="%cd%\..\res\nuget.exe"
 
 dotnet clean -c Release
 dotnet build -c Release
-%NUGET% pack Joveler.ZLib.nuspec
+%NUGET% pack Joveler.XZ.nuspec
 
 ENDLOCAL

@@ -39,7 +39,7 @@ namespace Joveler.LZ4.Tests
     public class DecompressTests
     {
         [TestMethod]
-        [TestCategory("LZ4Lib")]
+        [TestCategory("Joveler.LZ4")]
         public void Decompress()
         {
             void Template(string lz4FileName, string originFileName)
@@ -74,7 +74,7 @@ namespace Joveler.LZ4.Tests
 
                 Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
             }
-            
+
             Template("A.pdf.lz4", "A.pdf"); // -12
             Template("B.txt.lz4", "B.txt"); // -9
             Template("C.bin.lz4", "C.bin"); // -1

@@ -2,7 +2,7 @@
 
 ## Initialization
 
-Joveler.ZLib requires explicit loading of a binary of zlib library.
+Joveler.ZLib requires explicit loading of a zlib library.
 
 You must call `ZLibInit.GlobalInit()` before using Joveler.ZLib.
 
@@ -41,26 +41,26 @@ public static void InitNativeLibrary
 }
 ```
 
-**WARNING**: Architecture of `zlibwapi.dll` must be matched with caller!
+**WARNING**: Caller process and callee library must have the same architecture!
 
-### Embedded zlib binary
+### Embedded binary
 
-Joveler.ZLib comes with sets of precompiled binaries of `zlib 1.2.11`.  
+Joveler.ZLib comes with sets of static binaries of `zlib 1.2.11`.  
 They will be copied into the build directory at build time.
 
 | Platform    | Binary                      |
 |-------------|-----------------------------|
-| Windows x86 | `$(OutDir)\x86\zlibwpi.all` |
-| Windows x64 | `$(OutDir)\x64\zlibwpi.all` |
+| Windows x86 | `$(OutDir)\x86\zlibwpi.dll` |
+| Windows x64 | `$(OutDir)\x64\zlibwpi.dll` |
 | Linux x64   | `$(OutDir)\x64\libz.so`     |
 
 #### Known Issue
 
 - Windows x86 version of embedded `zlibwapi.dll` was compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274).
 
-### Custom zlib
+### Custom binary
 
-To use custom `zlib` binary instead, call`ZLibInit.GlobalInit()` with a path to the custom binary.
+To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to the custom binary.
 
 #### NOTES
 
@@ -69,22 +69,22 @@ To use custom `zlib` binary instead, call`ZLibInit.GlobalInit()` with a path to 
 
 ### Cleanup
 
-To unload zlib dll explicitly, call `ZLibInit.GlobalCleanup()`.
+To unload zlib library explicitly, call `ZLibInit.GlobalCleanup()`.
 
 ## Compression
 
 ### DeflateStream
 
-A stream to process a data format conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt).
+The stream to process a data format conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt).
 
 Its API is similar to `System.IO.Compression.DeflateStream`.
 
-Example of compression:
+#### Ex) Compression
 
 ```cs
 using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
 using (FileStream fsComp = new FileStream("test.deflate", FileMode.Create))
-using (DeflateStream zs = new DeflateStream(fsComp, ZLibMode.Compress, ZLibCompLevel.Default, true))
+using (DeflateStream zs = new DeflateStream(fsComp, ZLibMode.Compress, ZLibCompLevel.Default))
 {
     fsOrigin.CopyTo(zs);
 }
@@ -112,12 +112,12 @@ public enum ZLibCompLevel : int
 }
 ```
 
-Example of decompression:
+#### Ex) Decompression
 
 ```cs
 using (FileStream fsComp = new FileStream("test.deflate", FileMode.Create))
 using (FileStream fsDecomp = new FileStream("file_decomp.bin", FileMode.Open))
-using (DeflateStream zs = new DeflateStream(fsComp, ZLibMode.Decompress, true))
+using (DeflateStream zs = new DeflateStream(fsComp, ZLibMode.Decompress))
 {
     zs.CopyTo(fsDecomp);
 }
@@ -139,7 +139,7 @@ Same usage with `DeflateStream`.
 
 A helper class for `DeflateStream`.
 
-Example of `DeflateCompressor.Compress(Stream stream)`:
+#### Ex) `DeflateCompressor.Compress(Stream stream)`
 
 ```cs
 using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
@@ -149,7 +149,7 @@ using (MemoryStream msComp = DeflateCompressor.Compress(fsOrigin))
 }
 ```
 
-Example of `DeflateCompressor.Decompress(byte[] buffer)`:
+#### Ex) `DeflateCompressor.Decompress(byte[] buffer)`
 
 ```cs
 byte[] input = new byte[] { 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00 };
@@ -181,7 +181,7 @@ A class to compute the adler32 checksum.
 Use `Append()` methods to compute checksum.  
 Use `Checksum` property to get checksum value.
 
-Example of `Append(Stream stream)`:
+#### Ex) `Append(Stream stream)`
 
 ```cs
 using (FileStream fs = new FileStream("read.txt", FileMode.Open))
@@ -192,7 +192,7 @@ using (FileStream fs = new FileStream("read.txt", FileMode.Open))
 }
 ```
 
-Example of `Append(byte[] buffer)` and `Append(byte[] buffer, int offset, int count)`:
+#### Ex) `Append(byte[] buffer)`, `Append(byte[] buffer, int offset, int count)`
 
 ```cs
 Adler32Checksum adler = new Adler32Checksum();
@@ -238,7 +238,7 @@ To use static wrapper methods, call `Crc32Checksum.Crc32()` instead of `Adler32C
 
 A stream designed to compute adler32 checksum on-the-fly.
 
-Example of reading from `AdlerStream`:
+#### Ex) Reading from `AdlerStream`
 
 ```cs
 using (FileStream fs = new FileStream("read.bin", FileMode.Open))
@@ -253,7 +253,7 @@ using (Adler32Stream adler = new Adler32Stream(fs))
 }
 ```
 
-Example of writing to `AdlerStream`:
+#### Ex) Writing to `AdlerStream`
 
 ```cs
 using (FileStream fs = new FileStream("write.bin", FileMode.Create))

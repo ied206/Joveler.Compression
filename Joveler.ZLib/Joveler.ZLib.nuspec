@@ -8,13 +8,13 @@
     <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
     <licenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.ZLib/LICENSE</licenseUrl> 
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
-    <iconUrl></iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>C# wrapper library for native zlib.
 Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
 Targets .Net Standard 2.0, supports Windows and Linux.</description>
     <summary>C# wrapper library for native zlib.</summary>
-    <releaseNotes>- .Net Standard and Linux supports</releaseNotes>
+    <releaseNotes>- .Net Standard and Linux support</releaseNotes>
     <copyright>Copyright (c) 2017-2018 Hajin Jang</copyright>
     <tags>zlib deflate gzip adler32 crc32 compression pinvoke interop</tags>
     <dependencies>
@@ -22,8 +22,8 @@ Targets .Net Standard 2.0, supports Windows and Linux.</description>
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\Release\netstandard20\Joveler.ZLib.dll" target="lib\netstandard2.0" />
-    <file src="bin\Release\netstandard20\Joveler.ZLib.pdb" target="lib\netstandard2.0" />
+    <file src="bin\Release\netstandard2.0\Joveler.ZLib.dll" target="lib\netstandard2.0" />
+    <file src="bin\Release\netstandard2.0\Joveler.ZLib.pdb" target="lib\netstandard2.0" />
     <file src="Precompiled\x86\zlibwapi.dll" target="build\netstandard2.0\Precompiled\x86" />
     <file src="Precompiled\x64\zlibwapi.dll" target="build\netstandard2.0\Precompiled\x64" />
     <file src="Precompiled\x64\libz.so"      target="build\netstandard2.0\Precompiled\x64" />

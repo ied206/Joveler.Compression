@@ -37,7 +37,7 @@ namespace Joveler.XZ.Tests
     public class DecompressTests
     {
         [TestMethod]
-        [TestCategory("XZLib")]
+        [TestCategory("Joveler.XZ")]
         public void Decompress()
         {
             void Template(string xzFileName, string originFileName)
@@ -72,7 +72,7 @@ namespace Joveler.XZ.Tests
 
                 Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
             }
-            
+
             Template("A.xz", "A.pdf");
             Template("B9.xz", "B.txt");
             Template("B1.xz", "B.txt");
