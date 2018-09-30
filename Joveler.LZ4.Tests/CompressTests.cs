@@ -69,7 +69,7 @@ namespace Joveler.LZ4.Tests
                         Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
                     }
 
-                    Assert.IsTrue(TestHelper.RunLZ4(tempLz4File) == 0);
+                    Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
 
                     byte[] decompDigest;
                     byte[] originDigest;

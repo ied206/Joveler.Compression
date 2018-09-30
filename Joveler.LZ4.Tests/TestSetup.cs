@@ -88,7 +88,7 @@ namespace Joveler.LZ4.Tests
             return path;
         }
 
-        public static int RunLZ4(string tempArchiveFile)
+        public static int RunLZ4(string tempArchiveFile, string destFile)
         {
             string binary;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -103,10 +103,10 @@ namespace Joveler.LZ4.Tests
                 StartInfo = new ProcessStartInfo
                 {
                     UseShellExecute = false,
-                    // CreateNoWindow = true,
-                    // WindowStyle = ProcessWindowStyle.Hidden,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
                     FileName = binary,
-                    Arguments = $"-k -d {tempArchiveFile}",
+                    Arguments = $"-k -d {tempArchiveFile} {destFile}",
                 }
             };
             proc.Start();
