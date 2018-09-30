@@ -15,9 +15,9 @@ Home repository of C# pinvoke libraries for compression.
 
 | Project      | Nuget | Wraps                               | License      |
 |--------------|-------|-------------------------------------|--------------|
-| Joveler.ZLib | [![NuGet](https://buildstats.info/nuget/Joveler.ZLib)](https://www.nuget.org/packages/Joveler.ZLib) | [zlib](https://zlib.net/) | zlib |
-| Joveler.XZ   | [![NuGet](https://buildstats.info/nuget/Joveler.XZ)](https://www.nuget.org/packages/Joveler.XZ) | [XZ Utils](https://tukaani.org/xz/) | MIT |
-| Joveler.LZ4  | - | [lz4](https://lz4.github.io/lz4/)   | BSD 2-Clause |
+| [Joveler.Compression.ZLib](./Joveler.Compression.ZLib) | [![NuGet](https://buildstats.info/nuget/Joveler.Compression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib) | [zlib](https://zlib.net/) | zlib |
+| [Joveler.Compression.XZ](./Joveler.Compression.XZ) | [![NuGet](https://buildstats.info/nuget/Joveler.Compression.XZ)](https://www.nuget.org/packages/Joveler.Compression.XZ) | [XZ Utils](https://tukaani.org/xz/) | MIT |
+| [Joveler.Compression.LZ4](./Joveler.Compression.LZ4) | - | [lz4](https://lz4.github.io/lz4/)   | BSD 2-Clause |
 
 | File     | License |
 |----------|---------|

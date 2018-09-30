@@ -37,11 +37,11 @@ namespace Benchmark
         };
 
         // ZLibCompLevel
-        public Dictionary<string, Joveler.ZLib.ZLibCompLevel> NativeZLibLevelDict = new Dictionary<string, Joveler.ZLib.ZLibCompLevel>(StringComparer.Ordinal)
+        public Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel> NativeZLibLevelDict = new Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel>(StringComparer.Ordinal)
         {
-            ["Fastest"] = Joveler.ZLib.ZLibCompLevel.BestSpeed,
-            ["Default"] = Joveler.ZLib.ZLibCompLevel.Default,
-            ["Best"] = Joveler.ZLib.ZLibCompLevel.BestCompression,
+            ["Fastest"] = Joveler.Compression.ZLib.ZLibCompLevel.BestSpeed,
+            ["Default"] = Joveler.Compression.ZLib.ZLibCompLevel.Default,
+            ["Best"] = Joveler.Compression.ZLib.ZLibCompLevel.BestCompression,
         };
 
         public Dictionary<string, SharpCompress.Compressors.Deflate.CompressionLevel> ManagedZLibLevelDict = new Dictionary<string, SharpCompress.Compressors.Deflate.CompressionLevel>(StringComparer.Ordinal)
@@ -54,17 +54,17 @@ namespace Benchmark
         // XZPreset
         public Dictionary<string, uint> XZPresetDict = new Dictionary<string, uint>(StringComparer.Ordinal)
         {
-            ["Fastest"] = Joveler.XZ.XZStream.MinimumPreset,
-            ["Default"] = Joveler.XZ.XZStream.DefaultPreset,
-            ["Best"] = Joveler.XZ.XZStream.MaximumPreset,
+            ["Fastest"] = Joveler.Compression.XZ.XZStream.MinimumPreset,
+            ["Default"] = Joveler.Compression.XZ.XZStream.DefaultPreset,
+            ["Best"] = Joveler.Compression.XZ.XZStream.MaximumPreset,
         };
 
         // LZ4CompLevel
-        public Dictionary<string, Joveler.LZ4.LZ4CompLevel> NativeLZ4LevelDict = new Dictionary<string, Joveler.LZ4.LZ4CompLevel>(StringComparer.Ordinal)
+        public Dictionary<string, Joveler.Compression.LZ4.LZ4CompLevel> NativeLZ4LevelDict = new Dictionary<string, Joveler.Compression.LZ4.LZ4CompLevel>(StringComparer.Ordinal)
         {
-            ["Fastest"] = Joveler.LZ4.LZ4CompLevel.Fast,
-            ["Default"] = Joveler.LZ4.LZ4CompLevel.High,
-            ["Best"] = Joveler.LZ4.LZ4CompLevel.VeryHigh, // LZ4-HC
+            ["Fastest"] = Joveler.Compression.LZ4.LZ4CompLevel.Fast,
+            ["Default"] = Joveler.Compression.LZ4.LZ4CompLevel.High,
+            ["Best"] = Joveler.Compression.LZ4.LZ4CompLevel.VeryHigh, // LZ4-HC
         };
 
         // ManagedLZ4CompLevel
@@ -118,7 +118,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.LZ4.LZ4FrameStream lzs = new Joveler.LZ4.LZ4FrameStream(ms, Joveler.LZ4.LZ4Mode.Compress, NativeLZ4LevelDict[Level], true))
+                using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, Joveler.Compression.LZ4.LZ4Mode.Compress, NativeLZ4LevelDict[Level], true))
                 {
                     rms.CopyTo(lzs);
                 }
@@ -160,7 +160,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.ZLib.ZLibStream zs = new Joveler.ZLib.ZLibStream(ms, Joveler.ZLib.ZLibMode.Compress, NativeZLibLevelDict[Level], true))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, Joveler.Compression.ZLib.ZLibMode.Compress, NativeZLibLevelDict[Level], true))
                 {
                     rms.CopyTo(zs);
                 }
@@ -201,7 +201,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.XZ.XZStream xzs = new Joveler.XZ.XZStream(ms, Joveler.XZ.LzmaMode.Compress, XZPresetDict[Level], true))
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, Joveler.Compression.XZ.LzmaMode.Compress, XZPresetDict[Level], true))
                 {
                     rms.CopyTo(xzs);
                 }
@@ -291,7 +291,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(compData))
-                using (Joveler.LZ4.LZ4FrameStream zs = new Joveler.LZ4.LZ4FrameStream(rms, Joveler.LZ4.LZ4Mode.Decompress))
+                using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, Joveler.Compression.LZ4.LZ4Mode.Decompress))
                 {
                     zs.CopyTo(ms);
                 }
@@ -325,7 +325,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(compData))
-                using (Joveler.ZLib.ZLibStream zs = new Joveler.ZLib.ZLibStream(rms, Joveler.ZLib.ZLibMode.Decompress))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(rms, Joveler.Compression.ZLib.ZLibMode.Decompress))
                 {
                     zs.CopyTo(ms);
                 }
@@ -359,7 +359,7 @@ namespace Benchmark
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(compData))
-                using (Joveler.XZ.XZStream zs = new Joveler.XZ.XZStream(rms, Joveler.XZ.LzmaMode.Decompress))
+                using (Joveler.Compression.XZ.XZStream zs = new Joveler.Compression.XZ.XZStream(rms, Joveler.Compression.XZ.LzmaMode.Decompress))
                 {
                     zs.CopyTo(ms);
                 }
@@ -429,16 +429,16 @@ namespace Benchmark
             if (zlibPath == null || xzPath == null || lz4Path == null)
                 throw new PlatformNotSupportedException();
 
-            Joveler.ZLib.ZLibInit.GlobalInit(zlibPath, 64 * 1024);
-            Joveler.XZ.XZInit.GlobalInit(xzPath, 64 * 1024);
-            Joveler.LZ4.LZ4Init.GlobalInit(lz4Path, 64 * 1024);
+            Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath, 64 * 1024);
+            Joveler.Compression.XZ.XZInit.GlobalInit(xzPath, 64 * 1024);
+            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path, 64 * 1024);
         }
 
         public static void NativeGlobalCleanup()
         {
-            Joveler.ZLib.ZLibInit.GlobalCleanup();
-            Joveler.XZ.XZInit.GlobalCleanup();
-            Joveler.LZ4.LZ4Init.GlobalCleanup();
+            Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
+            Joveler.Compression.XZ.XZInit.GlobalCleanup();
+            Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
         }
 
         public static void Main(string[] args)
