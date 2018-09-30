@@ -281,7 +281,7 @@ namespace Joveler.LZ4
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                uint ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
+                int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
                 Debug.Assert(ret != 0);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))

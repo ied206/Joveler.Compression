@@ -157,7 +157,7 @@ namespace Joveler.ZLib
                 NativeMethods.ResetFunctions();
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    uint ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
+                    int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
                     Debug.Assert(ret != 0);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -220,8 +220,7 @@ namespace Joveler.ZLib
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            internal static extern uint FreeLibrary(IntPtr hModule);
+            internal static extern int FreeLibrary(IntPtr hModule);
         }
         #endregion
 

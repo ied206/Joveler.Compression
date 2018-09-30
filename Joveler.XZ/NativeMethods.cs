@@ -95,8 +95,7 @@ namespace Joveler.XZ
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            internal static extern uint FreeLibrary(IntPtr hModule);
+            internal static extern int FreeLibrary(IntPtr hModule);
         }
         #endregion
 

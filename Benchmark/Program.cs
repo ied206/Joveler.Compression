@@ -405,13 +405,13 @@ namespace Benchmark
                 {
                     zlibDllPath = Path.Combine(baseDir, "x64", "zlibwapi.dll");
                     xzDllPath = Path.Combine(baseDir, "x64", "liblzma.dll");
-                    lz4DllPath = Path.Combine(baseDir, "x64", "liblz4.so.1.8.3");
+                    lz4DllPath = Path.Combine(baseDir, "x64", "liblz4.so.1.8.3.dll");
                 }
                 else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
                 {
                     zlibDllPath = Path.Combine(baseDir, "x86", "zlibwapi.dll");
                     xzDllPath = Path.Combine(baseDir, "x86", "liblzma.dll");
-                    lz4DllPath = Path.Combine(baseDir, "x86", "liblz4.so.1.8.3");
+                    lz4DllPath = Path.Combine(baseDir, "x86", "liblz4.so.1.8.3.dll");
                 }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
