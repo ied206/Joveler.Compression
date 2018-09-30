@@ -3,7 +3,7 @@
   <metadata>
     <id>Joveler.Compression.XZ</id>
     <title>Joveler.Compression.XZ</title>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <owners>ied206</owners>
     <authors>Hajin Jang</authors>
     <licenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.XZ/LICENSE</licenseUrl> 
@@ -13,7 +13,7 @@
     <description>C# pinvoke library for liblzma (XZ Utils).
 Targets .Net Standard 2.0, supports Windows and Linux.</description>
     <summary>C# pinvoke library for liblzma (XZ Utils).</summary>
-    <releaseNotes>- Initial release</releaseNotes>
+    <releaseNotes>- TODO</releaseNotes>
     <copyright>Copyright (c) 2018 Hajin Jang</copyright>
     <tags>xz liblzma compression pinvoke interop</tags>
     <dependencies>

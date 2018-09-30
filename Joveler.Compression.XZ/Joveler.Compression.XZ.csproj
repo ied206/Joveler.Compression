@@ -12,7 +12,7 @@ Targets .Net Standard 2.0, supports Windows and Linux.</Description>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>xz liblzma compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Initial release</PackageReleaseNotes>
+    <PackageReleaseNotes>- TODO</PackageReleaseNotes>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
 </Project>

@@ -3,7 +3,7 @@
   <metadata>
     <id>Joveler.Compression.ZLib</id>
     <title>Joveler.Compression.ZLib</title>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <owners>ied206</owners>
     <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
     <licenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.ZLib/LICENSE</licenseUrl> 
@@ -14,7 +14,7 @@
 Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
 Targets .Net Standard 2.0, supports Windows and Linux.</description>
     <summary>C# pinvoke library for zlib.</summary>
-    <releaseNotes>- .Net Standard and Linux support</releaseNotes>
+    <releaseNotes>- TODO</releaseNotes>
     <copyright>Copyright (c) 2017-2018 Hajin Jang</copyright>
     <tags>zlib deflate gzip adler32 crc32 compression pinvoke interop</tags>
     <dependencies>
