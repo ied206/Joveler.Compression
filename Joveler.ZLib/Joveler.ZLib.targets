@@ -35,7 +35,7 @@
     <JovelerZLibLinuxPrecompiled Condition="'$(ExcludePrecompiledZLib)' != 'true' And 
                                             '$(MSBuildThisFileDirectory)' != '' And
                                             HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\libz.so.1.2.11"/>
+                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\libz.so"/>
   </ItemGroup>
 
   <!--

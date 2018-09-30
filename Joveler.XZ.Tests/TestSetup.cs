@@ -56,7 +56,7 @@ namespace Joveler.XZ.Tests
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "liblzma.so.5.2.4");
+                    libPath = Path.Combine("x64", "liblzma.so");
             }
 
             XZStream.GlobalInit(libPath);

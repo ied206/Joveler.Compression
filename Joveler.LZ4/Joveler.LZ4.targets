@@ -31,7 +31,7 @@
     <JovelerLZ4Precompiled Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
                                   '$(MSBuildThisFileDirectory)' != '' And
                                    HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\liblz4.so.*" />
+                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\liblz4.*" />
   </ItemGroup>
 
   <!--

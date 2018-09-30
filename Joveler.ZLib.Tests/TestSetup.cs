@@ -53,7 +53,7 @@ namespace Joveler.ZLib.Tests
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "libz.so.1.2.11");
+                    libPath = Path.Combine("x64", "libz.so");
             }
 
             ZLibInit.GlobalInit(libPath);
