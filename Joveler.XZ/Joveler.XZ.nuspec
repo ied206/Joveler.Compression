@@ -10,21 +10,22 @@
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
     <iconUrl></iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>C# wrapper library for native liblzma (XZ Utils).</description>
+    <description>C# wrapper library for native liblzma (XZ Utils).
+Targets .Net Standard 2.0, supports Windows and Linux.</description>
     <summary>C# wrapper library for native liblzma (XZ Utils).</summary>
     <releaseNotes>- Initial release</releaseNotes>
     <copyright>Copyright (c) 2018 Hajin Jang</copyright>
-    <tags>xz liblzma pinvoke interop</tags>
+    <tags>xz liblzma compression pinvoke interop</tags>
     <dependencies>
       <group targetFramework="netstandard2.0"></group>
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\netstandard2.0\Release\Joveler.XZ.dll" target="lib\netstandard2.0" />
-    <file src="bin\netstandard2.0\Release\Joveler.XZ.pdb" target="lib\netstandard2.0" />
+    <file src="bin\Release\netstandard2.0\Joveler.XZ.dll" target="lib\netstandard2.0" />
+    <file src="bin\Release\netstandard2.0\Joveler.XZ.pdb" target="lib\netstandard2.0" />
     <file src="Precompiled\x86\liblzma.dll" target="build\netstandard2.0\Precompiled\x86" />
     <file src="Precompiled\x64\liblzma.dll" target="build\netstandard2.0\Precompiled\x64" />
-    <file src="Precompiled\x64\liblzma.so" target="build\netstandard2.0\Precompiled\x64" />
+    <file src="Precompiled\x64\liblzma.so"  target="build\netstandard2.0\Precompiled\x64" />
     <file src="Joveler.XZ.targets" target="build\netstandard2.0" />
   </files>
 </package>

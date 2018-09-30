@@ -48,15 +48,24 @@ namespace Joveler.XZ.Tests
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "liblzma.dll");
-                else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
-                    libPath = Path.Combine("x86", "liblzma.dll");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblzma.dll");
+                        break;
+                    case Architecture.X86:
+                        libPath = Path.Combine("x86", "liblzma.dll");
+                        break;
+                }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "liblzma.so");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblzma.so");
+                        break;
+                }
             }
 
             XZStream.GlobalInit(libPath);

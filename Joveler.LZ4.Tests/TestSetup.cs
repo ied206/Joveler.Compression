@@ -48,15 +48,24 @@ namespace Joveler.LZ4.Tests
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "liblz4.dll");
-                else if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
-                    libPath = Path.Combine("x86", "liblz4.dll");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblz4.dll");
+                        break;
+                    case Architecture.X86:
+                        libPath = Path.Combine("x86", "liblz4.dll");
+                        break;
+                }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-                    libPath = Path.Combine("x64", "liblz4.so");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblz4.so");
+                        break;
+                }
             }
 
             LZ4FrameStream.GlobalInit(libPath);

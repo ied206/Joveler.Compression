@@ -132,7 +132,7 @@ namespace Joveler.ZLib
                     throw new ArgumentException($"[{libPath}] is not a valid libz.so");
                 }
             }
-            
+
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
             if (bufferSize < 4096)

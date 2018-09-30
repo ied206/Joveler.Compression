@@ -32,70 +32,64 @@ namespace Joveler.ZLib
     #region Crc32Stream
     public class Crc32Stream : Stream
     {
-        #region Fields
-        private uint _crc32 = 0;
-        private readonly Stream _baseStream;
-        #endregion
-
-        #region Properties
-        public uint Crc32 => _crc32;
-        public uint Checksum => _crc32;
-        public Stream BaseStream => _baseStream;
+        #region Fields and Properties
+        public uint Checksum { get; private set; } = Crc32Checksum.InitChecksum;
+        public Stream BaseStream { get; }
         #endregion
 
         #region Constructor
         public Crc32Stream(Stream stream)
         {
             NativeMethods.CheckZLibLoaded();
-            _baseStream = stream;
+            BaseStream = stream;
         }
         #endregion
 
         #region Stream Methods
         public override int Read(byte[] buffer, int offset, int count)
         {
-            int readLen = _baseStream.Read(buffer, offset, count);
+            int readLen = BaseStream.Read(buffer, offset, count);
             using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
             {
-                _crc32 = NativeMethods.Crc32(_crc32, pinRead[offset], (uint)readLen);
+                Checksum = NativeMethods.Crc32(Checksum, pinRead[offset], (uint)readLen);
             }
             return readLen;
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _baseStream.Write(buffer, offset, count);
+            BaseStream.Write(buffer, offset, count);
             using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
             {
-                _crc32 = NativeMethods.Crc32(_crc32, pinRead[offset], (uint)count);
+                Checksum = NativeMethods.Crc32(Checksum, pinRead[offset], (uint)count);
             }
         }
 
         public override void Flush()
         {
-            _baseStream.Flush();
+            BaseStream.Flush();
         }
 
-        public override bool CanRead => _baseStream.CanRead;
-        public override bool CanWrite => _baseStream.CanWrite;
-        public override bool CanSeek => _baseStream.CanSeek;
+        public override bool CanRead => BaseStream.CanRead;
+        public override bool CanWrite => BaseStream.CanWrite;
+        public override bool CanSeek => BaseStream.CanSeek;
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            return _baseStream.Seek(offset, origin);
+            return BaseStream.Seek(offset, origin);
         }
 
         public override void SetLength(long value)
         {
-            _baseStream.SetLength(value);
+            BaseStream.SetLength(value);
         }
 
-        public override long Length => _baseStream.Length;
+        public override long Length => BaseStream.Length;
 
         public override long Position
         {
-            get => _baseStream.Position;
-            set => _baseStream.Position = value;
+            get => BaseStream.Position;
+            set => BaseStream.Position = value;
         }
         #endregion
     }
@@ -104,70 +98,64 @@ namespace Joveler.ZLib
     #region Adler32Stream
     public class Adler32Stream : Stream
     {
-        #region Fields
-        private uint _adler32 = 1;
-        private readonly Stream _baseStream;
-        #endregion
-
-        #region Properties
-        public uint Adler32 => _adler32;
-        public uint Checksum => _adler32;
-        public Stream BaseStream => _baseStream;
+        #region Fields and Properties
+        public uint Checksum { get; private set; } = Adler32Checksum.InitChecksum;
+        public Stream BaseStream { get; }
         #endregion
 
         #region Constructor
         public Adler32Stream(Stream stream)
         {
             NativeMethods.CheckZLibLoaded();
-            _baseStream = stream;
+            BaseStream = stream;
         }
         #endregion
 
         #region Stream Methods
         public override int Read(byte[] buffer, int offset, int count)
         {
-            int readLen = _baseStream.Read(buffer, offset, count);
+            int readLen = BaseStream.Read(buffer, offset, count);
             using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
             {
-                _adler32 = NativeMethods.Adler32(_adler32, pinRead[offset], (uint)readLen);
+                Checksum = NativeMethods.Adler32(Checksum, pinRead[offset], (uint)readLen);
             }
             return readLen;
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _baseStream.Write(buffer, offset, count);
+            BaseStream.Write(buffer, offset, count);
             using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
             {
-                _adler32 = NativeMethods.Adler32(_adler32, pinRead[offset], (uint)count);
+                Checksum = NativeMethods.Adler32(Checksum, pinRead[offset], (uint)count);
             }
         }
 
         public override void Flush()
         {
-            _baseStream.Flush();
+            BaseStream.Flush();
         }
 
-        public override bool CanRead => _baseStream.CanRead;
-        public override bool CanWrite => _baseStream.CanWrite;
-        public override bool CanSeek => _baseStream.CanSeek;
+        public override bool CanRead => BaseStream.CanRead;
+        public override bool CanWrite => BaseStream.CanWrite;
+        public override bool CanSeek => BaseStream.CanSeek;
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            return _baseStream.Seek(offset, origin);
+            return BaseStream.Seek(offset, origin);
         }
 
         public override void SetLength(long value)
         {
-            _baseStream.SetLength(value);
+            BaseStream.SetLength(value);
         }
 
-        public override long Length => _baseStream.Length;
+        public override long Length => BaseStream.Length;
 
         public override long Position
         {
-            get => _baseStream.Position;
-            set => _baseStream.Position = value;
+            get => BaseStream.Position;
+            set => BaseStream.Position = value;
         }
         #endregion
     }
@@ -177,10 +165,8 @@ namespace Joveler.ZLib
     public class Crc32Checksum
     {
         #region Fields and Properties
-        private const uint InitChecksum = 0;
-
-        private uint _checksum;
-        public uint Checksum => _checksum;
+        internal const uint InitChecksum = 0;
+        public uint Checksum { get; private set; }
         #endregion
 
         #region Constructor
@@ -194,14 +180,14 @@ namespace Joveler.ZLib
         #region Append, Reset
         public uint Append(byte[] buffer)
         {
-            _checksum = Crc32(_checksum, buffer);
-            return _checksum;
+            Checksum = Crc32(Checksum, buffer);
+            return Checksum;
         }
 
         public uint Append(byte[] buffer, int offset, int count)
         {
-            _checksum = Crc32(_checksum, buffer, offset, count);
-            return _checksum;
+            Checksum = Crc32(Checksum, buffer, offset, count);
+            return Checksum;
         }
 
         public uint Append(Stream stream)
@@ -210,14 +196,14 @@ namespace Joveler.ZLib
             while (stream.Position < stream.Length)
             {
                 int readByte = stream.Read(buffer, 0, NativeMethods.BufferSize);
-                _checksum = Crc32(_checksum, buffer, 0, readByte);
+                Checksum = Crc32(Checksum, buffer, 0, readByte);
             }
-            return _checksum;
+            return Checksum;
         }
 
         public void Reset()
         {
-            _checksum = InitChecksum;
+            Checksum = InitChecksum;
         }
         #endregion
 
@@ -303,10 +289,8 @@ namespace Joveler.ZLib
     public class Adler32Checksum
     {
         #region Fields and Properties
-        private const uint InitChecksum = 1;
-
-        private uint _checksum;
-        public uint Checksum => _checksum;
+        internal const uint InitChecksum = 1;
+        public uint Checksum { get; private set; }
         #endregion
 
         #region Constructor
@@ -321,14 +305,14 @@ namespace Joveler.ZLib
         #region Append, Reset
         public uint Append(byte[] buffer)
         {
-            _checksum = Adler32(_checksum, buffer);
-            return _checksum;
+            Checksum = Adler32(Checksum, buffer);
+            return Checksum;
         }
 
         public uint Append(byte[] buffer, int offset, int count)
         {
-            _checksum = Adler32(_checksum, buffer, offset, count);
-            return _checksum;
+            Checksum = Adler32(Checksum, buffer, offset, count);
+            return Checksum;
         }
 
         public uint Append(Stream stream)
@@ -337,14 +321,14 @@ namespace Joveler.ZLib
             while (stream.Position < stream.Length)
             {
                 int readByte = stream.Read(buffer, 0, NativeMethods.BufferSize);
-                _checksum = Adler32(_checksum, buffer, 0, readByte);
+                Checksum = Adler32(Checksum, buffer, 0, readByte);
             }
-            return _checksum;
+            return Checksum;
         }
 
         public void Reset()
         {
-            _checksum = InitChecksum;
+            Checksum = InitChecksum;
         }
         #endregion
 
