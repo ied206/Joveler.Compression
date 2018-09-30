@@ -1,0 +1,108 @@
+<!--
+ *
+ * WARNING: This MSBuild file requires MSBuild 4.0 features.
+ * 
+ * Based on System.Data.SQLite.Core.targets, written by Joe Mistachkin and David Archer.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+  ******************************************************************************
+  **                          Load Per-User Settings                          **
+  ******************************************************************************
+  -->
+  
+  <!--
+    Create "Joveler.Compression.LZ4.Precompiled.Exclude" file in project directory 
+    to disable copying precompiled wimlib binaries.
+  -->
+  <PropertyGroup>
+    <JovelerLZ4ExcludePrecompiled Condition="Exists('$(MSBuildProjectDirectory)\Joveler.Compression.LZ4.Precompiled.Exclude')">true</JovelerLZ4ExcludePrecompiled>
+  </PropertyGroup>
+
+ <!--
+  ******************************************************************************
+  **                      LZ4 Interop Library Build Items                     **
+  ******************************************************************************
+  -->
+
+  <ItemGroup>
+    <JovelerLZ4Precompiled Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
+                                  '$(MSBuildThisFileDirectory)' != '' And
+                                   HasTrailingSlash('$(MSBuildThisFileDirectory)')"
+                                  Include="$(MSBuildThisFileDirectory)Precompiled\**\liblz4.*" />
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                     LZ4 Interop Library Content Items                    **
+  ******************************************************************************
+  -->
+
+  <ItemGroup Condition="'$(JovelerLZ4ExcludePrecompiled)' != 'true' And 
+                        '@(JovelerLZ4Precompiled)' != ''">
+    <None Include="@(JovelerLZ4Precompiled)">
+      <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                     LZ4 Interop Library Build Targets                    **
+  ******************************************************************************
+  -->
+
+  <Target Name="CopyJovelerLZ4Precompiled"
+          Condition="'$(CopyJovelerLZ4Precompiled)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')"
+          Inputs="@(JovelerLZ4Precompiled)"
+          Outputs="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+    <!--
+        NOTE: Copy "liblz4.so.1.8.3.dll" and all related files, for every
+              architecture that we support, to the build output directory.
+    -->
+    <Copy SourceFiles="@(JovelerLZ4Precompiled)"
+          DestinationFiles="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="CleanJovelerLZ4Precompiled"
+          Condition="'$(CleanJovelerLZ4Precompiled)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')">
+    <!--
+        NOTE: Delete "liblz4.so.1.8.3.dll" and all related files, for every
+              architecture that we support, from the build output directory.
+    -->
+    <Delete Files="@(JovelerLZ4Precompiled -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+  <!--
+  ******************************************************************************
+  **                  ZLib Interop Library Build Properties                   **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <PostBuildEventDependsOn>
+      $(PostBuildEventDependsOn);
+      CopyJovelerLZ4ExcludePrecompiled;
+    </PostBuildEventDependsOn>
+    <BuildDependsOn>
+      $(BuildDependsOn);
+      CopyJovelerLZ4ExcludePrecompiled;
+    </BuildDependsOn>
+    <CleanDependsOn>
+      $(CleanDependsOn);
+      CleanJovelerLZ4ExcludePrecompiled;
+    </CleanDependsOn>
+  </PropertyGroup>
+</Project>

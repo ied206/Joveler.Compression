@@ -12,9 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Joveler.LZ4\Joveler.LZ4.csproj" />
-    <ProjectReference Include="..\Joveler.XZ\Joveler.XZ.csproj" />
-    <ProjectReference Include="..\Joveler.ZLib\Joveler.ZLib.csproj" />
+    <ProjectReference Include="..\Joveler.Compression.LZ4\Joveler.Compression.LZ4.csproj" />
+    <ProjectReference Include="..\Joveler.Compression.XZ\Joveler.Compression.XZ.csproj" />
+    <ProjectReference Include="..\Joveler.Compression.ZLib\Joveler.Compression.ZLib.csproj" />
   </ItemGroup>
 
 </Project>
