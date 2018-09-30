@@ -1,6 +1,6 @@
 # Joveler.LZ4
 
-C# wrapper for [LZ4](https://github.com/lz4/lz4) library.
+C# pinvoke library for [LZ4](https://github.com/lz4/lz4).
 
 Targets .Net Standard 2.0, supports Windows and Linux.
 

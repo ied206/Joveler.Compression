@@ -4,7 +4,7 @@
     <img src="./Image/Logo.svg" height="128">
 </div>
 
-Home repository of C# wrapper libraries for compression.
+Home repository of C# pinvoke libraries for compression.
 
 | Branch    | Build Status   |
 |-----------|----------------|
@@ -21,4 +21,4 @@ Home repository of C# wrapper libraries for compression.
 
 | File     | License |
 |----------|---------|
-| logo.png | CC BY 3.0 US<br>Copyright (c) ImageCatalog |
+| [Logo](./Image/Logo.svg) | CC BY 3.0 US<br>Copyright (c) ImageCatalog |

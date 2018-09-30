@@ -1,6 +1,6 @@
 # Joveler.XZ
 
-C# wrapper for native [XZ Utils](https://tukaani.org/xz/).
+C# pinvoke library for [XZ Utils](https://tukaani.org/xz/).
 
 Targets .Net Standard 2.0, supports Windows and Linux.
 

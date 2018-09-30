@@ -1,6 +1,6 @@
 # Joveler.ZLib
 
-C# wrapper for native [zlib](https://zlib.net/).
+C# pinvoke library for [zlib](https://zlib.net/).
 
 Targets .Net Standard 2.0, supports Windows and Linux.
 

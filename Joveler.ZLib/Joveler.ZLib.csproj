@@ -4,7 +4,7 @@
     <Title>Joveler.ZLib</Title>
     <Version>2.0.0</Version>
     <Copyright>Copyright (c) 2017-2018 Hajin Jang</Copyright>
-    <Description>C# wrapper library for native zlib.
+    <Description>C# pinvoke library for zlib.
 Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
 Targets .Net Standard 2.0, supports Windows and Linux.</Description>
     <Authors>Jean-loup Gailly, Mark Adler, Hajin Jang</Authors>
@@ -18,6 +18,7 @@ Targets .Net Standard 2.0, supports Windows and Linux.</Description>
     <LangVersion>latest</LangVersion>
     <PackageId />
     <Company>Joveler</Company>
+    <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

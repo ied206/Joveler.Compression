@@ -10,9 +10,9 @@
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>C# wrapper library for native liblzma (XZ Utils).
+    <description>C# pinvoke library for liblzma (XZ Utils).
 Targets .Net Standard 2.0, supports Windows and Linux.</description>
-    <summary>C# wrapper library for native liblzma (XZ Utils).</summary>
+    <summary>C# pinvoke library for liblzma (XZ Utils).</summary>
     <releaseNotes>- Initial release</releaseNotes>
     <copyright>Copyright (c) 2018 Hajin Jang</copyright>
     <tags>xz liblzma compression pinvoke interop</tags>

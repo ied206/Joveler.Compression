@@ -94,15 +94,15 @@
   <PropertyGroup>
     <PostBuildEventDependsOn>
       $(PostBuildEventDependsOn);
-      CopyJovelerXZExcludePrecompiled;
+      CopyJovelerXZPrecompiled;
     </PostBuildEventDependsOn>
     <BuildDependsOn>
       $(BuildDependsOn);
-      CopyJovelerXZExcludePrecompiled;
+      CopyJovelerXZPrecompiled;
     </BuildDependsOn>
     <CleanDependsOn>
       $(CleanDependsOn);
-      CleanJovelerXZExcludePrecompiled;
+      CleanJovelerXZPrecompiled;
     </CleanDependsOn>
   </PropertyGroup>
 </Project>
