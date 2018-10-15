@@ -131,7 +131,7 @@ namespace Joveler.Compression.ZLib
                     if (_mode == ZLibMode.Compress)
                         Flush();
                     if (!_leaveOpen)
-                        BaseStream.Close();
+                        BaseStream.Dispose();
                     BaseStream = null;
                 }
 

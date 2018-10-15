@@ -9,7 +9,7 @@ You must call `ZLibInit.GlobalInit()` before using Joveler.ZLib.
 Put this snippet in your application's init code:
 
 ```csharp
-public static void InitNativeLibrary
+public static void InitNativeLibrary()
 {
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -37,7 +37,7 @@ public static void InitNativeLibrary
     if (libPath == null)
         throw new PlatformNotSupportedException();
 
-    ZLibInit.AssemblyInit(libPath);
+    ZLibInit.GlobalInit(libPath);
 }
 ```
 
