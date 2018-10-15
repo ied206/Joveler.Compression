@@ -144,8 +144,10 @@ namespace Joveler.Compression.XZ
                     }
                 case LzmaMode.Decompress:
                     { // Reference : 02_decompress.c
+#if !NETSTANDARD1_3
                         if (1 < threads)
                             Trace.TraceWarning("Threaded decompression is not supported");
+#endif
                         LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, ulong.MaxValue, LzmaDecodingFlag.CONCATENATED);
                         XZException.CheckLzmaError(ret);
                         break;
@@ -195,14 +197,10 @@ namespace Joveler.Compression.XZ
             }
         }
 
-        public override void Close()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-        #endregion
+        
+#endregion
 
-        #region Stream Methods
+#region Stream Methods
         /// <summary>
         /// For Decompress
         /// </summary>
@@ -446,6 +444,6 @@ namespace Joveler.Compression.XZ
                 }
             }
         }
-        #endregion
+#endregion
     }
 }

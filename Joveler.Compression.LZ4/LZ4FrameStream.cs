@@ -200,12 +200,6 @@ namespace Joveler.Compression.LZ4
                 _disposed = true;
             }
         }
-
-        public override void Close()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
         #endregion
 
         #region Stream Methods
