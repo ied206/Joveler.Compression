@@ -1,4 +1,4 @@
-ZLibWrapper is licensed under zlib license:
+Joveler.Compression.ZLib is licensed under zlib license:
   
   Copyright (C) 2017-2018 Hajin Jang
 
@@ -52,7 +52,7 @@ https://zlibnet.codeplex.com/
 https://www.codeplex.com/site/users/view/hardon
 
 --------------------------------------------------------------------------------
-ZLibWrapper's initial stream implementations are based on zlibnet,
+Joveler.Compression.ZLib's initial stream implementations are based on zlibnet,
 which was ported from .NET managed C++ zlib wrapper, ManagedZLib.
 http://zlibnetwrapper.sourceforge.net
 

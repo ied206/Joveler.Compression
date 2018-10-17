@@ -139,13 +139,13 @@ namespace Joveler.Compression.ZLib
             {
                 funcPtr = Win32.GetProcAddress(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
-                    throw new ArgumentException($"Cannot import [{funcSymbol}]", new Win32Exception());
+                    throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 funcPtr = Linux.dlsym(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
-                    throw new ArgumentException($"Cannot import [{funcSymbol}]", Linux.dlerror());
+                    throw new InvalidOperationException($"Cannot import [{funcSymbol}], {Linux.dlerror()}");
             }
             else
             {

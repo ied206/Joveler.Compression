@@ -2,14 +2,14 @@
 
 ## Initialization
 
-Joveler.ZLib requires explicit loading of a zlib library.
+Joveler.Compression.ZLib requires explicit loading of a zlib library.
 
-You must call `ZLibInit.GlobalInit()` before using Joveler.ZLib.
+You must call `ZLibInit.GlobalInit()` before using Joveler.Compression.ZLib.
 
 Put this snippet in your application's init code:
 
 ```csharp
-public static void InitNativeLibrary
+public static void InitNativeLibrary()
 {
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -37,7 +37,7 @@ public static void InitNativeLibrary
     if (libPath == null)
         throw new PlatformNotSupportedException();
 
-    ZLibInit.AssemblyInit(libPath);
+    ZLibInit.GlobalInit(libPath);
 }
 ```
 
@@ -45,7 +45,7 @@ public static void InitNativeLibrary
 
 ### Embedded binary
 
-Joveler.ZLib comes with sets of static binaries of `zlib 1.2.11`.  
+Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`.  
 They will be copied into the build directory at build time.
 
 | Platform    | Binary                      |
@@ -54,17 +54,15 @@ They will be copied into the build directory at build time.
 | Windows x64 | `$(OutDir)\x64\zlibwpi.dll` |
 | Linux x64   | `$(OutDir)\x64\libz.so`     |
 
-#### Known Issue
-
-- Windows x86 version of embedded `zlibwapi.dll` was compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274).
-
 ### Custom binary
 
 To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to the custom binary.
 
 #### NOTES
 
-- Joveler.ZLib can only recognize `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)`.  
+- Joveler.Compression.ZLib can only recognize `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)`.  
+- Windows x86 version of embedded `zlibwapi.dll` was compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274).
+- Linux x64 version of embedded `libz.so` was statically compiled in Ubuntu 18.04.
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
 
 ### Cleanup
@@ -90,7 +88,7 @@ using (DeflateStream zs = new DeflateStream(fsComp, ZLibMode.Compress, ZLibCompL
 }
 ```
 
-`ZLibWrapper.CompressionLevel` has more option compared to `System.IO.Compression.CompressionLevel`:
+`Joveler.Compression.ZLib.CompressionLevel` has more option compared to `System.IO.Compression.CompressionLevel`:
 
 ```cs
 public enum ZLibCompLevel : int
