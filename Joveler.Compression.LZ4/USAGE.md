@@ -2,9 +2,9 @@
 
 ## Initialization
 
-Joveler.LZ4 requires explicit loading of lz4 library.
+Joveler.Compression.LZ4 requires explicit loading of lz4 library.
 
-You must call `LZ4Init.GlobalInit()` before using Joveler.LZ4.
+You must call `LZ4Init.GlobalInit()` before using Joveler.Compression.LZ4.
 
 Put this snippet in your application's init code:
 
@@ -45,7 +45,7 @@ public static void InitNativeLibrary
 
 ### Embedded binary
 
-Joveler.LZ4 comes with sets of static binaries of `lz4 1.8.3`.  
+Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.8.3`.  
 They will be copied into the build directory at build time.
 
 | Platform    | Binary                     |
@@ -60,6 +60,7 @@ To use custom lz4 binary instead, call `LZ4Init.GlobalInit()` with a path to the
 
 #### NOTES
 
+- Linux x64 version of embedded `liblz4.so` was statically compiled in Ubuntu 18.04.
 - Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
 
 ### Cleanup

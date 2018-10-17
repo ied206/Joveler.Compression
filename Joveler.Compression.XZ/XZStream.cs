@@ -119,13 +119,10 @@ namespace Joveler.Compression.XZ
                                 Flags = 0,
                                 // Let liblzma determine a sane block size.
                                 BlockSize = 0,
-                                // Use no timeout for lzma_code() calls by setting timeout
-                                // to zero. That is, sometimes lzma_code() might block for
-                                // a long time (from several seconds to even minutes).
-                                // If this is not OK, for example due to progress indicator
-                                // needing updates, specify a timeout in milliseconds here.
-                                // See the documentation of lzma_mt in lzma/container.h for
-                                // information how to choose a reasonable timeout.
+                                // Use no timeout for lzma_code() calls by setting timeout to zero.
+                                // That is, sometimes lzma_code() might block for a long time (from several seconds to even minutes).
+                                // If this is not OK, for example due to progress indicator needing updates, specify a timeout in milliseconds here.
+                                // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
                                 TimeOut = 0,
                                 // To use a preset, filters must be set to NULL.
                                 Filters = IntPtr.Zero,
@@ -196,11 +193,9 @@ namespace Joveler.Compression.XZ
                 _disposed = true;
             }
         }
+        #endregion
 
-        
-#endregion
-
-#region Stream Methods
+        #region Stream Methods
         /// <summary>
         /// For Decompress
         /// </summary>
@@ -444,6 +439,6 @@ namespace Joveler.Compression.XZ
                 }
             }
         }
-#endregion
+        #endregion
     }
 }

@@ -2,9 +2,9 @@
 
 ## Initialization
 
-Joveler.XZ requires explicit loading of liblzma library.
+Joveler.Compression.XZ requires explicit loading of liblzma library.
 
-You must call `XZInit.GlobalInit()` before using Joveler.XZ.
+You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ.
 
 Put this snippet in your application's init code:
 
@@ -45,7 +45,7 @@ public static void InitNativeLibrary
 
 ### Embedded binary
 
-Joveler.XZ comes with sets of static binaries of `liblzma 5.2.4`.  
+Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.4`.  
 They will be copied into the build directory at build time.
 
 | Platform    | Binary                      |
@@ -60,6 +60,7 @@ To use custom liblzma binary instead, call `XZInit.GlobalInit()` with a path to 
 
 #### NOTES
 
+- Linux x64 version of embedded `liblzma.so` was statically compiled in Ubuntu 18.04.
 - Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
 
 ### Cleanup

@@ -2,7 +2,7 @@
 
 C# pinvoke library for [zlib](https://zlib.net/).
 
-Targets .Net Standard 2.0, supports Windows and Linux.
+Targets .Net Standard 1.3 and 2.0, supports Windows and Linux.
 
 Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
@@ -19,6 +19,13 @@ Joveler.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler
 - Adler32 and CRC32 checksum
 
 ## Support
+
+### Targeted .Net platforms
+
+- .Net Standard 1.3 (.Net Framework 4.6+, .Net Core 1.0+)
+- .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
+
+If you need .Net Framework 4.5 support, use [ZLibWrapper](https://github.com/ied206/ZLibWrapper) instead.
 
 ### Supported platforms
 
