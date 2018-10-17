@@ -3,7 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+#if !NET451
 using System.Runtime.InteropServices;
+#endif
 
 namespace Joveler.Compression.LZ4
 {
@@ -16,7 +18,9 @@ namespace Joveler.Compression.LZ4
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
 
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 if (libPath == null)
                     throw new ArgumentNullException(nameof(libPath));
@@ -34,6 +38,7 @@ namespace Joveler.Compression.LZ4
                     throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
                 }
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 if (libPath == null)
@@ -52,6 +57,7 @@ namespace Joveler.Compression.LZ4
                     throw new ArgumentException($"[{libPath}] is not a valid liblz4.so");
                 }
             }
+#endif
 
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
@@ -80,16 +86,22 @@ namespace Joveler.Compression.LZ4
 
             NativeMethods.ResetFuntcions();
 
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            
+#endif
             {
                 int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
                 Debug.Assert(ret != 0);
             }
+#if !NET451
+            
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
                 Debug.Assert(ret == 0);
             }
+#endif
             NativeMethods.hModule = IntPtr.Zero;
         }
         #endregion
@@ -103,13 +115,13 @@ namespace Joveler.Compression.LZ4
             /*
                 Definition from "lz4.h"
 
-                #define LZ4_VERSION_MAJOR    1 
-                #define LZ4_VERSION_MINOR    8 
-                #define LZ4_VERSION_RELEASE  1 
+#define LZ4_VERSION_MAJOR    1 
+#define LZ4_VERSION_MINOR    8 
+#define LZ4_VERSION_RELEASE  3
 
-                #define LZ4_VERSION_NUMBER (LZ4_VERSION_MAJOR *100*100 + LZ4_VERSION_MINOR *100 + LZ4_VERSION_RELEASE)
+#define LZ4_VERSION_NUMBER (LZ4_VERSION_MAJOR *100*100 + LZ4_VERSION_MINOR *100 + LZ4_VERSION_RELEASE)
 
-                #define LZ4_LIB_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
+#define LZ4_LIB_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
             */
 
             int verInt = (int)NativeMethods.VersionNumber();

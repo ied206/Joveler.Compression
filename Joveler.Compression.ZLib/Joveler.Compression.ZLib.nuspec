@@ -18,11 +18,19 @@ Targets .Net Standard 1.3 and 2.0, supports Windows and Linux.</description>
     <copyright>Copyright (c) 2017-2018 Hajin Jang</copyright>
     <tags>zlib deflate gzip adler32 crc32 compression pinvoke interop</tags>
     <dependencies>
+      <group targetFramework="net451"></group>
       <group targetFramework="netstandard1.3"></group>
       <group targetFramework="netstandard2.0"></group>
     </dependencies>
   </metadata>
   <files>
+    <!-- .Net Framework 4.7.1 -->
+    <file src="bin\Release\net451\Joveler.Compression.ZLib.dll" target="lib\net451" />
+    <file src="bin\Release\net451\Joveler.Compression.ZLib.pdb" target="lib\net451" />
+    <file src="Precompiled\x86\zlibwapi.dll" target="build\net451\Precompiled\x86" />
+    <file src="Precompiled\x64\zlibwapi.dll" target="build\net451\Precompiled\x64" />
+    <file src="Precompiled\x64\libz.so"      target="build\net451\Precompiled\x64" />
+    <file src="Joveler.Compression.ZLib.targets" target="build\net451" />
     <!-- .Net Standard 1.3 -->
     <file src="bin\Release\netstandard1.3\Joveler.Compression.ZLib.dll" target="lib\netstandard1.3" />
     <file src="bin\Release\netstandard1.3\Joveler.Compression.ZLib.pdb" target="lib\netstandard1.3" />

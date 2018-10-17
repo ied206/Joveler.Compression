@@ -15,7 +15,9 @@ namespace Joveler.Compression.ZLib
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
 
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 NativeMethods.LongBitType = NativeMethods.LongBits.Long32;
                 if (libPath == null || !File.Exists(libPath))
@@ -33,6 +35,7 @@ namespace Joveler.Compression.ZLib
                     throw new ArgumentException($"[{libPath}] is not valid zlibwapi.dll");
                 }
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 Architecture arch = RuntimeInformation.ProcessArchitecture;
@@ -65,6 +68,7 @@ namespace Joveler.Compression.ZLib
                     throw new ArgumentException($"[{libPath}] is not a valid libz.so");
                 }
             }
+#endif
 
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
@@ -88,16 +92,20 @@ namespace Joveler.Compression.ZLib
             if (NativeMethods.hModule != IntPtr.Zero)
             {
                 NativeMethods.ResetFunctions();
+#if !NET451
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
                 {
                     int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
                     Debug.Assert(ret != 0);
                 }
+#if !NET451
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
                     Debug.Assert(ret == 0);
                 }
+#endif
                 NativeMethods.hModule = IntPtr.Zero;
             }
             else

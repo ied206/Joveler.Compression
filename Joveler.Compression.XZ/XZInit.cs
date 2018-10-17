@@ -3,7 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+#if !NET451
 using System.Runtime.InteropServices;
+#endif
 
 namespace Joveler.Compression.XZ
 {
@@ -15,8 +17,9 @@ namespace Joveler.Compression.XZ
         {
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
-
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 if (libPath == null)
                     throw new ArgumentNullException(nameof(libPath));
@@ -34,6 +37,7 @@ namespace Joveler.Compression.XZ
                     throw new ArgumentException($"[{libPath}] is not a valid liblzma library");
                 }
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 if (libPath == null)
@@ -52,6 +56,7 @@ namespace Joveler.Compression.XZ
                     throw new ArgumentException($"[{libPath}] is not a valid liblzma.so");
                 }
             }
+#endif
 
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
@@ -79,16 +84,21 @@ namespace Joveler.Compression.XZ
                 throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
 
             NativeMethods.ResetFunctions();
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
                 Debug.Assert(ret != 0);
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
                 Debug.Assert(ret == 0);
             }
+#endif
+
             NativeMethods.hModule = IntPtr.Zero;
         }
         #endregion
