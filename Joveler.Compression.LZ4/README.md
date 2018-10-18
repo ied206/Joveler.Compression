@@ -1,4 +1,4 @@
-# Joveler.LZ4
+# Joveler.Compression.LZ4
 
 C# pinvoke library for [LZ4](https://github.com/lz4/lz4).
 
@@ -6,7 +6,7 @@ Targets .Net Standard 2.0, supports Windows and Linux.
 
 ## Status
 
-Joveler.LZ4 is similar or slower (~10x) than pure C# implementation, [K4os.Compression.LZ4](https://github.com/MiloszKrajewski/K4os.Compression.LZ4). Overhead of P/Invoke can be one reason. Will not be uploaded to nuget unless it surpasses `K4os.Compression.LZ4`'s performance.
+Joveler.Compression.LZ4 is similar or slower (~10x) than pure C# implementation, [K4os.Compression.LZ4](https://github.com/MiloszKrajewski/K4os.Compression.LZ4). Overhead of P/Invoke can be one reason. Will not be uploaded to nuget unless it surpasses `K4os.Compression.LZ4`'s performance.
 
 ## Features
 

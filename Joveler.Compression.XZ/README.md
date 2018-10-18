@@ -1,4 +1,4 @@
-# Joveler.XZ
+# Joveler.Compression.XZ
 
 C# pinvoke library for [XZ Utils](https://tukaani.org/xz/).
 
@@ -6,9 +6,9 @@ Targets .Net Standard 2.0, supports Windows and Linux.
 
 ## Install
 
-Joveler.XZ can be installed via [nuget](https://www.nuget.org/packages/Joveler.XZ/).
+Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packages/Joveler.Compression.XZ/).
 
-[![NuGet](https://buildstats.info/nuget/Joveler.XZ)](https://www.nuget.org/packages/Joveler.XZ)
+[![NuGet](https://buildstats.info/nuget/Joveler.Compression.XZ)](https://www.nuget.org/packages/Joveler.Compression.XZ)
 
 ## Features
 

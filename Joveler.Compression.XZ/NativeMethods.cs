@@ -77,7 +77,7 @@ namespace Joveler.Compression.XZ
     {
         #region Const
         public const string MsgInitFirstError = "Please call XZStream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "PEBakery.XZLib is already initialized.";
+        public const string MsgAlreadyInited = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
         #region Fields

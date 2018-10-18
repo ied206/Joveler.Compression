@@ -79,7 +79,7 @@ namespace Joveler.Compression.LZ4
     {
         #region Const
         public const string MsgInitFirstError = "Please call LZ4Stream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "Joveler.LZ4 is already initialized.";
+        public const string MsgAlreadyInited = "Joveler.Compression.LZ4 is already initialized.";
         #endregion
 
         #region Fields
