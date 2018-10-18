@@ -37,14 +37,14 @@ namespace Joveler.Compression.ZLib.Tests
     {
         #region DeflateCompressor - Compress
         [TestMethod]
-        [TestCategory("DeflateCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Compressor_1()
         {
             void Template(string fileName, ZLibCompLevel level)
             {
                 string filePath = Path.Combine(TestSetup.SampleDir, fileName);
                 using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (MemoryStream compMs = DeflateCompressor.Compress(fs))
+                using (MemoryStream compMs = DeflateCompressor.Compress(fs, level))
                 using (MemoryStream decompMs = DeflateCompressor.Decompress(compMs))
                 {
                     // Compare SHA256 Digest
@@ -61,7 +61,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("DeflateCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Compressor_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -82,7 +82,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region DeflateCompressor - Decompress
         [TestMethod]
-        [TestCategory("DeflateCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Decompressor_1()
         {
             void Template(string fileName)
@@ -106,7 +106,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("DeflateCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Decompressor_2()
         {
             byte[] input = new byte[] { 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00 };
@@ -118,14 +118,14 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region ZLibCompressor - Compress
         [TestMethod]
-        [TestCategory("ZLibCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Compressor_1()
         {
             void Template(string fileName, ZLibCompLevel level)
             {
                 string filePath = Path.Combine(TestSetup.SampleDir, fileName);
                 using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (MemoryStream compMs = ZLibCompressor.Compress(fs))
+                using (MemoryStream compMs = ZLibCompressor.Compress(fs, level))
                 using (MemoryStream decompMs = ZLibCompressor.Decompress(compMs))
                 {
                     // Compare SHA256 Digest
@@ -142,7 +142,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("ZLibCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Compressor_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -163,7 +163,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region ZLibCompressor - Decompress
         [TestMethod]
-        [TestCategory("ZLibCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Decompressor_1()
         {
             void Template(string fileName)
@@ -187,7 +187,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("ZLibCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Decompressor_2()
         {
             byte[] input = new byte[] { 0x78, 0x9C, 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00, 0x05, 0x7E, 0x01, 0x96 };
@@ -199,14 +199,14 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region GZipCompressor - Compress
         [TestMethod]
-        [TestCategory("GZipCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Compressor_1()
         {
             void Template(string fileName, ZLibCompLevel level)
             {
                 string filePath = Path.Combine(TestSetup.SampleDir, fileName);
                 using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (MemoryStream compMs = GZipCompressor.Compress(fs))
+                using (MemoryStream compMs = GZipCompressor.Compress(fs, level))
                 using (MemoryStream decompMs = GZipCompressor.Decompress(compMs))
                 {
                     // Compare SHA256 Digest
@@ -223,7 +223,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("GZipCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Compressor_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -244,7 +244,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region GZipCompressor - Decompress
         [TestMethod]
-        [TestCategory("GZipCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Decompressor_1()
         {
             void Template(string fileName)
@@ -268,7 +268,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("GZipCompressor")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Decompressor_2()
         {
             byte[] input = new byte[] { 0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00, 0x69, 0xFE, 0x76, 0xBB, 0x06, 0x00, 0x00, 0x00 };

@@ -25,13 +25,12 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -40,7 +39,7 @@ namespace Joveler.Compression.ZLib.Tests
     {
         #region DeflateStream - Compress
         [TestMethod]
-        [TestCategory("DeflateStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Compress_1()
         {
             void Template(string sampleFileName, ZLibCompLevel level)
@@ -79,7 +78,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("DeflateStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Compress_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -112,7 +111,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region DeflateStream - Decompress
         [TestMethod]
-        [TestCategory("DeflateStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Decompress_1()
         {
             void Template(string sampleFileName)
@@ -143,7 +142,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("DeflateStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void DeflateStream_Decompress_2()
         {
             byte[] input = new byte[] { 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00 };
@@ -167,7 +166,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region ZLibStream - Compress
         [TestMethod]
-        [TestCategory("ZLibStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Compress_1()
         {
             void Template(string sampleFileName, ZLibCompLevel level)
@@ -222,7 +221,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("ZLibStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Compress_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -255,7 +254,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region ZLibStream - Decompress
         [TestMethod]
-        [TestCategory("ZLibStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Decompress_1()
         {
             void Template(string fileName)
@@ -286,7 +285,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("ZLibStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void ZLibStream_Decompress_2()
         {
             byte[] input = new byte[] { 0x78, 0x9C, 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00, 0x05, 0x7E, 0x01, 0x96 };
@@ -310,7 +309,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region GZipStream - Compress
         [TestMethod]
-        [TestCategory("GZipStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Compress_1()
         {
             void Template(string sampleFileName, ZLibCompLevel level)
@@ -365,7 +364,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("GZipStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Compress_2()
         {
             byte[] input = Encoding.UTF8.GetBytes("ABCDEF");
@@ -398,7 +397,7 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region GZipStream - Decompress
         [TestMethod]
-        [TestCategory("GZipStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Decompress_1()
         {
             void Template(string fileName)
@@ -429,7 +428,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("GZipStream")]
+        [TestCategory("Joveler.Compression.ZLib")]
         public void GZipStream_Decompress_2()
         {
             byte[] input = new byte[] { 0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00, 0x69, 0xFE, 0x76, 0xBB, 0x06, 0x00, 0x00, 0x00 };
