@@ -9,7 +9,7 @@ You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ.
 Put this snippet in your application's init code:
 
 ```csharp
-public static void InitNativeLibrary
+public static void InitNativeLibrary()
 {
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -37,7 +37,7 @@ public static void InitNativeLibrary
     if (libPath == null)
         throw new PlatformNotSupportedException();
 
-    XZInit.AssemblyInit(libPath);
+    XZInit.GlobalInit(libPath);
 }
 ```
 
