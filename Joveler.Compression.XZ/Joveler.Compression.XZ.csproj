@@ -1,18 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.3;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net451;netstandard1.3;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard1.3;netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>C# pinvoke library for liblzma (XZ Utils).
-Targets .Net Standard 1.3 and 2.0, supports Windows and Linux.</Description>
-    <PackageLicenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.XZ/LICENSE</PackageLicenseUrl>
+Supports Windows and Linux.</Description>
+    <PackageLicenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.XZ/LICENSE</PackageLicenseUrl>
     <Copyright>Copyright (c) 2018 Hajin Jang</Copyright>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>xz liblzma compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Support .Net Standard 1.3</PackageReleaseNotes>
+    <PackageReleaseNotes>- .Net Framework 4.5.1 and .Net Standard 1.3</PackageReleaseNotes>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
 </Project>

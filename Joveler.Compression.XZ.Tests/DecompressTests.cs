@@ -37,7 +37,7 @@ namespace Joveler.Compression.XZ.Tests
     public class DecompressTests
     {
         [TestMethod]
-        [TestCategory("Joveler.XZ")]
+        [TestCategory("Joveler.Compression.XZ")]
         public void Decompress()
         {
             void Template(string xzFileName, string originFileName)

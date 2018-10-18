@@ -1,4 +1,4 @@
-# Joveler.ZLib
+# Joveler.Compression.ZLib
 
 C# pinvoke library for [zlib](https://zlib.net/).
 
@@ -8,9 +8,9 @@ Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codepl
 
 ## Install
 
-Joveler.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler.ZLib/).
+Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler.Compression.ZLib/).
 
-[![NuGet](https://buildstats.info/nuget/Joveler.ZLib)](https://www.nuget.org/packages/Joveler.ZLib)
+[![NuGet](https://buildstats.info/nuget/Joveler.ompression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib)
 
 ## Features
 
@@ -22,6 +22,7 @@ Joveler.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler
 
 ### Targeted .Net platforms
 
+- .Net Framework 4.5.1
 - .Net Standard 1.3 (.Net Framework 4.6+, .Net Core 1.0+)
 - .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
 

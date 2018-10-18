@@ -79,7 +79,7 @@ namespace Joveler.Compression.LZ4
     {
         #region Const
         public const string MsgInitFirstError = "Please call LZ4Stream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "Joveler.LZ4 is already initialized.";
+        public const string MsgAlreadyInited = "Joveler.Compression.LZ4 is already initialized.";
         #endregion
 
         #region Fields
@@ -127,12 +127,15 @@ namespace Joveler.Compression.LZ4
         private static T GetFuncPtr<T>(string funcSymbol) where T : Delegate
         {
             IntPtr funcPtr;
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 funcPtr = Win32.GetProcAddress(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
                     throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 funcPtr = Linux.dlsym(hModule, funcSymbol);
@@ -143,6 +146,7 @@ namespace Joveler.Compression.LZ4
             {
                 throw new PlatformNotSupportedException();
             }
+#endif
 
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }

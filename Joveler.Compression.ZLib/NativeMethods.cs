@@ -76,7 +76,7 @@ namespace Joveler.Compression.ZLib
     {
         #region Const
         internal const string MsgInitFirstError = "Please call ZLib.GlobalInit() first!";
-        internal const string MsgAlreadyInited = "Joveler.ZLib is already initialized.";
+        internal const string MsgAlreadyInited = "Joveler.Compression.ZLib is already initialized.";
 
         private const int DEF_MEM_LEVEL = 8;
         private const string ZLIB_VERSION = "1.2.11"; // This code is based on zlib 1.2.11's zlib.h
@@ -135,12 +135,15 @@ namespace Joveler.Compression.ZLib
         private static T GetFuncPtr<T>(string funcSymbol) where T : Delegate
         {
             IntPtr funcPtr;
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 funcPtr = Win32.GetProcAddress(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
                     throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 funcPtr = Linux.dlsym(hModule, funcSymbol);
@@ -151,7 +154,7 @@ namespace Joveler.Compression.ZLib
             {
                 throw new PlatformNotSupportedException();
             }
-
+#endif
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }
 

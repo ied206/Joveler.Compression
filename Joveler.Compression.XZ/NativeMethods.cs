@@ -77,7 +77,7 @@ namespace Joveler.Compression.XZ
     {
         #region Const
         public const string MsgInitFirstError = "Please call XZStream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "PEBakery.XZLib is already initialized.";
+        public const string MsgAlreadyInited = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
         #region Fields
@@ -125,12 +125,15 @@ namespace Joveler.Compression.XZ
         private static T GetFuncPtr<T>(string funcSymbol) where T : Delegate
         {
             IntPtr funcPtr;
+#if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
             {
                 funcPtr = Win32.GetProcAddress(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
                     throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
+#if !NET451
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 funcPtr = Linux.dlsym(hModule, funcSymbol);
@@ -141,6 +144,7 @@ namespace Joveler.Compression.XZ
             {
                 throw new PlatformNotSupportedException();
             }
+#endif
 
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }

@@ -39,7 +39,7 @@ namespace Joveler.Compression.LZ4.Tests
     public class DecompressTests
     {
         [TestMethod]
-        [TestCategory("Joveler.LZ4")]
+        [TestCategory("Joveler.Compression.LZ4")]
         public void Decompress()
         {
             void Template(string lz4FileName, string originFileName)

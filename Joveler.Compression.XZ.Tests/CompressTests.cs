@@ -37,7 +37,7 @@ namespace Joveler.Compression.XZ.Tests
     public class CompresssTests
     {
         [TestMethod]
-        [TestCategory("Joveler.XZ")]
+        [TestCategory("Joveler.Compression.XZ")]
         public void Compress()
         {
             Template("A.pdf", 1, 7);
@@ -46,7 +46,7 @@ namespace Joveler.Compression.XZ.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.XZ")]
+        [TestCategory("Joveler.Compression.XZ")]
         public void CompressMulti()
         {
             Template("A.pdf", 2, 7);
