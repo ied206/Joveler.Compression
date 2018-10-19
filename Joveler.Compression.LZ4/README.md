@@ -14,6 +14,12 @@ Joveler.Compression.LZ4 is similar or slower (~10x) than pure C# implementation,
 
 ## Support
 
+### Targeted .Net platforms
+
+- .Net Framework 4.5.1
+- .Net Standard 1.3 (.Net Framework 4.6+, .Net Core 1.0+)
+- .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
+
 ### Supported platforms
 
 - Windows x86, x64
