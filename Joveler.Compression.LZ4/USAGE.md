@@ -9,7 +9,7 @@ You must call `LZ4Init.GlobalInit()` before using Joveler.Compression.LZ4.
 Put this snippet in your application's init code:
 
 ```csharp
-public static void InitNativeLibrary
+public static void InitNativeLibrary()
 {
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -37,7 +37,7 @@ public static void InitNativeLibrary
     if (libPath == null)
         throw new PlatformNotSupportedException();
 
-    LZ4Init.AssemblyInit(libPath);
+    LZ4Init.GlobalInit(libPath);
 }
 ```
 
