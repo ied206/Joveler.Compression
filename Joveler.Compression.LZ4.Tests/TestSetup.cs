@@ -50,11 +50,11 @@ namespace Joveler.Compression.LZ4.Tests
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
-                    case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblz4.dll");
-                        break;
                     case Architecture.X86:
                         libPath = Path.Combine("x86", "liblz4.dll");
+                        break;
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblz4.dll");
                         break;
                 }
             }
@@ -64,6 +64,9 @@ namespace Joveler.Compression.LZ4.Tests
                 {
                     case Architecture.X64:
                         libPath = Path.Combine("x64", "liblz4.so");
+                        break;
+                    case Architecture.Arm:
+                        libPath = Path.Combine("armhf", "liblz4.so");
                         break;
                 }
             }
@@ -90,12 +93,27 @@ namespace Joveler.Compression.LZ4.Tests
 
         public static int RunLZ4(string tempArchiveFile, string destFile)
         {
-            string binary;
+            const string binDir = "RefBin";
+
+            string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                binary = Path.Combine(TestSetup.SampleDir, "lz4.exe");
+            {
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.exe");
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                binary = Path.Combine(TestSetup.SampleDir, "lz4.elf");
-            else
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.elf");
+                        break;
+                    case Architecture.Arm:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.armhf.elf");
+                        break;
+                }
+            }
+                
+            if (binary == null)
                 throw new PlatformNotSupportedException();
 
             Process proc = new Process

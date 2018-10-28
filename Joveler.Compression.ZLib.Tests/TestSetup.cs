@@ -47,11 +47,11 @@ namespace Joveler.Compression.ZLib.Tests
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
-                    case Architecture.X64:
-                        libPath = Path.Combine("x64", "zlibwapi.dll");
-                        break;
                     case Architecture.X86:
                         libPath = Path.Combine("x86", "zlibwapi.dll");
+                        break;
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "zlibwapi.dll");
                         break;
                 }
             }
@@ -61,6 +61,9 @@ namespace Joveler.Compression.ZLib.Tests
                 {
                     case Architecture.X64:
                         libPath = Path.Combine("x64", "libz.so");
+                        break;
+                    case Architecture.Arm:
+                        libPath = Path.Combine("armhf", "libz.so");
                         break;
                 }
             }
@@ -90,12 +93,27 @@ namespace Joveler.Compression.ZLib.Tests
 
         public static int RunPigz(string tempArchiveFile)
         {
-            string binary;
+            const string binDir = "RefBin";
+
+            string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                binary = Path.Combine(SampleDir, "pigz.exe");
+            {
+                binary = Path.Combine(SampleDir, binDir, "pigz.exe");
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                binary = Path.Combine(SampleDir, "pigz.elf");
-            else
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(SampleDir, binDir, "pigz.x64.elf");
+                        break;
+                    case Architecture.Arm:
+                        binary = Path.Combine(SampleDir, binDir, "pigz.armhf.elf");
+                        break;
+                }
+            }
+
+            if (binary == null)
                 throw new PlatformNotSupportedException();
 
             Process proc = new Process

@@ -50,11 +50,11 @@ namespace Joveler.Compression.XZ.Tests
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
-                    case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblzma.dll");
-                        break;
                     case Architecture.X86:
                         libPath = Path.Combine("x86", "liblzma.dll");
+                        break;
+                    case Architecture.X64:
+                        libPath = Path.Combine("x64", "liblzma.dll");
                         break;
                 }
             }
@@ -64,6 +64,9 @@ namespace Joveler.Compression.XZ.Tests
                 {
                     case Architecture.X64:
                         libPath = Path.Combine("x64", "liblzma.so");
+                        break;
+                    case Architecture.Arm:
+                        libPath = Path.Combine("armhf", "liblzma.so");
                         break;
                 }
             }
@@ -90,13 +93,28 @@ namespace Joveler.Compression.XZ.Tests
         
         public static int RunXZ(string tempArchiveFile)
         {
-            string binary;
+            const string binDir = "RefBin";
+
+            string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                binary = Path.Combine(TestSetup.SampleDir, "xz.exe");
+            {
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.exe");
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                binary = Path.Combine(TestSetup.SampleDir, "xz.elf");
-            else
-                throw new PlatformNotSupportedException();
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.elf");
+                        break;
+                    case Architecture.Arm:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.armhf.elf");
+                        break;
+                }
+            }
+
+            if (binary == null)
+                throw new PlatformNotSupportedException();          
 
             Process proc = new Process
             {
