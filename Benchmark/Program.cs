@@ -393,6 +393,10 @@ namespace Benchmark
     {
         public static void NativeGlobalInit()
         {
+            const string x64 = "x64";
+            const string x86 = "x86";
+            const string armhf = "armhf";
+
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
             string zlibPath = null;
@@ -403,14 +407,14 @@ namespace Benchmark
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        zlibPath = Path.Combine(baseDir, "x64", "zlibwapi.dll");
-                        xzPath = Path.Combine(baseDir, "x64", "liblzma.dll");
-                        lz4Path = Path.Combine(baseDir, "x64", "liblz4.dll");
+                        zlibPath = Path.Combine(baseDir, x64, "zlibwapi.dll");
+                        xzPath = Path.Combine(baseDir, x64, "liblzma.dll");
+                        lz4Path = Path.Combine(baseDir, x64, "liblz4.dll");
                         break;
                     case Architecture.X86:
-                        zlibPath = Path.Combine(baseDir, "x86", "zlibwapi.dll");
-                        xzPath = Path.Combine(baseDir, "x86", "liblzma.dll");
-                        lz4Path = Path.Combine(baseDir, "x86", "liblz4.dll");
+                        zlibPath = Path.Combine(baseDir, x86, "zlibwapi.dll");
+                        xzPath = Path.Combine(baseDir, x86, "liblzma.dll");
+                        lz4Path = Path.Combine(baseDir, x86, "liblz4.dll");
                         break;
                 }
             }
@@ -419,9 +423,14 @@ namespace Benchmark
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        zlibPath = Path.Combine(baseDir, "x64", "libz.so");
-                        xzPath = Path.Combine(baseDir, "x64", "liblzma.so");
-                        lz4Path = Path.Combine(baseDir, "x64", "liblz4.so");
+                        zlibPath = Path.Combine(baseDir, x64, "libz.so");
+                        xzPath = Path.Combine(baseDir, x64, "liblzma.so");
+                        lz4Path = Path.Combine(baseDir, x64, "liblz4.so");
+                        break;
+                    case Architecture.Arm:
+                        zlibPath = Path.Combine(baseDir, armhf, "libz.so");
+                        xzPath = Path.Combine(baseDir, armhf, "liblzma.so");
+                        lz4Path = Path.Combine(baseDir, armhf, "liblz4.so");
                         break;
                 }
             }
