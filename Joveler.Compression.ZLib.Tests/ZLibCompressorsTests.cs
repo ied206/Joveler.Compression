@@ -49,8 +49,8 @@ namespace Joveler.Compression.ZLib.Tests
                 {
                     // Compare SHA256 Digest
                     fs.Position = 0;
-                    byte[] fileDigest = TestSetup.SHA256Digest(fs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(fs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -74,8 +74,8 @@ namespace Joveler.Compression.ZLib.Tests
             byte[] decompBytes = DeflateCompressor.Decompress(compBytes);
 
             // Comprare SHA256 Digest
-            byte[] inputDigest = TestSetup.SHA256Digest(input);
-            byte[] decompDigest = TestSetup.SHA256Digest(decompBytes);
+            byte[] inputDigest = TestHelper.SHA256Digest(input);
+            byte[] decompDigest = TestHelper.SHA256Digest(decompBytes);
             Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
         }
         #endregion
@@ -94,8 +94,8 @@ namespace Joveler.Compression.ZLib.Tests
                 using (MemoryStream decompMs = DeflateCompressor.Decompress(compFs))
                 {
                     // Compare SHA256 Digest
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -130,8 +130,8 @@ namespace Joveler.Compression.ZLib.Tests
                 {
                     // Compare SHA256 Digest
                     fs.Position = 0;
-                    byte[] fileDigest = TestSetup.SHA256Digest(fs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(fs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -155,8 +155,8 @@ namespace Joveler.Compression.ZLib.Tests
             byte[] decompBytes = ZLibCompressor.Decompress(compBytes);
 
             // Comprare SHA256 Digest
-            byte[] inputDigest = TestSetup.SHA256Digest(input);
-            byte[] decompDigest = TestSetup.SHA256Digest(decompBytes);
+            byte[] inputDigest = TestHelper.SHA256Digest(input);
+            byte[] decompDigest = TestHelper.SHA256Digest(decompBytes);
             Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
         }
         #endregion
@@ -175,8 +175,8 @@ namespace Joveler.Compression.ZLib.Tests
                 using (MemoryStream decompMs = ZLibCompressor.Decompress(compFs))
                 {
                     // Compare SHA256 Digest
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -211,8 +211,8 @@ namespace Joveler.Compression.ZLib.Tests
                 {
                     // Compare SHA256 Digest
                     fs.Position = 0;
-                    byte[] fileDigest = TestSetup.SHA256Digest(fs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(fs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -236,8 +236,8 @@ namespace Joveler.Compression.ZLib.Tests
             byte[] decompBytes = GZipCompressor.Decompress(compBytes);
 
             // Comprare SHA256 Digest
-            byte[] inputDigest = TestSetup.SHA256Digest(input);
-            byte[] decompDigest = TestSetup.SHA256Digest(decompBytes);
+            byte[] inputDigest = TestHelper.SHA256Digest(input);
+            byte[] decompDigest = TestHelper.SHA256Digest(decompBytes);
             Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
         }
         #endregion
@@ -256,8 +256,8 @@ namespace Joveler.Compression.ZLib.Tests
                 using (MemoryStream decompMs = GZipCompressor.Decompress(compFs))
                 {
                     // Compare SHA256 Digest
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }

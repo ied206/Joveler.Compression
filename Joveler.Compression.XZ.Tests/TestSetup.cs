@@ -36,8 +36,8 @@ namespace Joveler.Compression.XZ.Tests
     [TestClass]
     public class TestSetup
     {
-        public static string BaseDir;
-        public static string SampleDir;
+        public static string BaseDir { get; private set; }
+        public static string SampleDir { get; private set; }
 
         [AssemblyInitialize]
         public static void Init(TestContext context)
@@ -45,16 +45,24 @@ namespace Joveler.Compression.XZ.Tests
             BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
+            const string x64 = "x64";
+            const string x86 = "x86";
+            const string armhf = "armhf";
+            const string arm64 = "arm64";
+
+            const string dllName = "liblzma.dll";
+            const string soName = "liblzma.so";
+
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X86:
-                        libPath = Path.Combine("x86", "liblzma.dll");
+                        libPath = Path.Combine(x86, dllName);
                         break;
                     case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblzma.dll");
+                        libPath = Path.Combine(x64, dllName);
                         break;
                 }
             }
@@ -63,13 +71,19 @@ namespace Joveler.Compression.XZ.Tests
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblzma.so");
+                        libPath = Path.Combine(x64, soName);
                         break;
                     case Architecture.Arm:
-                        libPath = Path.Combine("armhf", "liblzma.so");
+                        libPath = Path.Combine(armhf, soName);
+                        break;
+                    case Architecture.Arm64:
+                        libPath = Path.Combine(arm64, soName);
                         break;
                 }
             }
+
+            if (libPath == null)
+                throw new PlatformNotSupportedException();
 
             XZInit.GlobalInit(libPath);
         }
@@ -110,11 +124,14 @@ namespace Joveler.Compression.XZ.Tests
                     case Architecture.Arm:
                         binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.armhf.elf");
                         break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.arm64.elf");
+                        break;
                 }
             }
 
             if (binary == null)
-                throw new PlatformNotSupportedException();          
+                throw new PlatformNotSupportedException();       
 
             Process proc = new Process
             {

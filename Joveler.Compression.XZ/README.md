@@ -24,8 +24,18 @@ Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packag
 
 ### Supported platforms
 
-- Windows x86, x64
-- Linux x64
+| Platform | Architecture | Tested |
+|----------|--------------|--------|
+| Windows  | x86, x64     | Yes    |
+| Linux    | x64, armhf   | Yes    |
+|          | arm64        | No     |
+
+#### Tested linux distributions
+
+| Architecture | Distribution | Note |
+|--------------|--------------|------|
+| x64          | Ubuntu 18.04 |      |
+| armhf        | Debian 9     | Emulated on QEMU's virt board |
 
 ### Supported XZ Utils version
 

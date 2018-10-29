@@ -396,6 +396,7 @@ namespace Benchmark
             const string x64 = "x64";
             const string x86 = "x86";
             const string armhf = "armhf";
+            const string arm64 = "arm64";
 
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -431,6 +432,11 @@ namespace Benchmark
                         zlibPath = Path.Combine(baseDir, armhf, "libz.so");
                         xzPath = Path.Combine(baseDir, armhf, "liblzma.so");
                         lz4Path = Path.Combine(baseDir, armhf, "liblz4.so");
+                        break;
+                    case Architecture.Arm64:
+                        zlibPath = Path.Combine(baseDir, arm64, "libz.so");
+                        xzPath = Path.Combine(baseDir, arm64, "liblzma.so");
+                        lz4Path = Path.Combine(baseDir, arm64, "liblz4.so");
                         break;
                 }
             }

@@ -11,16 +11,24 @@ Put this snippet in your application's init code:
 ```csharp
 public static void InitNativeLibrary()
 {
+    const string x64 = "x64";
+    const string x86 = "x86";
+    const string armhf = "armhf";
+    const string arm64 = "arm64";
+
+    const string dllName = "liblz4.dll";
+    const string soName = "liblz4.so";
+
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
         switch (RuntimeInformation.ProcessArchitecture)
         {
-            case Architecture.X64:
-                libPath = Path.Combine("x64", "liblz4.dll");
-                break;
             case Architecture.X86:
-                libPath = Path.Combine("x86", "liblz4.dll");
+                libPath = Path.Combine(x86, dllName);
+                break;
+            case Architecture.X64:
+                libPath = Path.Combine(x64, dllName);
                 break;
         }
     }
@@ -29,7 +37,13 @@ public static void InitNativeLibrary()
         switch (RuntimeInformation.ProcessArchitecture)
         {
             case Architecture.X64:
-                libPath = Path.Combine("x64", "liblz4.so");
+                libPath = Path.Combine(x64, soName);
+                break;
+            case Architecture.Arm:
+                libPath = Path.Combine(armhf, soName);
+                break;
+            case Architecture.Arm64:
+                libPath = Path.Combine(arm64, soName);
                 break;
         }
     }
@@ -48,11 +62,13 @@ public static void InitNativeLibrary()
 Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.8.3`.  
 They will be copied into the build directory at build time.
 
-| Platform    | Binary                     |
-|-------------|----------------------------|
-| Windows x86 | `$(OutDir)\x86\liblz4.dll` |
-| Windows x64 | `$(OutDir)\x64\liblz4.dll` |
-| Linux x64   | `$(OutDir)\x64\liblz4.so`  |
+| Platform    | Binary                      | Note |
+|-------------|-----------------------------|------|
+| Windows x86 | `$(OutDir)\x86\liblz4.dll`  |      |
+| Windows x64 | `$(OutDir)\x64\liblz4.dll`  |      |
+| Linux x64   | `$(OutDir)\x64\liblz4.so`   | Compiled in Ubuntu 18.04 |
+| Linux armhf | `$(OutDir)\armhf\liblz4.so` | Compiled in Debian 9     |
+| Linux arm64 | `$(OutDir)\arm64\liblz4.so` | Compiled in Debian 9     |
 
 ### Custom binary
 
@@ -60,8 +76,8 @@ To use custom lz4 binary instead, call `LZ4Init.GlobalInit()` with a path to the
 
 #### NOTES
 
-- Linux x64 version of embedded `liblz4.so` was statically compiled in Ubuntu 18.04.
 - Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
+- Untested on arm64, because .Net Core 2.1 arm64 runtime has an [issue](https://github.com/dotnet/coreclr/issues/19578).
 
 ### Cleanup
 

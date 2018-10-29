@@ -20,10 +20,18 @@ Joveler.Compression.LZ4 is similar or slower (~10x) than pure C# implementation,
 - .Net Standard 1.3 (.Net Framework 4.6+, .Net Core 1.0+)
 - .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
 
-### Supported platforms
+| Platform | Architecture | Tested |
+|----------|--------------|--------|
+| Windows  | x86, x64     | Yes    |
+| Linux    | x64, armhf   | Yes    |
+|          | arm64        | No     |
 
-- Windows x86, x64
-- Linux x64
+#### Tested linux distributions
+
+| Architecture | Distribution | Note |
+|--------------|--------------|------|
+| x64          | Ubuntu 18.04 |      |
+| armhf        | Debian 9     | Emulated on QEMU's virt board |
 
 ### Supported LZ4 version
 
