@@ -28,10 +28,20 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 
 If you need .Net Framework 4.5 support, use [ZLibWrapper](https://github.com/ied206/ZLibWrapper) instead.
 
-### Supported platforms
+### Supported OS platforms
 
-- Windows x86, x64
-- Linux x64
+| Platform | Architecture | Tested |
+|----------|--------------|--------|
+| Windows  | x86, x64     | Yes    |
+| Linux    | x64, armhf   | Yes    |
+|          | arm64        | No     |
+
+#### Tested linux distributions
+
+| Architecture | Distribution | Note |
+|--------------|--------------|------|
+| x64          | Ubuntu 18.04 |      |
+| armhf        | Debian 9     | Emulated on QEMU's virt board |
 
 ### Supported zlib version
 

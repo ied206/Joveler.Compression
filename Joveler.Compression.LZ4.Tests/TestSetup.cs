@@ -45,16 +45,24 @@ namespace Joveler.Compression.LZ4.Tests
             BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
+            const string x64 = "x64";
+            const string x86 = "x86";
+            const string armhf = "armhf";
+            const string arm64 = "arm64";
+
+            const string dllName = "liblz4.dll";
+            const string soName = "liblz4.so";
+
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
-                    case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblz4.dll");
-                        break;
                     case Architecture.X86:
-                        libPath = Path.Combine("x86", "liblz4.dll");
+                        libPath = Path.Combine(x86, dllName);
+                        break;
+                    case Architecture.X64:
+                        libPath = Path.Combine(x64, dllName);
                         break;
                 }
             }
@@ -63,10 +71,19 @@ namespace Joveler.Compression.LZ4.Tests
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        libPath = Path.Combine("x64", "liblz4.so");
+                        libPath = Path.Combine(x64, soName);
+                        break;
+                    case Architecture.Arm:
+                        libPath = Path.Combine(armhf, soName);
+                        break;
+                    case Architecture.Arm64:
+                        libPath = Path.Combine(arm64, soName);
                         break;
                 }
             }
+
+            if (libPath == null)
+                throw new PlatformNotSupportedException();
 
             LZ4Init.GlobalInit(libPath);
         }
@@ -90,12 +107,30 @@ namespace Joveler.Compression.LZ4.Tests
 
         public static int RunLZ4(string tempArchiveFile, string destFile)
         {
-            string binary;
+            const string binDir = "RefBin";
+
+            string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                binary = Path.Combine(TestSetup.SampleDir, "lz4.exe");
+            {
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.exe");
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                binary = Path.Combine(TestSetup.SampleDir, "lz4.elf");
-            else
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.elf");
+                        break;
+                    case Architecture.Arm:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.armhf.elf");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.arm64.elf");
+                        break;
+                }
+            }
+                
+            if (binary == null)
                 throw new PlatformNotSupportedException();
 
             Process proc = new Process

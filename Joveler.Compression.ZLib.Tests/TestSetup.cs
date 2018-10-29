@@ -34,24 +34,37 @@ using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Tests
 {
+    #region TestSetup
     [TestClass]
     public class TestSetup
     {
+        public static string BaseDir { get; private set; }
         public static string SampleDir { get; private set; }
 
         [AssemblyInitialize]
         public static void Init(TestContext ctx)
         {
+            BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
+            SampleDir = Path.Combine(BaseDir, "Samples");
+
+            const string x64 = "x64";
+            const string x86 = "x86";
+            const string armhf = "armhf";
+            const string arm64 = "arm64";
+
+            const string dllName = "zlibwapi.dll";
+            const string soName = "libz.so";
+
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
-                    case Architecture.X64:
-                        libPath = Path.Combine("x64", "zlibwapi.dll");
-                        break;
                     case Architecture.X86:
-                        libPath = Path.Combine("x86", "zlibwapi.dll");
+                        libPath = Path.Combine(x86, dllName);
+                        break;
+                    case Architecture.X64:
+                        libPath = Path.Combine(x64, dllName);
                         break;
                 }
             }
@@ -60,20 +73,40 @@ namespace Joveler.Compression.ZLib.Tests
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        libPath = Path.Combine("x64", "libz.so");
+                        libPath = Path.Combine(x64, soName);
+                        break;
+                    case Architecture.Arm:
+                        libPath = Path.Combine(armhf, soName);
+                        break;
+                    case Architecture.Arm64:
+                        libPath = Path.Combine(arm64, soName);
                         break;
                 }
             }
 
-            ZLibInit.GlobalInit(libPath);
+            if (libPath == null)
+                throw new PlatformNotSupportedException();
 
-            SampleDir = Path.GetFullPath(Path.Combine("..", "..", "..", "Samples"));
+            ZLibInit.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
             ZLibInit.GlobalCleanup();
+        }
+    }
+    #endregion
+
+    #region TestHelper
+    public static class TestHelper
+    {
+        public static string GetProgramAbsolutePath()
+        {
+            string path = AppDomain.CurrentDomain.BaseDirectory;
+            if (Path.GetDirectoryName(path) != null)
+                path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return path;
         }
 
         public static byte[] SHA256Digest(Stream stream)
@@ -90,12 +123,30 @@ namespace Joveler.Compression.ZLib.Tests
 
         public static int RunPigz(string tempArchiveFile)
         {
-            string binary;
+            const string binDir = "RefBin";
+
+            string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                binary = Path.Combine(SampleDir, "pigz.exe");
+            {
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.exe");
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                binary = Path.Combine(SampleDir, "pigz.elf");
-            else
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x64.elf");
+                        break;
+                    case Architecture.Arm:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.armhf.elf");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.arm64.elf");
+                        break;
+                }
+            }
+
+            if (binary == null)
                 throw new PlatformNotSupportedException();
 
             Process proc = new Process
@@ -114,4 +165,5 @@ namespace Joveler.Compression.ZLib.Tests
             return proc.ExitCode;
         }
     }
+    #endregion
 }

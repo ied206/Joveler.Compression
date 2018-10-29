@@ -66,8 +66,8 @@ namespace Joveler.Compression.ZLib.Tests
                     decompMs.Position = 0;
 
                     // Compare SHA256 Digest
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                    byte[] fileDigest = TestSetup.SHA256Digest(fs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(fs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -101,8 +101,8 @@ namespace Joveler.Compression.ZLib.Tests
 
                 decompMs.Position = 0;
 
-                byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                byte[] inputDigest = TestSetup.SHA256Digest(input);
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] inputDigest = TestHelper.SHA256Digest(input);
 
                 Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
             }
@@ -130,8 +130,8 @@ namespace Joveler.Compression.ZLib.Tests
                     decompMs.Position = 0;
 
                     // Compare SHA256 Digest
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -187,7 +187,7 @@ namespace Joveler.Compression.ZLib.Tests
                         Assert.AreEqual(archiveFs.Length, zs.TotalOut);
                     }
 
-                    int ret = TestSetup.RunPigz(tempArchiveFile);
+                    int ret = TestHelper.RunPigz(tempArchiveFile);
                     Assert.IsTrue(ret == 0);
 
                     byte[] decompDigest;
@@ -244,8 +244,8 @@ namespace Joveler.Compression.ZLib.Tests
 
                 decompMs.Position = 0;
 
-                byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                byte[] inputDigest = TestSetup.SHA256Digest(input);
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] inputDigest = TestHelper.SHA256Digest(input);
 
                 Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
             }
@@ -273,8 +273,8 @@ namespace Joveler.Compression.ZLib.Tests
                     decompMs.Position = 0;
 
                     // Compare SHA256 Digest
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }
@@ -330,7 +330,7 @@ namespace Joveler.Compression.ZLib.Tests
                         Assert.AreEqual(archiveFs.Length, zs.TotalOut);
                     }
 
-                    int ret = TestSetup.RunPigz(tempArchiveFile);
+                    int ret = TestHelper.RunPigz(tempArchiveFile);
                     Assert.IsTrue(ret == 0);
 
                     byte[] decompDigest;
@@ -387,8 +387,8 @@ namespace Joveler.Compression.ZLib.Tests
 
                 decompMs.Position = 0;
 
-                byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                byte[] inputDigest = TestSetup.SHA256Digest(input);
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] inputDigest = TestHelper.SHA256Digest(input);
 
                 Assert.IsTrue(decompDigest.SequenceEqual(inputDigest));
             }
@@ -416,8 +416,8 @@ namespace Joveler.Compression.ZLib.Tests
                     decompMs.Position = 0;
 
                     // Compare SHA256 Digest
-                    byte[] decompDigest = TestSetup.SHA256Digest(decompMs);
-                    byte[] fileDigest = TestSetup.SHA256Digest(decompFs);
+                    byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                    byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
                     Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
                 }
             }

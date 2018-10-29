@@ -11,16 +11,24 @@ Put this snippet in your application's init code:
 ```csharp
 public static void InitNativeLibrary()
 {
+    const string x64 = "x64";
+    const string x86 = "x86";
+    const string armhf = "armhf";
+    const string arm64 = "arm64";
+
+    const string dllName = "zlibwapi.dll";
+    const string soName = "libz.so";
+
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
         switch (RuntimeInformation.ProcessArchitecture)
         {
-            case Architecture.X64:
-                libPath = Path.Combine("x64", "zlibwapi.dll");
-                break;
             case Architecture.X86:
-                libPath = Path.Combine("x86", "zlibwapi.dll");
+                libPath = Path.Combine(x86, dllName);
+                break;
+            case Architecture.X64:
+                libPath = Path.Combine(x64, dllName);
                 break;
         }
     }
@@ -29,7 +37,13 @@ public static void InitNativeLibrary()
         switch (RuntimeInformation.ProcessArchitecture)
         {
             case Architecture.X64:
-                libPath = Path.Combine("x64", "libz.so");
+                libPath = Path.Combine(x64, soName);
+                break;
+            case Architecture.Arm:
+                libPath = Path.Combine(armhf, soName);
+                break;
+            case Architecture.Arm64:
+                libPath = Path.Combine(arm64, soName);
                 break;
         }
     }
@@ -48,11 +62,13 @@ public static void InitNativeLibrary()
 Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`.  
 They will be copied into the build directory at build time.
 
-| Platform    | Binary                      |
-|-------------|-----------------------------|
-| Windows x86 | `$(OutDir)\x86\zlibwpi.dll` |
-| Windows x64 | `$(OutDir)\x64\zlibwpi.dll` |
-| Linux x64   | `$(OutDir)\x64\libz.so`     |
+| Platform    | Binary                      | Note |
+|-------------|-----------------------------|------|
+| Windows x86 | `$(OutDir)\x86\zlibwpi.dll` | Compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
+| Windows x64 | `$(OutDir)\x64\zlibwpi.dll` |      |
+| Linux x64   | `$(OutDir)\x64\libz.so`     | Compiled in Ubuntu 18.04 |
+| Linux armhf | `$(OutDir)\armhf\libz.so`   | Compiled in Debian 9     |
+| Linux arm64 | `$(OutDir)\arm64\libz.so`   | Compiled in Debian 9     |
 
 ### Custom binary
 
@@ -60,10 +76,9 @@ To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to t
 
 #### NOTES
 
-- Joveler.Compression.ZLib can only recognize `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)`.  
-- Windows x86 version of embedded `zlibwapi.dll` was compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274).
-- Linux x64 version of embedded `libz.so` was statically compiled in Ubuntu 18.04.
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
+- Joveler.Compression.ZLib can only recognize `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)`.
+- Untested on arm64, because .Net Core 2.1 arm64 runtime has an [issue](https://github.com/dotnet/coreclr/issues/19578).
 
 ### Cleanup
 
