@@ -3,7 +3,7 @@
     <TargetFrameworks>net451;netstandard1.3;netstandard2.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard1.3;netstandard2.0</TargetFrameworks>
     <Title>Joveler.Compression.ZLib</Title>
-    <Version>2.1.1</Version>
+    <Version>2.1.2</Version>
     <Copyright>Copyright (c) 2017-2018 Hajin Jang</Copyright>
     <Description>C# pinvoke library for zlib.
 Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
@@ -13,7 +13,7 @@ Supports Windows and Linux.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>zlib deflate gzip adler32 crc32 compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Support armhf, arm64 on linux</PackageReleaseNotes>
+    <PackageReleaseNotes>- Include native armhf, arm64 linux binary</PackageReleaseNotes>
     <LangVersion>latest</LangVersion>
     <PackageId />
     <Company>Joveler</Company>

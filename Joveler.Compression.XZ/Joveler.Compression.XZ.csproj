@@ -13,8 +13,8 @@ Supports Windows and Linux.</Description>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>xz liblzma compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Support armhf, arm64 on linux</PackageReleaseNotes>
-    <Version>1.1.1</Version>
+    <PackageReleaseNotes>- Include native armhf, arm64 linux binary</PackageReleaseNotes>
+    <Version>1.1.2</Version>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
 </Project>
