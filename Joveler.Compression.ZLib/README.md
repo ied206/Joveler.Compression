@@ -10,7 +10,7 @@ Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codepl
 
 Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler.Compression.ZLib/).
 
-[![NuGet](https://buildstats.info/nuget/Joveler.ompression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib)
+[![NuGet](https://buildstats.info/nuget/Joveler.Compression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib)
 
 ## Features
 
