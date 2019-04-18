@@ -50,10 +50,10 @@ namespace Joveler.Compression.XZ
             {
                 if (libPath == null)
                     throw new ArgumentNullException(nameof(libPath));
-                if (!File.Exists(libPath))
-                    throw new FileNotFoundException("Specified dll does not exist");
 
                 libPath = Path.GetFullPath(libPath);
+                if (!File.Exists(libPath))
+                    throw new ArgumentException("Specified .dll file does not exist");
 
                 // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
                 string libDir = Path.GetDirectoryName(libPath);

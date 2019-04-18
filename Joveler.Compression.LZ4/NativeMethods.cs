@@ -60,6 +60,9 @@ namespace Joveler.Compression.LZ4
 
             [DllImport("kernel32.dll")]
             internal static extern int FreeLibrary(IntPtr hModule);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern int SetDllDirectory([MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
         }
         #endregion
 

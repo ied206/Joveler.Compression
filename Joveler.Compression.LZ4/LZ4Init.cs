@@ -53,12 +53,22 @@ namespace Joveler.Compression.LZ4
             {
                 if (libPath == null)
                     throw new ArgumentNullException(nameof(libPath));
+
+                libPath = Path.GetFullPath(libPath);
                 if (!File.Exists(libPath))
-                    throw new FileNotFoundException("Specified dll does not exist");
+                    throw new ArgumentException("Specified .dll file does not exist");
+
+                // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                string libDir = Path.GetDirectoryName(libPath);
+                if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                    NativeMethods.Win32.SetDllDirectory(libDir);
 
                 NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
                 if (NativeMethods.hModule == IntPtr.Zero)
                     throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+
+                // Reset dll search directory to prevent dll hijacking
+                NativeMethods.Win32.SetDllDirectory(null);
 
                 // Check if dll is valid (liblz4.so.1.8.2.dll)
                 if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)

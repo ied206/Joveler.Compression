@@ -51,10 +51,12 @@ namespace Joveler.Compression.ZLib
 #endif
             {
                 NativeMethods.LongBitType = NativeMethods.LongBits.Long32;
-                if (libPath == null || !File.Exists(libPath))
-                    throw new ArgumentException("Specified .dll file does not exist");
+                if (libPath == null)
+                    throw new ArgumentNullException(nameof(libPath));
 
                 libPath = Path.GetFullPath(libPath);
+                if (!File.Exists(libPath))
+                    throw new ArgumentException("Specified .dll file does not exist");
 
                 // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
                 string libDir = Path.GetDirectoryName(libPath);
