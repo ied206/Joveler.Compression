@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -30,56 +30,18 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-
+// ReSharper disable UnusedMember.Global
 // ReSharper disable ArrangeTypeMemberModifiers
 // ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.LZ4
 {
-    #region PinnedArray
-    internal class PinnedArray<T> : IDisposable
-    {
-        private GCHandle hArray;
-        public T[] Array;
-        public IntPtr Ptr => hArray.AddrOfPinnedObject();
-
-        public IntPtr this[int idx] => Marshal.UnsafeAddrOfPinnedArrayElement(Array, idx);
-        public static implicit operator IntPtr(PinnedArray<T> fixedArray) => fixedArray[0];
-
-        public PinnedArray(T[] array)
-        {
-            Array = array;
-            hArray = GCHandle.Alloc(array, GCHandleType.Pinned);
-        }
-
-        ~PinnedArray()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (hArray.IsAllocated)
-                    hArray.Free();
-            }
-        }
-    }
-    #endregion
-
     #region NativeMethods
     internal static unsafe class NativeMethods
     {
         #region Const
         public const string MsgInitFirstError = "Please call LZ4Stream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "Joveler.Compression.LZ4 is already initialized.";
+        public const string MsgAlreadyInit = "Joveler.Compression.LZ4 is already initialized.";
         #endregion
 
         #region Fields
@@ -153,7 +115,7 @@ namespace Joveler.Compression.LZ4
         #endregion
 
         #region LoadFunctions, ResetFunctions
-        internal static void LoadFuntions()
+        internal static void LoadFunctions()
         {
             #region Version - LzmaVersionNumber, LzmaVersionString
             VersionNumber = GetFuncPtr<LZ4_versionNumber>("LZ4_versionNumber");
@@ -185,7 +147,7 @@ namespace Joveler.Compression.LZ4
             #endregion
         }
 
-        internal static void ResetFuntcions()
+        internal static void ResetFunctions()
         {
             #region Version - LZ4VersionNumber, LZ4VersionString
             VersionNumber = null;

@@ -25,6 +25,12 @@ bld/
 [Oo]bj/
 [Ll]og/
 
+# Do not ignore Precompiled directory
+!/**/Precompiled/x86/
+!/**/Precompiled/x64/
+!/**/Precompiled/armhf/
+!/**/Precompiled/arm64/
+
 # Visual Studio 2015 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot

@@ -2,7 +2,7 @@
 
 C# pinvoke library for [zlib](https://zlib.net/).
 
-Targets .Net Standard 1.3 and 2.0, supports Windows and Linux.
+Targets .Net Standard 2.0, supports Windows and Linux.
 
 Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
@@ -10,7 +10,7 @@ Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codepl
 
 Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/packages/Joveler.Compression.ZLib/).
 
-[![NuGet](https://buildstats.info/nuget/Joveler.ompression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib)
+[![NuGet](https://buildstats.info/nuget/Joveler.Compression.ZLib)](https://www.nuget.org/packages/Joveler.Compression.ZLib)
 
 ## Features
 
@@ -23,25 +23,28 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 ### Targeted .Net platforms
 
 - .Net Framework 4.5.1
-- .Net Standard 1.3 (.Net Framework 4.6+, .Net Core 1.0+)
 - .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
 
-If you need .Net Framework 4.5 support, use [ZLibWrapper](https://github.com/ied206/ZLibWrapper) instead.
+If you need .Net Framework 4.5 support, use [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) instead.  
+If you need .Net Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) instead.
 
 ### Supported OS platforms
 
-| Platform | Architecture | Tested |
-|----------|--------------|--------|
-| Windows  | x86, x64     | Yes    |
-| Linux    | x64, armhf   | Yes    |
-|          | arm64        | No     |
+| Platform | Architecture  | Tested |
+|----------|---------------|--------|
+| Windows  | x86           | Yes    |
+|          | x64           | Yes    |
+| Linux    | x64           | Yes    |
+|          | armhf         | Yes    |
+|          | arm64         | Yes    |
 
 #### Tested linux distributions
 
-| Architecture | Distribution | Note |
-|--------------|--------------|------|
-| x64          | Ubuntu 18.04 |      |
-| armhf        | Debian 9     | Emulated on QEMU's virt board |
+| Architecture  | Distribution | Note |
+|---------------|--------------|------|
+| x64           | Ubuntu 18.04 |      |
+| armhf         | Debian 9     | Emulated on QEMU's virt board |
+| arm64         | Debian 9     | Emulated on QEMU's virt board |
 
 ### Supported zlib version
 

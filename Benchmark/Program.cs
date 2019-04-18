@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+// ReSharper disable InconsistentNaming
 
 namespace Benchmark
 {
@@ -18,7 +19,7 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public string[] SrcFileNames { get; set; } = new string[3]
+        public string[] SrcFileNames { get; set; } = 
         {
             "Banner.bmp",
             "Banner.svg",
@@ -29,7 +30,7 @@ namespace Benchmark
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
-        public string[] Levels { get; set; } = new string[3]
+        public string[] Levels { get; set; } = 
         {
             "Fastest",
             "Default",
@@ -225,7 +226,7 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public string[] SrcFileNames { get; set; } = new string[3]
+        public string[] SrcFileNames { get; set; } = 
         {
             "Banner.bmp",
             "Banner.svg",
@@ -236,7 +237,7 @@ namespace Benchmark
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
-        public string[] Levels { get; set; } = new string[3]
+        public string[] Levels { get; set; } = 
         {
             "Fastest",
             "Default",
@@ -446,7 +447,7 @@ namespace Benchmark
 
             Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath, 64 * 1024);
             Joveler.Compression.XZ.XZInit.GlobalInit(xzPath, 64 * 1024);
-            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path, 64 * 1024);
+            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path, 16 * 1024);
         }
 
         public static void NativeGlobalCleanup()

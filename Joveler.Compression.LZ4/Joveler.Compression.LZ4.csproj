@@ -1,14 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net451;netstandard1.3;netstandard2.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard1.3;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Copyright>Copyright (C) 2018-2019 Hajin Jang</Copyright>
+    <Description>C# pinvoke library for lz4.
+Supports Windows and Linux.</Description>
+    <Company>Joveler</Company>
+    <PackageReleaseNotes>- Initial release</PackageReleaseNotes>
+    <PackageTags>lz4 lz4-hc lz4hc compress compression pinvoke interop</PackageTags>
+    <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
+    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
+    <Authors>Yann Collet, Hajin Jang</Authors>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.LZ4.targets" />
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.5.2" />
+  </ItemGroup>
 </Project>

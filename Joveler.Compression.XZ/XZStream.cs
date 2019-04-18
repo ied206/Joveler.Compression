@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     MIT License
 
@@ -29,6 +29,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.XZ
 {
@@ -76,7 +77,7 @@ namespace Joveler.Compression.XZ
         public XZStream(Stream stream, LzmaMode mode, uint preset, bool leaveOpen)
             : this(stream, mode, preset, 1, leaveOpen) { }
 
-        public XZStream(Stream stream, LzmaMode mode, uint preset, int threads, bool leaveOpen)
+        public unsafe XZStream(Stream stream, LzmaMode mode, uint preset, int threads, bool leaveOpen)
         {
             if (!NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
@@ -104,12 +105,12 @@ namespace Joveler.Compression.XZ
             {
                 case LzmaMode.Compress:
                     {
-                        _lzmaStream.NextIn = IntPtr.Zero;
+                        _lzmaStream.NextIn = (byte*)0;
                         _lzmaStream.AvailIn = 0;
                         if (threads == 1)
                         { // Reference : 01_compress_easy.c
                             LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, preset, LzmaCheck.CHECK_CRC64);
-                            XZException.CheckLzmaError(ret);
+                            XZException.CheckReturnValue(ret);
                         }
                         else
                         { // Reference : 04_compress_easy_mt.c
@@ -135,7 +136,7 @@ namespace Joveler.Compression.XZ
 
                             // Initialize the threaded encoder.
                             LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mtOptions);
-                            XZException.CheckLzmaError(ret);
+                            XZException.CheckReturnValue(ret);
                         }
                         break;
                     }
@@ -146,7 +147,7 @@ namespace Joveler.Compression.XZ
                             Trace.TraceWarning("Threaded decompression is not supported");
 #endif
                         LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, ulong.MaxValue, LzmaDecodingFlag.CONCATENATED);
-                        XZException.CheckLzmaError(ret);
+                        XZException.CheckReturnValue(ret);
                         break;
                     }
                 default:
@@ -196,6 +197,7 @@ namespace Joveler.Compression.XZ
         #endregion
 
         #region Stream Methods
+        /// <inheritdoc />
         /// <summary>
         /// For Decompress
         /// </summary>
@@ -212,18 +214,30 @@ namespace Joveler.Compression.XZ
             if (count == 0)
                 return 0;
 
+            Span<byte> span = buffer.AsSpan(offset, count);
+            return Read(span);
+        }
+
+        /// <summary>
+        /// For Decompress
+        /// </summary>
+        public unsafe int Read(Span<byte> span)
+        {
+            if (_mode != LzmaMode.Decompress)
+                throw new NotSupportedException("Read() not supported on compression");
+
             if (_internalBufPos == ReadDone)
                 return 0;
 
             int readSize = 0;
             LzmaAction action = LzmaAction.RUN;
 
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(_internalBuf))
-            using (PinnedArray<byte> pinBuffer = new PinnedArray<byte>(buffer))
+            fixed (byte* readPtr = _internalBuf)
+            fixed (byte* writePtr = span)
             {
-                _lzmaStream.NextIn = pinRead[_internalBufPos];
-                _lzmaStream.NextOut = pinBuffer[offset];
-                _lzmaStream.AvailOut = (uint)count;
+                _lzmaStream.NextIn = readPtr + _internalBufPos;
+                _lzmaStream.NextOut = writePtr;
+                _lzmaStream.AvailOut = (uint)span.Length;
 
                 while (_lzmaStream.AvailOut != 0)
                 {
@@ -234,7 +248,7 @@ namespace Joveler.Compression.XZ
                         TotalIn += baseReadSize;
 
                         _internalBufPos = 0;
-                        _lzmaStream.NextIn = pinRead;
+                        _lzmaStream.NextIn = readPtr;
                         _lzmaStream.AvailIn = (uint)baseReadSize;
 
                         if (baseReadSize == 0) // End of stream
@@ -257,7 +271,7 @@ namespace Joveler.Compression.XZ
                     }
 
                     // Normally the return value of lzma_code() will be LZMA_OK until everything has been encoded.
-                    XZException.CheckLzmaError(ret);
+                    XZException.CheckReturnValue(ret);
                 }
             }
 
@@ -265,6 +279,7 @@ namespace Joveler.Compression.XZ
             return readSize;
         }
 
+        /// <inheritdoc />
         /// <summary>
         /// For Compress
         /// </summary>
@@ -280,12 +295,27 @@ namespace Joveler.Compression.XZ
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (count == 0)
                 return;
-            using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(_internalBuf))
-            using (PinnedArray<byte> pinBuffer = new PinnedArray<byte>(buffer))
+
+            ReadOnlySpan<byte> span = buffer.AsSpan(offset, count);
+            Write(span);
+        }
+
+        /// <summary>
+        /// For Compress
+        /// </summary>
+        public unsafe void Write(ReadOnlySpan<byte> span)
+        {
+            if (_mode != LzmaMode.Compress)
+                throw new NotSupportedException("Write() not supported on decompression");
+
+            TotalIn += span.Length;
+
+            fixed (byte* readPtr = span)
+            fixed (byte* writePtr = _internalBuf)
             {
-                _lzmaStream.NextIn = pinBuffer[offset];
-                _lzmaStream.AvailIn = (uint)count;
-                _lzmaStream.NextOut = pinWrite[_internalBufPos];
+                _lzmaStream.NextIn = readPtr;
+                _lzmaStream.AvailIn = (uint)span.Length;
+                _lzmaStream.NextOut = writePtr + _internalBufPos;
                 _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                 // Return condition : _lzmaStream.AvailIn == 0
@@ -303,27 +333,25 @@ namespace Joveler.Compression.XZ
 
                         // Reset NextOut and AvailOut
                         _internalBufPos = 0;
-                        _lzmaStream.NextOut = pinWrite;
+                        _lzmaStream.NextOut = writePtr;
                         _lzmaStream.AvailOut = (uint)_internalBuf.Length;
                     }
 
                     // Normally the return value of lzma_code() will be LZMA_OK until everything has been encoded.
-                    XZException.CheckLzmaError(ret);
+                    XZException.CheckReturnValue(ret);
                 }
             }
-
-            TotalIn += count;
         }
 
-        private void FinishWrite()
+        private unsafe void FinishWrite()
         {
             Debug.Assert(_mode == LzmaMode.Compress, "FinishWrite() must not be called in decompression");
 
-            using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(_internalBuf))
+            fixed (byte* writePtr = _internalBuf)
             {
-                _lzmaStream.NextIn = IntPtr.Zero;
+                _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-                _lzmaStream.NextOut = pinWrite[_internalBufPos];
+               _lzmaStream.NextOut = writePtr + _internalBufPos;
                 _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                 LzmaRet ret = LzmaRet.OK;
@@ -334,7 +362,7 @@ namespace Joveler.Compression.XZ
                     _internalBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // If the compression finished successfully,
-                    // write the data from the output bufffer to the output file.
+                    // write the data from the output buffer to the output file.
                     if (_lzmaStream.AvailOut == 0 || ret == LzmaRet.STREAM_END)
                     { // Write to _baseStream
                         // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially
@@ -344,18 +372,18 @@ namespace Joveler.Compression.XZ
 
                         // Reset NextOut and AvailOut
                         _internalBufPos = 0;
-                        _lzmaStream.NextOut = pinWrite;
+                        _lzmaStream.NextOut = writePtr;
                         _lzmaStream.AvailOut = (uint)_internalBuf.Length;
                     }
                     else
                     { // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
-                        XZException.CheckLzmaError(ret);
+                        XZException.CheckReturnValue(ret);
                     }
                 }
             }
         }
 
-        public override void Flush()
+        public override unsafe void Flush()
         {
             if (_mode == LzmaMode.Decompress)
             {
@@ -363,11 +391,11 @@ namespace Joveler.Compression.XZ
                 return;
             }
 
-            using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(_internalBuf))
+            fixed (byte* writePtr = _internalBuf)
             {
-                _lzmaStream.NextIn = IntPtr.Zero;
+                _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-                _lzmaStream.NextOut = pinWrite[_internalBufPos];
+                _lzmaStream.NextOut = writePtr + _internalBufPos;
                 _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                 LzmaRet ret = LzmaRet.OK;
@@ -387,7 +415,7 @@ namespace Joveler.Compression.XZ
 
                     // Reset NextOut and AvailOut
                     _internalBufPos = 0;
-                    _lzmaStream.NextOut = pinWrite;
+                    _lzmaStream.NextOut = writePtr;
                     _lzmaStream.AvailOut = (uint)_internalBuf.Length;
 
                     // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.

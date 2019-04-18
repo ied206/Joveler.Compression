@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     MIT License
 
@@ -54,7 +54,7 @@ namespace Joveler.Compression.XZ
             Ret = ret;
         }
 
-        public static void CheckLzmaError(LzmaRet ret)
+        public static void CheckReturnValue(LzmaRet ret)
         {
             if (ret != LzmaRet.OK)
                 throw new XZException(ret);

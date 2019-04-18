@@ -2,9 +2,8 @@
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
-    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
-    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    C# tests by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 

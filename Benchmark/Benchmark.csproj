@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.11.1" />
-    <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.0.3" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.11.3" />
+    <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.1.1" />
     <PackageReference Include="SharpCompress" Version="0.22.0" />
   </ItemGroup>
 

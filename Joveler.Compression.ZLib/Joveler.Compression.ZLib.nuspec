@@ -3,50 +3,46 @@
   <metadata>
     <id>Joveler.Compression.ZLib</id>
     <title>Joveler.Compression.ZLib</title>
-    <version>2.1.2</version>
+    <version>2.2.0</version>
     <owners>ied206</owners>
     <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
-    <licenseUrl>https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.ZLib/LICENSE</licenseUrl> 
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</iconUrl>
+    <license type="expression">Zlib</license>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <copyright>Copyright (c) 2017-2019 Hajin Jang</copyright>
+    <tags>zlib deflate gzip adler32 crc32 compress compression pinvoke interop</tags>
     <summary>C# pinvoke library for zlib.</summary>
     <description>C# pinvoke library for zlib.
 Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
 Supports Windows and Linux.</description>
-    <releaseNotes>- Include native armhf, arm64 linux binary</releaseNotes>
-    <copyright>Copyright (c) 2017-2018 Hajin Jang</copyright>
-    <tags>zlib deflate gzip adler32 crc32 compression pinvoke interop</tags>
+    <releaseNotes>- Native support for Span
+- Support dll with additional dependency
+- Drop .Net Standard 1.3 support
+- Removal of Compressor class</releaseNotes>
     <dependencies>
-      <group targetFramework="net451"></group>
-      <group targetFramework="netstandard1.3"></group>
-      <group targetFramework="netstandard2.0"></group>
+      <group targetFramework="net451">
+        <dependency id="System.Memory" version="4.5.2" />
+      </group>
+      <group targetFramework="netstandard2.0">
+        <dependency id="System.Memory" version="4.5.2" />
+      </group>
     </dependencies>
   </metadata>
   <files>
     <!-- .Net Framework 4.5.1 -->
+    <file src="Joveler.Compression.ZLib.targets" target="build\net451" />
     <file src="bin\Release\net451\Joveler.Compression.ZLib.dll" target="lib\net451" />
     <file src="bin\Release\net451\Joveler.Compression.ZLib.pdb" target="lib\net451" />
-    <file src="Precompiled\x86\zlibwapi.dll" target="build\net451\Precompiled\x86" />
-    <file src="Precompiled\x64\zlibwapi.dll" target="build\net451\Precompiled\x64" />
-    <file src="Joveler.Compression.ZLib.targets" target="build\net451" />
-    <!-- .Net Standard 1.3 -->
-    <file src="bin\Release\netstandard1.3\Joveler.Compression.ZLib.dll" target="lib\netstandard1.3" />
-    <file src="bin\Release\netstandard1.3\Joveler.Compression.ZLib.pdb" target="lib\netstandard1.3" />
-    <file src="Precompiled\x86\zlibwapi.dll" target="build\netstandard1.3\Precompiled\x86" />
-    <file src="Precompiled\x64\zlibwapi.dll" target="build\netstandard1.3\Precompiled\x64" />
-    <file src="Precompiled\x64\libz.so"      target="build\netstandard1.3\Precompiled\x64" />
-    <file src="Precompiled\armhf\libz.so"    target="build\netstandard1.3\Precompiled\armhf" />
-    <file src="Precompiled\arm64\libz.so"    target="build\netstandard1.3\Precompiled\arm64" />
-    <file src="Joveler.Compression.ZLib.targets" target="build\netstandard1.3" />
+    <file src="Precompiled\x86\*.dll" target="build\net451\Precompiled\x86" />
+    <file src="Precompiled\x64\*.dll" target="build\net451\Precompiled\x64" />
     <!-- .Net Standard 2.0 -->
+    <file src="Joveler.Compression.ZLib.targets" target="build\netstandard2.0" />
     <file src="bin\Release\netstandard2.0\Joveler.Compression.ZLib.dll" target="lib\netstandard2.0" />
     <file src="bin\Release\netstandard2.0\Joveler.Compression.ZLib.pdb" target="lib\netstandard2.0" />
-    <file src="Precompiled\x86\zlibwapi.dll" target="build\netstandard2.0\Precompiled\x86" />
-    <file src="Precompiled\x64\zlibwapi.dll" target="build\netstandard2.0\Precompiled\x64" />
-    <file src="Precompiled\x64\libz.so"      target="build\netstandard2.0\Precompiled\x64" />
-    <file src="Precompiled\armhf\libz.so"    target="build\netstandard2.0\Precompiled\armhf" />
-    <file src="Precompiled\arm64\libz.so"    target="build\netstandard2.0\Precompiled\arm64" />
-    <file src="Joveler.Compression.ZLib.targets" target="build\netstandard2.0" />
+    <file src="Precompiled\x86\*" target="build\netstandard2.0\Precompiled\x86" />
+    <file src="Precompiled\x64\*" target="build\netstandard2.0\Precompiled\x64" />
+    <file src="Precompiled\armhf\*" target="build\netstandard2.0\Precompiled\armhf" />
+    <file src="Precompiled\arm64\*" target="build\netstandard2.0\Precompiled\arm64" />
   </files>
 </package>

@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     MIT License
 
@@ -28,56 +28,18 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-
+// ReSharper disable UnusedMember.Global
 // ReSharper disable ArrangeTypeMemberModifiers
 // ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.XZ
 {
-    #region PinnedArray
-    internal class PinnedArray<T> : IDisposable
-    {
-        private GCHandle _hArray;
-        public T[] Array;
-        public IntPtr Ptr => _hArray.AddrOfPinnedObject();
-
-        public IntPtr this[int idx] => Marshal.UnsafeAddrOfPinnedArrayElement(Array, idx);
-        public static implicit operator IntPtr(PinnedArray<T> fixedArray) => fixedArray[0];
-
-        public PinnedArray(T[] array)
-        {
-            Array = array;
-            _hArray = GCHandle.Alloc(array, GCHandleType.Pinned);
-        }
-
-        ~PinnedArray()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (_hArray.IsAllocated)
-                    _hArray.Free();
-            }
-        }
-    }
-    #endregion
-
     #region NativeMethods
     internal static class NativeMethods
     {
         #region Const
         public const string MsgInitFirstError = "Please call XZStream.GlobalInit() first!";
-        public const string MsgAlreadyInited = "Joveler.Compression.XZ is already initialized.";
+        public const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
         #region Fields
@@ -96,6 +58,9 @@ namespace Joveler.Compression.XZ
 
             [DllImport("kernel32.dll")]
             internal static extern int FreeLibrary(IntPtr hModule);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern int SetDllDirectory([MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
         }
         #endregion
 

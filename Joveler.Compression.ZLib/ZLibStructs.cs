@@ -4,7 +4,9 @@
 
     C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    
+    Maintained by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 
@@ -32,6 +34,7 @@ using System.Runtime.InteropServices;
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable NotAccessedField.Local
 // ReSharper disable UnusedMember.Local
+// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {
@@ -143,14 +146,14 @@ namespace Joveler.Compression.ZLib
 
     #region ZStream for 32bit long
     [StructLayout(LayoutKind.Sequential)]
-    internal class ZStreamL32
+    internal unsafe class ZStreamL32
     {
 #pragma warning disable 169
 #pragma warning disable IDE0044
         /// <summary>
         /// next input byte
         /// </summary>
-        public IntPtr NextIn = IntPtr.Zero;
+        public byte* NextIn;
         /// <summary>
         /// number of bytes available at next_in
         /// </summary>
@@ -163,7 +166,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// next output byte will go here
         /// </summary>
-        public IntPtr NextOut = IntPtr.Zero;
+        public byte* NextOut;
         /// <summary>
         /// remaining free space at next_out
         /// </summary>
@@ -215,14 +218,14 @@ namespace Joveler.Compression.ZLib
 
     #region ZStream for 64bit long
     [StructLayout(LayoutKind.Sequential)]
-    internal class ZStreamL64
+    internal unsafe class ZStreamL64
     {
 #pragma warning disable 169
 #pragma warning disable IDE0044
         /// <summary>
         /// next input byte
         /// </summary>
-        public IntPtr NextIn = IntPtr.Zero;
+        public byte* NextIn;
         /// <summary>
         /// number of bytes available at next_in
         /// </summary>
@@ -235,7 +238,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// next output byte will go here
         /// </summary>
-        public IntPtr NextOut = IntPtr.Zero;
+        public byte* NextOut;
         /// <summary>
         /// remaining free space at next_out
         /// </summary>
