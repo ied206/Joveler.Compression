@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     MIT License
 
@@ -27,10 +27,12 @@
 
 using System;
 using System.Runtime.InteropServices;
+// ReSharper disable UnusedMember.Global
+#pragma warning disable 414
 
 /*
  * This file includes definition from external C library.
- * This lines supresses error and warning from code analyzer, due to this file's C-style naming and others.
+ * This lines suppresses error and warning from code analyzer, due to this file's C-style naming and others.
  */
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
@@ -48,7 +50,7 @@ namespace Joveler.Compression.XZ
     /// <remarks>
     /// The lzma_stream structure is used for
     ///  - passing pointers to input and output buffers to liblzma;
-    ///  - defining custom memory hander functions; and
+    ///  - defining custom memory handler functions; and
     ///  - holding a pointer to coder-specific internal data structures.
     ///
     /// Typical usage:
@@ -84,12 +86,12 @@ namespace Joveler.Compression.XZ
     /// values from lzma_get_progress().
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class LzmaStream
+    public unsafe class LzmaStream
     {
         /// <summary>
         ///  Pointer to the next input byte.
         /// </summary>
-        public IntPtr NextIn = IntPtr.Zero;
+        public byte* NextIn;
 
         /// <summary>
         /// Number of available input bytes in next_in.
@@ -109,7 +111,7 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// Pointer to the next output position.
         /// </summary>
-        public IntPtr NextOut = IntPtr.Zero;
+        public byte* NextOut;
 
         /// <summary>
         /// Amount of free space in next_out.
@@ -139,7 +141,7 @@ namespace Joveler.Compression.XZ
         private IntPtr Internal = IntPtr.Zero;
 
         /// <summary>
-        /// Rerved space to allow possible future extensions without
+        /// Reserved space to allow possible future extensions without
         /// breaking the ABI. Excluding the initialization of this structure,
         /// you should not touch these, because the names of these variables
         /// may change.

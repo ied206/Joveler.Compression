@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.LZ4
 {
@@ -49,7 +50,7 @@ namespace Joveler.Compression.LZ4
         private readonly byte[] _workBuf;
 
         // Compression
-        internal static int BufferSize = 64 * 1024; // 64K
+        internal static int BufferSize = 16 * 1024; // 16K
         private readonly uint _destBufSize;
 
         // Decompression
@@ -67,7 +68,7 @@ namespace Joveler.Compression.LZ4
         // Const
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal static uint FrameVersion;
-        private static readonly byte[] FrameMagicNumber = new byte[4] { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
+        private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
         #endregion
 
         #region Constructor
@@ -95,7 +96,7 @@ namespace Joveler.Compression.LZ4
                 case LZ4Mode.Compress:
                     {
                         UIntPtr ret = NativeMethods.CreateFrameCompressionContext(ref _cctx, FrameVersion);
-                        LZ4FrameException.CheckLZ4Error(ret);
+                        LZ4FrameException.CheckReturnValue(ret);
 
                         FramePreferences prefs = new FramePreferences
                         {
@@ -124,11 +125,11 @@ namespace Joveler.Compression.LZ4
                         _workBuf = new byte[_destBufSize];
 
                         UIntPtr headerSizeVal;
-                        fixed (byte* dest = &_workBuf[0])
+                        fixed (byte* dest = _workBuf)
                         {
                             headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)BufferSize, prefs);
                         }
-                        LZ4FrameException.CheckLZ4Error(headerSizeVal);
+                        LZ4FrameException.CheckReturnValue(headerSizeVal);
                         Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
 
                         int headerSize = (int)headerSizeVal.ToUInt32();
@@ -140,7 +141,7 @@ namespace Joveler.Compression.LZ4
                 case LZ4Mode.Decompress:
                     {
                         UIntPtr ret = NativeMethods.CreateFrameDecompressionContext(ref _dctx, FrameVersion);
-                        LZ4FrameException.CheckLZ4Error(ret);
+                        LZ4FrameException.CheckReturnValue(ret);
 
                         byte[] headerBuf = new byte[4];
                         int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
@@ -175,7 +176,7 @@ namespace Joveler.Compression.LZ4
                     FinishWrite();
 
                     UIntPtr ret = NativeMethods.FreeFrameCompressionContext(_cctx);
-                    LZ4FrameException.CheckLZ4Error(ret);
+                    LZ4FrameException.CheckReturnValue(ret);
 
                     _cctx = IntPtr.Zero;
                 }
@@ -183,7 +184,7 @@ namespace Joveler.Compression.LZ4
                 if (_dctx != IntPtr.Zero)
                 {
                     UIntPtr ret = NativeMethods.FreeFrameDecompressionContext(_dctx);
-                    LZ4FrameException.CheckLZ4Error(ret);
+                    LZ4FrameException.CheckReturnValue(ret);
 
                     _dctx = IntPtr.Zero;
 
@@ -203,10 +204,11 @@ namespace Joveler.Compression.LZ4
         #endregion
 
         #region Stream Methods
+        /// <inheritdoc />
         /// <summary>
         /// For Decompress
         /// </summary>
-        public override unsafe int Read(byte[] buffer, int offset, int count)
+        public override int Read(byte[] buffer, int offset, int count)
         {
             if (_mode != LZ4Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
@@ -219,11 +221,22 @@ namespace Joveler.Compression.LZ4
             if (count == 0)
                 return 0;
 
+            Span<byte> span = buffer.AsSpan(offset, count);
+            return Read(span);
+        }
+
+        /// <summary>
+        /// For Decompress
+        /// </summary>
+        public unsafe int Read(Span<byte> span)
+        {
+            if (_mode != LZ4Mode.Decompress)
+                throw new NotSupportedException("Read() not supported on compression");
+
             int readSize = 0;
 
-            int destIdx = offset;
-            int destCount = count;
-            int destEndIdx = offset + count;
+            int destSize = span.Length;
+            int destLeftBytes = span.Length;
 
             // Reached end of stream
             if (_decompSrcIdx == DecompressComplete)
@@ -233,30 +246,30 @@ namespace Joveler.Compression.LZ4
             {
                 // Write FrameMagicNumber into LZ4F_decompress
                 UIntPtr headerSizeVal = (UIntPtr)4;
-                UIntPtr destCountVal = (UIntPtr)destCount;
+                UIntPtr destSizeVal = (UIntPtr)destSize;
 
                 UIntPtr ret;
-                fixed (byte* header = &FrameMagicNumber[0])
-                fixed (byte* dest = &buffer[destIdx])
+                fixed (byte* header = FrameMagicNumber)
+                fixed (byte* dest = span)
                 {
-                    ret = NativeMethods.FrameDecompress(_dctx, dest, ref destCountVal, header, ref headerSizeVal, null);
+                    ret = NativeMethods.FrameDecompress(_dctx, dest, ref destSizeVal, header, ref headerSizeVal, null);
                 }
-                LZ4FrameException.CheckLZ4Error(ret);
+                LZ4FrameException.CheckReturnValue(ret);
 
                 Debug.Assert(headerSizeVal.ToUInt64() <= int.MaxValue);
-                Debug.Assert(destCountVal.ToUInt64() <= int.MaxValue);
+                Debug.Assert(destSizeVal.ToUInt64() <= int.MaxValue);
 
                 if (headerSizeVal.ToUInt32() != 4u)
                     throw new InvalidOperationException("Not enough dest buffer");
-                int destWritten = (int)destCountVal.ToUInt32();
+                int destWritten = (int)destSizeVal.ToUInt32();
 
-                destIdx += destWritten;
+                span = span.Slice(destWritten);
                 TotalOut += destWritten;
 
                 _firstRead = false;
             }
 
-            while (destIdx < destEndIdx)
+            while (0 < destLeftBytes)
             {
                 if (_decompSrcIdx == _decompSrcCount)
                 {
@@ -273,27 +286,29 @@ namespace Joveler.Compression.LZ4
                     }
                 }
 
-                UIntPtr srcCountVal = (UIntPtr)(_decompSrcCount - _decompSrcIdx);
-                UIntPtr destCountVal = (UIntPtr)(destEndIdx - destIdx);
+                UIntPtr srcSizeVal = (UIntPtr)(_decompSrcCount - _decompSrcIdx);
+                UIntPtr destSizeVal = (UIntPtr)(destLeftBytes);
 
                 UIntPtr ret;
-                fixed (byte* src = &_workBuf[_decompSrcIdx])
-                fixed (byte* dest = &buffer[destIdx])
+                fixed (byte* src = _workBuf.AsSpan(_decompSrcIdx))
+                fixed (byte* dest = span)
                 {
-                    ret = NativeMethods.FrameDecompress(_dctx, dest, ref destCountVal, src, ref srcCountVal, null);
+                    ret = NativeMethods.FrameDecompress(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, null);
                 }
-                LZ4FrameException.CheckLZ4Error(ret);
+                LZ4FrameException.CheckReturnValue(ret);
 
                 // The number of bytes consumed from srcBuffer will be written into *srcSizePtr (necessarily <= original value).
-                Debug.Assert(srcCountVal.ToUInt64() <= int.MaxValue);
-                int srcConsumed = (int)srcCountVal.ToUInt32();
+                Debug.Assert(srcSizeVal.ToUInt64() <= int.MaxValue);
+                int srcConsumed = (int)srcSizeVal.ToUInt32();
                 _decompSrcIdx += srcConsumed;
                 Debug.Assert(_decompSrcIdx <= _decompSrcCount);
 
                 // The number of bytes decompressed into dstBuffer will be written into *dstSizePtr (necessarily <= original value).
-                Debug.Assert(destCountVal.ToUInt64() <= int.MaxValue);
-                int destWritten = (int)destCountVal.ToUInt32();
-                destIdx += destWritten;
+                Debug.Assert(destSizeVal.ToUInt64() <= int.MaxValue);
+                int destWritten = (int)destSizeVal.ToUInt32();
+
+                span = span.Slice(destWritten);
+                destLeftBytes -= destWritten;
                 TotalOut += destWritten;
                 readSize += destWritten;
             }
@@ -301,10 +316,11 @@ namespace Joveler.Compression.LZ4
             return readSize;
         }
 
+        /// <inheritdoc />
         /// <summary>
         /// For Compress
         /// </summary>
-        public override unsafe void Write(byte[] buffer, int offset, int count)
+        public override void Write(byte[] buffer, int offset, int count)
         {
             if (_mode != LZ4Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
@@ -317,20 +333,32 @@ namespace Joveler.Compression.LZ4
             if (count == 0)
                 return;
 
-            TotalIn += count;
+            ReadOnlySpan<byte> span = buffer.AsSpan(offset, count);
+            Write(span);
+        }
 
-            while (0 < count)
+        /// <summary>
+        /// For Compress
+        /// </summary>
+        public unsafe void Write(ReadOnlySpan<byte> span)
+        {
+            if (_mode != LZ4Mode.Compress)
+                throw new NotSupportedException("Write() not supported on decompression");
+
+            int inputSize = span.Length;
+
+            while (0 < span.Length)
             {
-                int srcWorkSize = BufferSize < count ? BufferSize : count;
+                int srcWorkSize = BufferSize < span.Length ? BufferSize : span.Length;
 
                 UIntPtr outSizeVal;
-                fixed (byte* dest = &_workBuf[0])
-                fixed (byte* src = &buffer[offset])
+                fixed (byte* dest = _workBuf)
+                fixed (byte* src = span)
                 {
                     outSizeVal = NativeMethods.FrameCompressionUpdate(_cctx, dest, (UIntPtr)_destBufSize, src, (UIntPtr)srcWorkSize, null);
                 }
 
-                LZ4FrameException.CheckLZ4Error(outSizeVal);
+                LZ4FrameException.CheckReturnValue(outSizeVal);
 
                 Debug.Assert(outSizeVal.ToUInt64() < int.MaxValue, "BufferSize should be <2GB");
                 int outSize = (int)outSizeVal.ToUInt64();
@@ -338,11 +366,10 @@ namespace Joveler.Compression.LZ4
                 BaseStream.Write(_workBuf, 0, outSize);
                 TotalOut += outSize;
 
-                offset += srcWorkSize;
-                count -= srcWorkSize;
-                Debug.Assert(0 <= count, $"0 <= {count}");
+                span = span.Slice(srcWorkSize);
             }
 
+            TotalIn += inputSize;
         }
 
         private unsafe void FinishWrite()
@@ -350,11 +377,11 @@ namespace Joveler.Compression.LZ4
             Debug.Assert(_mode == LZ4Mode.Compress, "FinishWrite() must not be called in decompression");
 
             UIntPtr outSizeVal;
-            fixed (byte* dest = &_workBuf[0])
+            fixed (byte* dest = _workBuf)
             {
                 outSizeVal = NativeMethods.FrameCompressionEnd(_cctx, dest, (UIntPtr)_destBufSize, null);
             }
-            LZ4FrameException.CheckLZ4Error(outSizeVal);
+            LZ4FrameException.CheckReturnValue(outSizeVal);
 
             Debug.Assert(outSizeVal.ToUInt64() < int.MaxValue, "BufferSize should be <2GB");
             int outSize = (int)outSizeVal.ToUInt64();

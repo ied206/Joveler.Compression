@@ -4,7 +4,9 @@
 
    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-   Copyright (C) 2017-2018 Hajin Jang
+   
+   Maintained by Hajin Jang
+   Copyright (C) 2017-2019 Hajin Jang
 
    zlib license
 
@@ -25,7 +27,9 @@
    3. This notice may not be removed or altered from any source distribution.
 */
 
+using System;
 using System.IO;
+// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {
@@ -46,22 +50,22 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Stream Methods
-        public override int Read(byte[] buffer, int offset, int count)
+        public override unsafe int Read(byte[] buffer, int offset, int count)
         {
-            int readLen = BaseStream.Read(buffer, offset, count);
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            int bytesRead = BaseStream.Read(buffer, offset, count);
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                Checksum = NativeMethods.Crc32(Checksum, pinRead[offset], (uint)readLen);
+                Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)bytesRead);
             }
-            return readLen;
+            return bytesRead;
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
+        public override unsafe void Write(byte[] buffer, int offset, int count)
         {
             BaseStream.Write(buffer, offset, count);
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                Checksum = NativeMethods.Crc32(Checksum, pinRead[offset], (uint)count);
+                Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)count);
             }
         }
 
@@ -112,22 +116,22 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Stream Methods
-        public override int Read(byte[] buffer, int offset, int count)
+        public override unsafe int Read(byte[] buffer, int offset, int count)
         {
-            int readLen = BaseStream.Read(buffer, offset, count);
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            int bytesRead = BaseStream.Read(buffer, offset, count);
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                Checksum = NativeMethods.Adler32(Checksum, pinRead[offset], (uint)readLen);
+                Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)bytesRead);
             }
-            return readLen;
+            return bytesRead;
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
+        public override unsafe void Write(byte[] buffer, int offset, int count)
         {
             BaseStream.Write(buffer, offset, count);
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                Checksum = NativeMethods.Adler32(Checksum, pinRead[offset], (uint)count);
+                Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)count);
             }
         }
 
@@ -178,15 +182,15 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Append, Reset
-        public uint Append(byte[] buffer)
-        {
-            Checksum = Crc32(Checksum, buffer);
-            return Checksum;
-        }
-
         public uint Append(byte[] buffer, int offset, int count)
         {
             Checksum = Crc32(Checksum, buffer, offset, count);
+            return Checksum;
+        }
+
+        public uint Append(Span<byte> span)
+        {
+            Checksum = Crc32(Checksum, span);
             return Checksum;
         }
 
@@ -208,25 +212,25 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region zlib crc32 Wrapper
-        public static uint Crc32(byte[] buffer)
-        {
-            NativeMethods.CheckZLibLoaded();
-
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
-            {
-                return NativeMethods.Crc32(InitChecksum, pinRead, (uint)buffer.Length);
-            }
-        }
-
-        public static uint Crc32(byte[] buffer, int offset, int count)
+        public static unsafe uint Crc32(byte[] buffer, int offset, int count)
         {
             NativeMethods.CheckZLibLoaded();
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                return NativeMethods.Crc32(InitChecksum, pinRead[offset], (uint)count);
+                return NativeMethods.Crc32(InitChecksum, bufPtr, (uint)count);
+            }
+        }
+
+        public static unsafe uint Crc32(Span<byte> span)
+        {
+            NativeMethods.CheckZLibLoaded();
+
+            fixed (byte* bufPtr = span)
+            {
+                return NativeMethods.Crc32(InitChecksum, bufPtr, (uint)span.Length);
             }
         }
 
@@ -246,25 +250,24 @@ namespace Joveler.Compression.ZLib
             return checksum;
         }
 
-        public static uint Crc32(uint checksum, byte[] buffer)
-        {
-            NativeMethods.CheckZLibLoaded();
-
-            using (PinnedArray<byte> bufferPtr = new PinnedArray<byte>(buffer))
-            {
-                return NativeMethods.Crc32(checksum, bufferPtr, (uint)buffer.Length);
-            }
-        }
-
-        public static uint Crc32(uint checksum, byte[] buffer, int offset, int count)
+        public static unsafe uint Crc32(uint checksum, byte[] buffer, int offset, int count)
         {
             NativeMethods.CheckZLibLoaded();
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
-
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                return NativeMethods.Crc32(checksum, pinRead[offset], (uint)count);
+                return NativeMethods.Crc32(checksum, bufPtr, (uint)count);
+            }
+        }
+
+        public static unsafe uint Crc32(uint checksum, Span<byte> span)
+        {
+            NativeMethods.CheckZLibLoaded();
+
+            fixed (byte* bufPtr = span)
+            {
+                return NativeMethods.Crc32(checksum, bufPtr, (uint)span.Length);
             }
         }
 
@@ -303,15 +306,15 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Append, Reset
-        public uint Append(byte[] buffer)
-        {
-            Checksum = Adler32(Checksum, buffer);
-            return Checksum;
-        }
-
         public uint Append(byte[] buffer, int offset, int count)
         {
             Checksum = Adler32(Checksum, buffer, offset, count);
+            return Checksum;
+        }
+
+        public uint Append(Span<byte> span)
+        {
+            Checksum = Adler32(Checksum, span);
             return Checksum;
         }
 
@@ -333,25 +336,25 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region zlib adler32 Wrapper
-        public static uint Adler32(byte[] buffer)
-        {
-            NativeMethods.CheckZLibLoaded();
-
-            using (PinnedArray<byte> bufferPtr = new PinnedArray<byte>(buffer))
-            {
-                return NativeMethods.Adler32(InitChecksum, bufferPtr, (uint)buffer.Length);
-            }
-        }
-
-        public static uint Adler32(byte[] buffer, int offset, int count)
+        public static unsafe uint Adler32(byte[] buffer, int offset, int count)
         {
             NativeMethods.CheckZLibLoaded();
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            using (PinnedArray<byte> bufferPtr = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                return NativeMethods.Adler32(InitChecksum, bufferPtr[offset], (uint)count);
+                return NativeMethods.Adler32(InitChecksum, bufPtr, (uint)count);
+            }
+        }
+
+        public static unsafe uint Adler32(Span<byte> span)
+        {
+            NativeMethods.CheckZLibLoaded();
+
+            fixed (byte* bufPtr = span)
+            {
+                return NativeMethods.Adler32(InitChecksum, bufPtr, (uint)span.Length);
             }
         }
 
@@ -371,25 +374,25 @@ namespace Joveler.Compression.ZLib
             return checksum;
         }
 
-        public static uint Adler32(uint checksum, byte[] buffer)
-        {
-            NativeMethods.CheckZLibLoaded();
-
-            using (PinnedArray<byte> bufferPtr = new PinnedArray<byte>(buffer))
-            {
-                return NativeMethods.Adler32(checksum, bufferPtr, (uint)buffer.Length);
-            }
-        }
-
-        public static uint Adler32(uint checksum, byte[] buffer, int offset, int count)
+        public static unsafe uint Adler32(uint checksum, byte[] buffer, int offset, int count)
         {
             NativeMethods.CheckZLibLoaded();
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            using (PinnedArray<byte> bufferPtr = new PinnedArray<byte>(buffer))
+            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
             {
-                return NativeMethods.Adler32(checksum, bufferPtr[offset], (uint)count);
+                return NativeMethods.Adler32(checksum, bufPtr, (uint)count);
+            }
+        }
+
+        public static unsafe uint Adler32(uint checksum, Span<byte> span)
+        {
+            NativeMethods.CheckZLibLoaded();
+
+            fixed (byte* bufPtr = span)
+            {
+                return NativeMethods.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
 

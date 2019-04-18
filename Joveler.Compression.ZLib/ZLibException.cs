@@ -4,7 +4,9 @@
 
     C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    
+    Maintained by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 
@@ -51,7 +53,7 @@ namespace Joveler.Compression.ZLib
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckZLibRetOk(ZLibReturnCode ret, ZStreamL32 zs = null)
+        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL32 zs = null)
         {
             if (ret != ZLibReturnCode.OK)
             {
@@ -62,31 +64,9 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        internal static void CheckZLibRetOk(ZLibReturnCode ret, ZStreamL64 zs = null)
+        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL64 zs = null)
         {
             if (ret != ZLibReturnCode.OK)
-            {
-                if (zs == null)
-                    throw new ZLibException(ret);
-                else
-                    throw new ZLibException(ret, zs.LastErrorMsg);
-            }
-        }
-
-        internal static void CheckZLibRetError(ZLibReturnCode ret, ZStreamL32 zs = null)
-        {
-            if (ret < 0)
-            {
-                if (zs == null)
-                    throw new ZLibException(ret);
-                else
-                    throw new ZLibException(ret, zs.LastErrorMsg);
-            }
-        }
-
-        internal static void CheckZLibRetError(ZLibReturnCode ret, ZStreamL64 zs = null)
-        {
-            if (ret < 0)
             {
                 if (zs == null)
                     throw new ZLibException(ret);

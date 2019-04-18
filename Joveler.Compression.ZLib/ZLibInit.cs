@@ -1,8 +1,39 @@
-﻿using System;
+﻿/*
+    Derived from zlib header files (zlib license)
+    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+
+    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
+    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
+    
+    Maintained by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
+
+    zlib license
+
+    This software is provided 'as-is', without any express or implied
+    warranty.  In no event will the authors be held liable for any damages
+    arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+       claim that you wrote the original software. If you use this software
+       in a product, an acknowledgment in the product documentation would be
+       appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+       misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+*/
+
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+#if !NET451
 using System.Runtime.InteropServices;
+#endif
 
 namespace Joveler.Compression.ZLib
 {
@@ -13,7 +44,7 @@ namespace Joveler.Compression.ZLib
         public static void GlobalInit(string libPath = null, int bufferSize = 64 * 1024)
         {
             if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
+                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
 
 #if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -23,9 +54,19 @@ namespace Joveler.Compression.ZLib
                 if (libPath == null || !File.Exists(libPath))
                     throw new ArgumentException("Specified .dll file does not exist");
 
+                libPath = Path.GetFullPath(libPath);
+
+                // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                string libDir = Path.GetDirectoryName(libPath);
+                if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                    NativeMethods.Win32.SetDllDirectory(libDir);
+
                 NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
                 if (NativeMethods.hModule == IntPtr.Zero)
                     throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+
+                // Reset dll search directory to prevent dll hijacking
+                NativeMethods.Win32.SetDllDirectory(null);
 
                 // Check if dll is valid zlibwapi.dll
                 if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "zlibCompileFlags") == IntPtr.Zero ||
@@ -78,7 +119,7 @@ namespace Joveler.Compression.ZLib
 
             try
             {
-                NativeMethods.LoadFuntions();
+                NativeMethods.LoadFunctions();
             }
             catch (Exception)
             {

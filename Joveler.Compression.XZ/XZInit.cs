@@ -1,22 +1,49 @@
-﻿using System;
+﻿/*
+    Derived from liblzma header files (Public Domain)
+
+    C# Wrapper written by Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
+
+    MIT License
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+*/
+
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
+// ReSharper disable UnusedMember.Global
+// ReSharper disable InconsistentNaming
 #if !NET451
 using System.Runtime.InteropServices;
 #endif
 
 namespace Joveler.Compression.XZ
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class XZInit
     {
         #region GlobalInit
         public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
         {
             if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
+                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
 #if !NET451
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 #endif
@@ -26,9 +53,19 @@ namespace Joveler.Compression.XZ
                 if (!File.Exists(libPath))
                     throw new FileNotFoundException("Specified dll does not exist");
 
+                libPath = Path.GetFullPath(libPath);
+
+                // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                string libDir = Path.GetDirectoryName(libPath);
+                if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                    NativeMethods.Win32.SetDllDirectory(libDir);
+
                 NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
                 if (NativeMethods.hModule == IntPtr.Zero)
                     throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+
+                // Reset dll search directory to prevent dll hijacking
+                NativeMethods.Win32.SetDllDirectory(null);
 
                 // Check if dll is valid (liblzma.dll)
                 if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)

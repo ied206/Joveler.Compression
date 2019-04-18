@@ -2,9 +2,8 @@
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
-    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
-    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    C# tests by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 
@@ -25,15 +24,17 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Text;
 // ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
+// ReSharper disable CommentTypo
 
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    public class ChecksumsTests
+    public class ChecksumTests
     {
         #region Crc32Stream
         [TestMethod]
@@ -118,9 +119,13 @@ namespace Joveler.Compression.ZLib.Tests
         public void Crc32Checksum_4()
         {
             Crc32Checksum crc = new Crc32Checksum();
-            crc.Append(Encoding.UTF8.GetBytes("ABC"));
+
+            byte[] buf = Encoding.UTF8.GetBytes("ABC");
+            crc.Append(buf, 0, buf.Length);
             Assert.IsTrue(crc.Checksum == 0xA3830348); // ABC
-            crc.Append(Encoding.UTF8.GetBytes("DEF"));
+
+            buf = Encoding.UTF8.GetBytes("DEF");
+            crc.Append(buf, 0, buf.Length);
             Assert.IsTrue(crc.Checksum == 0xBB76FE69); // ABCDEF
         }
 
@@ -128,9 +133,12 @@ namespace Joveler.Compression.ZLib.Tests
         [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_5()
         {
-            uint checksum = Crc32Checksum.Crc32(Encoding.UTF8.GetBytes("ABC"));
+            byte[] buf = Encoding.UTF8.GetBytes("ABC");
+            uint checksum = Crc32Checksum.Crc32(buf, 0, buf.Length);
             Assert.IsTrue(checksum == 0xA3830348); // ABC
-            checksum = Crc32Checksum.Crc32(checksum, Encoding.UTF8.GetBytes("DEF"));
+
+            buf = Encoding.UTF8.GetBytes("DEF");
+            checksum = Crc32Checksum.Crc32(checksum, buf, 0, buf.Length);
             Assert.IsTrue(checksum == 0xBB76FE69); // ABCDEF
         }
 
@@ -141,6 +149,9 @@ namespace Joveler.Compression.ZLib.Tests
             byte[] sample = Encoding.UTF8.GetBytes("ABCDEF");
 
             uint checksum = Crc32Checksum.Crc32(sample, 1, 3);
+            Assert.IsTrue(checksum == 0x26BA19F3); // BCD
+
+            checksum = Crc32Checksum.Crc32(sample.AsSpan().Slice(1, 3));
             Assert.IsTrue(checksum == 0x26BA19F3); // BCD
         }
 
@@ -257,9 +268,13 @@ namespace Joveler.Compression.ZLib.Tests
         public void Adler32Checksum_2()
         {
             Adler32Checksum adler = new Adler32Checksum();
-            adler.Append(Encoding.UTF8.GetBytes("ABC"));
+
+            byte[] buf = Encoding.UTF8.GetBytes("ABC");
+            adler.Append(buf, 0, buf.Length);
             Assert.IsTrue(adler.Checksum == 0x018D00C7); // ABC
-            adler.Append(Encoding.UTF8.GetBytes("DEF"));
+
+            buf = Encoding.UTF8.GetBytes("DEF");
+            adler.Append(buf, 0, buf.Length);
             Assert.IsTrue(adler.Checksum == 0x057E0196); // ABCDEF
         }
 
@@ -267,9 +282,12 @@ namespace Joveler.Compression.ZLib.Tests
         [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_3()
         {
-            uint checksum = Adler32Checksum.Adler32(Encoding.UTF8.GetBytes("ABC"));
+            byte[] buf = Encoding.UTF8.GetBytes("ABC");
+            uint checksum = Adler32Checksum.Adler32(buf, 0, buf.Length);
             Assert.IsTrue(checksum == 0x018D00C7); // ABC
-            checksum = Adler32Checksum.Adler32(checksum, Encoding.UTF8.GetBytes("DEF"));
+
+            buf = Encoding.UTF8.GetBytes("DEF");
+            checksum = Adler32Checksum.Adler32(checksum, buf, 0, buf.Length);
             Assert.IsTrue(checksum == 0x057E0196); // ABCDEF
         }
 
@@ -280,6 +298,9 @@ namespace Joveler.Compression.ZLib.Tests
             byte[] sample = Encoding.UTF8.GetBytes("ABCDEF");
 
             uint checksum = Adler32Checksum.Adler32(sample, 1, 3);
+            Assert.IsTrue(checksum == 0x019300CA); // BCD
+
+            checksum = Adler32Checksum.Adler32(sample.AsSpan().Slice(1, 3));
             Assert.IsTrue(checksum == 0x019300CA); // BCD
         }
 

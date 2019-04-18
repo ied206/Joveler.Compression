@@ -4,7 +4,9 @@
 
     C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    
+    Maintained by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 
@@ -31,6 +33,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {
@@ -94,7 +97,7 @@ namespace Joveler.Compression.ZLib
                             ret = NativeMethods.L32.DeflateInit(_zs32, level, WriteType);
                         else
                             ret = NativeMethods.L32.InflateInit(_zs32, OpenType);
-                        ZLibException.CheckZLibRetOk(ret, _zs32);
+                        ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
                 case NativeMethods.LongBits.Long64:
@@ -107,7 +110,7 @@ namespace Joveler.Compression.ZLib
                             ret = NativeMethods.L64.DeflateInit(_zs64, level, WriteType);
                         else
                             ret = NativeMethods.L64.InflateInit(_zs64, OpenType);
-                        ZLibException.CheckZLibRetOk(ret, _zs64);
+                        ZLibException.CheckReturnValue(ret, _zs64);
                         break;
                     }
                 default:
@@ -193,19 +196,28 @@ namespace Joveler.Compression.ZLib
 
             ValidateReadWriteArgs(buffer, offset, count);
 
+            Span<byte> span = buffer.AsSpan(offset, count);
+            return Read(span);
+        }
+
+        public unsafe int Read(Span<byte> span)
+        {
+            if (_mode != ZLibMode.Decompress)
+                throw new NotSupportedException("Read() not supported on compression");
+
             int readLen = 0;
             if (_internalBufPos != -1)
             {
-                using (PinnedArray<byte> pinRead = new PinnedArray<byte>(_internalBuf)) // [In] Compressed
-                using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(buffer)) // [Out] Will-be-decompressed
+                fixed (byte* readPtr = _internalBuf) // [In] Compressed
+                fixed (byte* writePtr = span) // [Out] Will-be-decompressed
                 {
                     switch (NativeMethods.LongBitType)
                     {
                         case NativeMethods.LongBits.Long32:
                             {
-                                _zs32.NextIn = pinRead[_internalBufPos];
-                                _zs32.NextOut = pinWrite[offset];
-                                _zs32.AvailOut = (uint)count;
+                                _zs32.NextIn = readPtr + _internalBufPos;
+                                _zs32.NextOut = writePtr;
+                                _zs32.AvailOut = (uint)span.Length;
 
                                 while (0 < _zs32.AvailOut)
                                 {
@@ -214,7 +226,7 @@ namespace Joveler.Compression.ZLib
                                         int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
                                         _internalBufPos = 0;
-                                        _zs32.NextIn = pinRead;
+                                        _zs32.NextIn = readPtr;
                                         _zs32.AvailIn = (uint)baseReadSize;
                                         TotalIn += baseReadSize;
                                     }
@@ -234,15 +246,15 @@ namespace Joveler.Compression.ZLib
                                         break;
                                     }
 
-                                    ZLibException.CheckZLibRetOk(ret, _zs32);
+                                    ZLibException.CheckReturnValue(ret, _zs32);
                                 }
-                                break;
                             }
+                            break;
                         case NativeMethods.LongBits.Long64:
                             {
-                                _zs64.NextIn = pinRead[_internalBufPos];
-                                _zs64.NextOut = pinWrite[offset];
-                                _zs64.AvailOut = (uint)count;
+                                _zs64.NextIn = readPtr + _internalBufPos;
+                                _zs64.NextOut = writePtr;
+                                _zs64.AvailOut = (uint)span.Length;
 
                                 while (0 < _zs64.AvailOut)
                                 {
@@ -251,7 +263,7 @@ namespace Joveler.Compression.ZLib
                                         int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
                                         _internalBufPos = 0;
-                                        _zs64.NextIn = pinRead;
+                                        _zs64.NextIn = readPtr;
                                         _zs64.AvailIn = (uint)baseReadSize;
                                         TotalIn += baseReadSize;
                                     }
@@ -271,10 +283,10 @@ namespace Joveler.Compression.ZLib
                                         break;
                                     }
 
-                                    ZLibException.CheckZLibRetOk(ret, _zs64);
+                                    ZLibException.CheckReturnValue(ret, _zs64);
                                 }
-                                break;
                             }
+                            break;
                     }
                 }
             }
@@ -288,18 +300,27 @@ namespace Joveler.Compression.ZLib
             if (_mode != ZLibMode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
 
-            TotalIn += count;
+            ValidateReadWriteArgs(buffer, offset, count);
 
-            using (PinnedArray<byte> pinRead = new PinnedArray<byte>(buffer))
-            using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(_internalBuf))
+            ReadOnlySpan<byte> span = buffer.AsSpan(offset, count);
+            Write(span);
+        }
+
+        public unsafe void Write(ReadOnlySpan<byte> span)
+        {
+            if (_mode != ZLibMode.Compress)
+                throw new NotSupportedException("Write() not supported on decompression");
+
+            fixed (byte* readPtr = span) // [In] Compressed
+            fixed (byte* writePtr = _internalBuf) // [Out] Will-be-decompressed
             {
                 switch (NativeMethods.LongBitType)
                 {
                     case NativeMethods.LongBits.Long32:
                         {
-                            _zs32.NextIn = pinRead[offset];
-                            _zs32.AvailIn = (uint)count;
-                            _zs32.NextOut = pinWrite[_internalBufPos];
+                            _zs32.NextIn = readPtr;
+                            _zs32.AvailIn = (uint)span.Length;
+                            _zs32.NextOut = writePtr + _internalBufPos;
                             _zs32.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                             while (_zs32.AvailIn != 0)
@@ -314,19 +335,19 @@ namespace Joveler.Compression.ZLib
                                     TotalOut += _internalBuf.Length;
 
                                     _internalBufPos = 0;
-                                    _zs32.NextOut = pinWrite;
+                                    _zs32.NextOut = writePtr;
                                     _zs32.AvailOut = (uint)_internalBuf.Length;
                                 }
 
-                                ZLibException.CheckZLibRetOk(ret, _zs32);
+                                ZLibException.CheckReturnValue(ret, _zs32);
                             }
                             break;
                         }
                     case NativeMethods.LongBits.Long64:
                         {
-                            _zs64.NextIn = pinRead[offset];
-                            _zs64.AvailIn = (uint)count;
-                            _zs64.NextOut = pinWrite[_internalBufPos];
+                            _zs64.NextIn = readPtr;
+                            _zs64.AvailIn = (uint)span.Length;
+                            _zs64.NextOut = writePtr + _internalBufPos;
                             _zs64.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                             while (_zs64.AvailIn != 0)
@@ -341,19 +362,21 @@ namespace Joveler.Compression.ZLib
                                     TotalOut += _internalBuf.Length;
 
                                     _internalBufPos = 0;
-                                    _zs64.NextOut = pinWrite;
+                                    _zs64.NextOut = writePtr;
                                     _zs64.AvailOut = (uint)_internalBuf.Length;
                                 }
 
-                                ZLibException.CheckZLibRetOk(ret, _zs64);
+                                ZLibException.CheckReturnValue(ret, _zs64);
                             }
                             break;
                         }
                 }
             }
+
+            TotalIn += span.Length;
         }
 
-        public override void Flush()
+        public override unsafe void Flush()
         {
             if (_mode == ZLibMode.Decompress)
             {
@@ -361,15 +384,15 @@ namespace Joveler.Compression.ZLib
                 return;
             }
 
-            using (PinnedArray<byte> pinWrite = new PinnedArray<byte>(_internalBuf))
+            fixed (byte* writePtr = _internalBuf)
             {
                 switch (NativeMethods.LongBitType)
                 {
                     case NativeMethods.LongBits.Long32:
                         {
-                            _zs32.NextIn = IntPtr.Zero;
+                            _zs32.NextIn = (byte*)0;
                             _zs32.AvailIn = 0;
-                            _zs32.NextOut = pinWrite[_internalBufPos];
+                            _zs32.NextOut = writePtr + _internalBufPos;
                             _zs32.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                             ZLibReturnCode ret = ZLibReturnCode.OK;
@@ -390,7 +413,7 @@ namespace Joveler.Compression.ZLib
                                 TotalOut += _internalBufPos;
 
                                 _internalBufPos = 0;
-                                _zs32.NextOut = pinWrite;
+                                _zs32.NextOut = writePtr;
                                 _zs32.AvailOut = (uint)_internalBuf.Length;
                             }
 
@@ -398,9 +421,9 @@ namespace Joveler.Compression.ZLib
                         }
                     case NativeMethods.LongBits.Long64:
                         {
-                            _zs64.NextIn = IntPtr.Zero;
+                            _zs64.NextIn = (byte*)0;
                             _zs64.AvailIn = 0;
-                            _zs64.NextOut = pinWrite[_internalBufPos];
+                            _zs64.NextOut = writePtr + _internalBufPos;
                             _zs64.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                             ZLibReturnCode ret = ZLibReturnCode.OK;
@@ -421,7 +444,7 @@ namespace Joveler.Compression.ZLib
                                 TotalOut += _internalBufPos;
 
                                 _internalBufPos = 0;
-                                _zs64.NextOut = pinWrite;
+                                _zs64.NextOut = writePtr;
                                 _zs64.AvailOut = (uint)_internalBuf.Length;
                             }
 

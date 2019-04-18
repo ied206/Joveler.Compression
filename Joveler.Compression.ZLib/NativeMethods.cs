@@ -4,7 +4,9 @@
 
     C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    Copyright (C) 2017-2018 Hajin Jang
+    
+    Maintained by Hajin Jang
+    Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
 
@@ -28,55 +30,17 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-
+// ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.ZLib
 {
-    #region PinnedArray
-    internal class PinnedArray<T> : IDisposable
-    {
-        private GCHandle _hArray;
-        public T[] Array;
-        public IntPtr Ptr => _hArray.AddrOfPinnedObject();
-
-        public IntPtr this[int idx] => Marshal.UnsafeAddrOfPinnedArrayElement(Array, idx);
-        public static implicit operator IntPtr(PinnedArray<T> fixedArray) => fixedArray[0];
-
-        public PinnedArray(T[] array)
-        {
-            Array = array;
-            _hArray = GCHandle.Alloc(array, GCHandleType.Pinned);
-        }
-
-        ~PinnedArray()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (_hArray.IsAllocated)
-                    _hArray.Free();
-            }
-        }
-    }
-    #endregion
-
     #region NativeMethods
     internal static class NativeMethods
     {
         #region Const
         internal const string MsgInitFirstError = "Please call ZLib.GlobalInit() first!";
-        internal const string MsgAlreadyInited = "Joveler.Compression.ZLib is already initialized.";
+        internal const string MsgAlreadyInit = "Joveler.Compression.ZLib is already initialized.";
 
         private const int DEF_MEM_LEVEL = 8;
         private const string ZLIB_VERSION = "1.2.11"; // This code is based on zlib 1.2.11's zlib.h
@@ -106,6 +70,9 @@ namespace Joveler.Compression.ZLib
 
             [DllImport("kernel32.dll")]
             internal static extern int FreeLibrary(IntPtr hModule);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern int SetDllDirectory([MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
         }
         #endregion
 
@@ -158,7 +125,7 @@ namespace Joveler.Compression.ZLib
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }
 
-        public static void LoadFuntions()
+        public static void LoadFunctions()
         {
             if (LongBitType == LongBits.Long32)
             {
@@ -354,16 +321,16 @@ namespace Joveler.Compression.ZLib
 
         #region Checksum - Adler32, Crc32
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal delegate uint adler32(
+        internal unsafe delegate uint adler32(
             uint crc,
-            IntPtr buf,
+            byte* buf,
             uint len);
         internal static adler32 Adler32;
 
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal delegate uint crc32(
+        internal unsafe delegate uint crc32(
             uint crc,
-            IntPtr buf,
+            byte* buf,
             uint len);
         internal static crc32 Crc32;
         #endregion

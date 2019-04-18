@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018 Hajin Jang
+    Copyright (C) 2018-2019 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -41,7 +41,7 @@ namespace Joveler.Compression.LZ4
         private static string FrameGetErrorName(UIntPtr code)
         {
             if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
+                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
 
             IntPtr strPtr = NativeMethods.GetErrorName(code);
             return Marshal.PtrToStringAnsi(strPtr);
@@ -50,15 +50,15 @@ namespace Joveler.Compression.LZ4
         public LZ4FrameException(UIntPtr code) : base(FrameGetErrorName(code))
         {
             if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
+                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
 
             Code = code.ToUInt64();
         }
 
-        public static void CheckLZ4Error(UIntPtr code)
+        public static void CheckReturnValue(UIntPtr code)
         {
             if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInited);
+                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
 
             if (NativeMethods.FrameIsError(code) != 0)
                 throw new LZ4FrameException(code);
