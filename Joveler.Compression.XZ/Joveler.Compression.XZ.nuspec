@@ -11,7 +11,7 @@
     <license type="expression">MIT</license>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <copyright>Copyright (c) 2018-2019 Hajin Jang</copyright>
-    <tags>xz liblzma compression pinvoke interop</tags>
+    <tags>xz liblzma lzma lzma2 compress compression pinvoke interop</tags>
     <description>C# pinvoke library for liblzma (XZ Utils).
 Supports Windows and Linux.</description>
     <summary>C# pinvoke library for liblzma (XZ Utils).</summary>

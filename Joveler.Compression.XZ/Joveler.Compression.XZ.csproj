@@ -13,7 +13,7 @@ Supports Windows and Linux.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageTags>xz liblzma compression pinvoke interop</PackageTags>
+    <PackageTags>xz liblzma lzma lzma2 compress compression pinvoke interop</PackageTags>
     <PackageReleaseNotes>- Native support for Span
 - Support dll with additional dependency
 - Drop .Net Standard 1.3 support</PackageReleaseNotes>
