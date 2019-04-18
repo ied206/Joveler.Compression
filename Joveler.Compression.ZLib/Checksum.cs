@@ -53,7 +53,7 @@ namespace Joveler.Compression.ZLib
         public override unsafe int Read(byte[] buffer, int offset, int count)
         {
             int bytesRead = BaseStream.Read(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
                 Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)bytesRead);
             }
@@ -63,7 +63,7 @@ namespace Joveler.Compression.ZLib
         public override unsafe void Write(byte[] buffer, int offset, int count)
         {
             BaseStream.Write(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
                 Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)count);
             }
@@ -119,7 +119,7 @@ namespace Joveler.Compression.ZLib
         public override unsafe int Read(byte[] buffer, int offset, int count)
         {
             int bytesRead = BaseStream.Read(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
                 Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)bytesRead);
             }
@@ -129,7 +129,7 @@ namespace Joveler.Compression.ZLib
         public override unsafe void Write(byte[] buffer, int offset, int count)
         {
             BaseStream.Write(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
                 Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)count);
             }
@@ -188,7 +188,7 @@ namespace Joveler.Compression.ZLib
             return Checksum;
         }
 
-        public uint Append(Span<byte> span)
+        public uint Append(ReadOnlySpan<byte> span)
         {
             Checksum = Crc32(Checksum, span);
             return Checksum;
@@ -218,13 +218,13 @@ namespace Joveler.Compression.ZLib
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.Crc32(InitChecksum, bufPtr, (uint)count);
             }
         }
 
-        public static unsafe uint Crc32(Span<byte> span)
+        public static unsafe uint Crc32(ReadOnlySpan<byte> span)
         {
             NativeMethods.CheckZLibLoaded();
 
@@ -255,13 +255,13 @@ namespace Joveler.Compression.ZLib
             NativeMethods.CheckZLibLoaded();
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.Crc32(checksum, bufPtr, (uint)count);
             }
         }
 
-        public static unsafe uint Crc32(uint checksum, Span<byte> span)
+        public static unsafe uint Crc32(uint checksum, ReadOnlySpan<byte> span)
         {
             NativeMethods.CheckZLibLoaded();
 
@@ -312,7 +312,7 @@ namespace Joveler.Compression.ZLib
             return Checksum;
         }
 
-        public uint Append(Span<byte> span)
+        public uint Append(ReadOnlySpan<byte> span)
         {
             Checksum = Adler32(Checksum, span);
             return Checksum;
@@ -342,13 +342,13 @@ namespace Joveler.Compression.ZLib
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.Adler32(InitChecksum, bufPtr, (uint)count);
             }
         }
 
-        public static unsafe uint Adler32(Span<byte> span)
+        public static unsafe uint Adler32(ReadOnlySpan<byte> span)
         {
             NativeMethods.CheckZLibLoaded();
 
@@ -380,13 +380,13 @@ namespace Joveler.Compression.ZLib
 
             DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
 
-            fixed (byte* bufPtr = buffer.AsSpan().Slice(offset))
+            fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.Adler32(checksum, bufPtr, (uint)count);
             }
         }
 
-        public static unsafe uint Adler32(uint checksum, Span<byte> span)
+        public static unsafe uint Adler32(uint checksum, ReadOnlySpan<byte> span)
         {
             NativeMethods.CheckZLibLoaded();
 

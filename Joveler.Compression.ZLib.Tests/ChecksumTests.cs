@@ -87,7 +87,7 @@ namespace Joveler.Compression.ZLib.Tests
             using (Crc32Stream crc = new Crc32Stream(ms))
             {
                 byte[] bin = Encoding.UTF8.GetBytes("ABCDEF");
-                crc.Write(bin, 0, bin.Length);
+                crc.Write(bin);
                 Assert.IsTrue(crc.Checksum == 0xBB76FE69);
             }
         }
@@ -121,7 +121,7 @@ namespace Joveler.Compression.ZLib.Tests
             Crc32Checksum crc = new Crc32Checksum();
 
             byte[] buf = Encoding.UTF8.GetBytes("ABC");
-            crc.Append(buf, 0, buf.Length);
+            crc.Append(buf);
             Assert.IsTrue(crc.Checksum == 0xA3830348); // ABC
 
             buf = Encoding.UTF8.GetBytes("DEF");
@@ -236,7 +236,7 @@ namespace Joveler.Compression.ZLib.Tests
             using (Adler32Stream adler = new Adler32Stream(ms))
             {
                 byte[] bin = Encoding.UTF8.GetBytes("ABCDEF");
-                adler.Write(bin, 0, bin.Length);
+                adler.Write(bin);
                 Assert.IsTrue(adler.Checksum == 0x057E0196);
             }
         }
@@ -270,7 +270,7 @@ namespace Joveler.Compression.ZLib.Tests
             Adler32Checksum adler = new Adler32Checksum();
 
             byte[] buf = Encoding.UTF8.GetBytes("ABC");
-            adler.Append(buf, 0, buf.Length);
+            adler.Append(buf);
             Assert.IsTrue(adler.Checksum == 0x018D00C7); // ABC
 
             buf = Encoding.UTF8.GetBytes("DEF");
@@ -300,7 +300,7 @@ namespace Joveler.Compression.ZLib.Tests
             uint checksum = Adler32Checksum.Adler32(sample, 1, 3);
             Assert.IsTrue(checksum == 0x019300CA); // BCD
 
-            checksum = Adler32Checksum.Adler32(sample.AsSpan().Slice(1, 3));
+            checksum = Adler32Checksum.Adler32(sample.AsSpan(1, 3));
             Assert.IsTrue(checksum == 0x019300CA); // BCD
         }
 

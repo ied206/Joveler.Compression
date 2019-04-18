@@ -148,44 +148,7 @@ A stream to process a data format conforming [RFC 1952](https://www.ietf.org/rfc
 
 Same usage with `DeflateStream`.
 
-### DeflateCompressor
-
-A helper class for `DeflateStream`.
-
-#### Ex) `DeflateCompressor.Compress(Stream stream)`
-
-```cs
-using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
-using (MemoryStream msComp = DeflateCompressor.Compress(fsOrigin))
-{
-    // write msComp to file, or send through network, etc
-}
-```
-
-#### Ex) `DeflateCompressor.Decompress(byte[] buffer)`
-
-```cs
-byte[] input = new byte[] { 0x73, 0x74, 0x72, 0x76, 0x71, 0x75, 0x03, 0x00 };
-byte[] decompBytes = DeflateCompressor.Decompress(input);
-string decompText = Encoding.UTF8.GetString(decompBytes);
-Console.WriteLine(decompText); // "ABCDEF"
-```
-
-### ZLibCompressor
-
-A helper class for `ZLibStream`.
-
-Same usage with `DeflateCompressor`.
-
-### GZipCompressor
-
-A helper class for `GZipStream`.
-
-Same usage with `DeflateCompressor`.
-
 ## Checksum
-
-**NOTE**: To use checksum calculation, you MUST USE `zlibwapi.dll`.
 
 ### Adler32Checksum
 
@@ -205,7 +168,7 @@ using (FileStream fs = new FileStream("read.txt", FileMode.Open))
 }
 ```
 
-#### Ex) `Append(byte[] buffer)`, `Append(byte[] buffer, int offset, int count)`
+#### Ex) `Append(ReadOnlySpan<byte> buffer)`, `Append(byte[] buffer, int offset, int count)`
 
 ```cs
 Adler32Checksum adler = new Adler32Checksum();
