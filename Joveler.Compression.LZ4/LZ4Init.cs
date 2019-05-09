@@ -42,7 +42,9 @@ namespace Joveler.Compression.LZ4
     public static class LZ4Init
     {
         #region GlobalInit
-        public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
+        public static void GlobalInit(string libPath) => GlobalInit(libPath, 64 * 1024);
+
+        public static void GlobalInit(string libPath, int bufferSize)
         {
             if (NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
