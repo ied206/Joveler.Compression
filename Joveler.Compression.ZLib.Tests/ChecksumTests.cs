@@ -34,11 +34,11 @@ using System.Text;
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
+    [TestCategory("Joveler.Compression.ZLib")]
     public class ChecksumTests
     {
         #region Crc32Stream
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Stream_1()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex1.jpg");
@@ -52,7 +52,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Stream_2()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex2.jpg");
@@ -66,7 +65,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Stream_3()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex3.jpg");
@@ -80,7 +78,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Stream_4()
         {
             using (MemoryStream ms = new MemoryStream())
@@ -95,7 +92,6 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region Crc32Checksum
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_1()
         {
             void Template(string path, uint checksum)
@@ -115,7 +111,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_4()
         {
             Crc32Checksum crc = new Crc32Checksum();
@@ -130,7 +125,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_5()
         {
             byte[] buf = Encoding.UTF8.GetBytes("ABC");
@@ -143,7 +137,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_6()
         {
             byte[] sample = Encoding.UTF8.GetBytes("ABCDEF");
@@ -156,7 +149,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_7()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex3.jpg");
@@ -168,7 +160,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Crc32Checksum_8()
         {
             byte[] sample1 = Encoding.UTF8.GetBytes("ABC");
@@ -187,7 +178,6 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region Adler32Stream
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Stream_1()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex1.jpg");
@@ -201,7 +191,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Stream_2()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex2.jpg");
@@ -215,7 +204,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Stream_3()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex3.jpg");
@@ -229,7 +217,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Stream_4()
         {
             using (MemoryStream ms = new MemoryStream())
@@ -244,7 +231,6 @@ namespace Joveler.Compression.ZLib.Tests
 
         #region Adler32Checksum
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_1()
         {
             void Template(string path, uint checksum)
@@ -264,7 +250,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_2()
         {
             Adler32Checksum adler = new Adler32Checksum();
@@ -279,7 +264,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_3()
         {
             byte[] buf = Encoding.UTF8.GetBytes("ABC");
@@ -292,7 +276,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_4()
         {
             byte[] sample = Encoding.UTF8.GetBytes("ABCDEF");
@@ -305,7 +288,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_5()
         {
             string filePath = Path.Combine(TestSetup.SampleDir, "ex3.jpg");
@@ -317,7 +299,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Adler32Checksum_6()
         {
             byte[] sample1 = Encoding.UTF8.GetBytes("ABC");

@@ -93,14 +93,12 @@ namespace Joveler.Compression.ZLib.Tests
                 byte[] originDigest;
                 using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    originDigest = hash.ComputeHash(fs);
+                    originDigest = TestHelper.SHA256Digest(fs);
                 }
 
                 using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    decompDigest = hash.ComputeHash(fs);
+                    decompDigest = TestHelper.SHA256Digest(fs);
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
