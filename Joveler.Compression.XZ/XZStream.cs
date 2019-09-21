@@ -51,9 +51,14 @@ namespace Joveler.Compression.XZ
 
         // Property
         public Stream BaseStream { get; private set; }
-
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
+        public int Threads { get; private set; } = 1;
+        /// <summary>
+        /// Only valid in Compress mode
+        /// </summary>
+        public ulong MaxMemUsage { get; private set; } = ulong.MaxValue;
+
         // Const
         public const uint MinimumPreset = 0;
         public const uint DefaultPreset = 6;
@@ -91,6 +96,7 @@ namespace Joveler.Compression.XZ
                 threads = Environment.ProcessorCount;
             else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
                 threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
+            Threads = threads;
 
             BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
             _mode = mode;
@@ -111,6 +117,8 @@ namespace Joveler.Compression.XZ
                         { // Reference : 01_compress_easy.c
                             LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, preset, LzmaCheck.CHECK_CRC64);
                             XZException.CheckReturnValue(ret);
+
+                            MaxMemUsage = NativeMethods.LzmaEasyEncoderMemUsage(preset);
                         }
                         else
                         { // Reference : 04_compress_easy_mt.c
@@ -137,6 +145,8 @@ namespace Joveler.Compression.XZ
                             // Initialize the threaded encoder.
                             LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mtOptions);
                             XZException.CheckReturnValue(ret);
+
+                            MaxMemUsage = NativeMethods.LzmaStreamEncoderMtMemUsage(mtOptions);
                         }
                         break;
                     }
@@ -351,7 +361,7 @@ namespace Joveler.Compression.XZ
             {
                 _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-               _lzmaStream.NextOut = writePtr + _internalBufPos;
+                _lzmaStream.NextOut = writePtr + _internalBufPos;
                 _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
                 LzmaRet ret = LzmaRet.OK;
@@ -466,6 +476,31 @@ namespace Joveler.Compression.XZ
                     return 100 - TotalIn * 100.0 / TotalOut;
                 }
             }
+        }
+        #endregion
+
+        #region GetProgress
+        /// <summary>
+        /// Get progress information
+        /// </summary>
+        /// <remarks>
+        /// In single-threaded mode, applications can get progress information from 
+        /// strm->total_in and strm->total_out.In multi-threaded mode this is less
+        /// useful because a significant amount of both input and output data gets
+        /// buffered internally by liblzma.This makes total_in and total_out give
+        /// misleading information and also makes the progress indicator updates
+        /// non-smooth.
+        /// 
+        /// This function gives realistic progress information also in multi-threaded
+        /// mode by taking into account the progress made by each thread. In
+        /// single-threaded mode *progress_in and *progress_out are set to
+        /// strm->total_in and strm->total_out, respectively.
+        /// </remarks>
+        public void GetProgress(out ulong progressIn, out ulong progressOut)
+        {
+            progressIn = 0;
+            progressOut = 0;
+            NativeMethods.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
         }
         #endregion
     }

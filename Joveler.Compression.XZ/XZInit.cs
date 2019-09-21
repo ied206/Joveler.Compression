@@ -29,6 +29,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
 #if !NET451
@@ -174,7 +175,26 @@ namespace Joveler.Compression.XZ
             if (!NativeMethods.Loaded)
                 throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
 
-            return NativeMethods.LzmaVersionString();
+            IntPtr ptr = NativeMethods.LzmaVersionString();
+            return Marshal.PtrToStringAnsi(ptr);
+        }
+        #endregion
+
+        #region Hardware - PhysMem & CPU Threads
+        public static ulong PhysMem()
+        {
+            if (!NativeMethods.Loaded)
+                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+
+            return NativeMethods.LzmaPhysMem();
+        }
+
+        public static uint CpuThreads()
+        {
+            if (!NativeMethods.Loaded)
+                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+
+            return NativeMethods.LzmaCpuThreads();
         }
         #endregion
     }

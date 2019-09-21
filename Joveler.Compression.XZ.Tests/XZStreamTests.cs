@@ -34,11 +34,11 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.XZ.Tests
 {
     [TestClass]
+    [TestCategory("Joveler.Compression.XZ")]
     public class XZStreamTests
     {
         #region Compress
         [TestMethod]
-        [TestCategory("Joveler.Compression.XZ")]
         public void Compress()
         {
             CompressTemplate("A.pdf", false, 1, 7);
@@ -47,7 +47,6 @@ namespace Joveler.Compression.XZ.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.XZ")]
         public void CompressSpan()
         {
             CompressTemplate("A.pdf", true, 1, 7);
@@ -56,7 +55,6 @@ namespace Joveler.Compression.XZ.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.XZ")]
         public void CompressMulti()
         {
             CompressTemplate("A.pdf", false, 2, 7);
@@ -96,9 +94,12 @@ namespace Joveler.Compression.XZ.Tests
                     }
                     
                     xzs.Flush();
+                    xzs.GetProgress(out ulong finalIn, out ulong finalOut);
 
                     Assert.AreEqual(sampleFs.Length, xzs.TotalIn);
                     Assert.AreEqual(xzCompFs.Length, xzs.TotalOut);
+                    Assert.AreEqual((ulong)sampleFs.Length, finalIn);
+                    Assert.AreEqual((ulong)xzCompFs.Length, finalOut);
                 }
 
                 Assert.IsTrue(TestHelper.RunXZ(tempXzFile) == 0);
@@ -107,14 +108,18 @@ namespace Joveler.Compression.XZ.Tests
                 byte[] originDigest;
                 using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    originDigest = hash.ComputeHash(fs);
+                    using (HashAlgorithm hash = SHA256.Create())
+                    {
+                        originDigest = hash.ComputeHash(fs);
+                    }
                 }
 
                 using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    decompDigest = hash.ComputeHash(fs);
+                    using (HashAlgorithm hash = SHA256.Create())
+                    {
+                        decompDigest = hash.ComputeHash(fs);
+                    }
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
@@ -129,7 +134,6 @@ namespace Joveler.Compression.XZ.Tests
 
         #region Decompress
         [TestMethod]
-        [TestCategory("Joveler.Compression.XZ")]
         public void Decompress()
         {
             Template("A.xz", "A.pdf", false);
@@ -139,7 +143,6 @@ namespace Joveler.Compression.XZ.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.XZ")]
         public void DecompressSpan()
         {
             Template("A.xz", "A.pdf", true);
@@ -177,24 +180,34 @@ namespace Joveler.Compression.XZ.Tests
                     }
 
                     decompMs.Flush();
+                    xz.GetProgress(out ulong finalIn, out ulong finalOut);
 
                     Assert.AreEqual(compFs.Length, xz.TotalIn);
                     Assert.AreEqual(decompMs.Length, xz.TotalOut);
+                    Assert.AreEqual((ulong)compFs.Length, finalIn);
+                    Assert.AreEqual((ulong)decompMs.Length, finalOut);
                 }
                 decompMs.Position = 0;
 
-                HashAlgorithm hash = SHA256.Create();
-                decompDigest = hash.ComputeHash(decompMs);
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    decompDigest = hash.ComputeHash(decompMs);
+                }
             }
 
             using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                HashAlgorithm hash = SHA256.Create();
-                originDigest = hash.ComputeHash(originFs);
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    originDigest = hash.ComputeHash(originFs);
+                }
             }
 
             Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
         }
+        #endregion
+
+        #region GetProgress
         #endregion
     }
 }

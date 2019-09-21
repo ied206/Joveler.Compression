@@ -119,24 +119,31 @@ namespace Joveler.Compression.XZ
         internal static void LoadFunctions()
         {
             #region Base - LzmaCode, LzmaEnd, LzmaGetProgress
-            LzmaCode = GetFuncPtr<lzma_code>("lzma_code");
-            LzmaEnd = GetFuncPtr<lzma_end>("lzma_end");
-            LzmaGetProgress = GetFuncPtr<lzma_get_progress>("lzma_get_progress");
+            LzmaCode = GetFuncPtr<lzma_code>(nameof(lzma_code));
+            LzmaEnd = GetFuncPtr<lzma_end>(nameof(lzma_end));
+            LzmaGetProgress = GetFuncPtr<lzma_get_progress>(nameof(lzma_get_progress));
             #endregion
 
             #region Container - Encoders and Decoders
-            LzmaEasyEncoder = GetFuncPtr<lzma_easy_encoder>("lzma_easy_encoder");
-            LzmaEasyBufferEncode = GetFuncPtr<lzma_easy_buffer_encode>("lzma_easy_buffer_encode");
-            LzmaStreamEncoder = GetFuncPtr<lzma_stream_encoder>("lzma_stream_encoder");
-            LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>("lzma_stream_encoder_mt");
-            LzmaStreamBufferEncode = GetFuncPtr<lzma_stream_buffer_encode>("lzma_stream_buffer_encode");
-            LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>("lzma_stream_decoder");
-            LzmaStreamBufferDecode = GetFuncPtr<lzma_stream_buffer_decode>("lzma_stream_buffer_decode");
+            LzmaEasyEncoderMemUsage = GetFuncPtr<lzma_easy_encoder_memusage>(nameof(lzma_easy_encoder_memusage));
+            LzmaEasyDecoderMemUsage = GetFuncPtr<lzma_easy_decoder_memusage>(nameof(lzma_easy_decoder_memusage));
+            LzmaEasyEncoder = GetFuncPtr<lzma_easy_encoder>(nameof(lzma_easy_encoder));
+            LzmaStreamEncoder = GetFuncPtr<lzma_stream_encoder>(nameof(lzma_stream_encoder));
+            LzmaStreamEncoderMtMemUsage = GetFuncPtr<lzma_stream_encoder_mt_memusage>(nameof(lzma_stream_encoder_mt_memusage));
+            LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>(nameof(lzma_stream_encoder_mt));
+            LzmaStreamBufferEncode = GetFuncPtr<lzma_stream_buffer_encode>(nameof(lzma_stream_buffer_encode));
+            LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>(nameof(lzma_stream_decoder));
+            LzmaStreamBufferDecode = GetFuncPtr<lzma_stream_buffer_decode>(nameof(lzma_stream_buffer_decode));
+            #endregion
+
+            #region Hardware - PhyMem & CPU Threads
+            LzmaPhysMem = GetFuncPtr<lzma_physmem>(nameof(lzma_physmem));
+            LzmaCpuThreads = GetFuncPtr<lzma_cputhreads>(nameof(lzma_cputhreads));
             #endregion
 
             #region Version - LzmaVersionNumber, LzmaVersionString
-            LzmaVersionNumber = GetFuncPtr<lzma_version_number>("lzma_version_number");
-            LzmaVersionString = GetFuncPtr<lzma_version_string>("lzma_version_string");
+            LzmaVersionNumber = GetFuncPtr<lzma_version_number>(nameof(lzma_version_number));
+            LzmaVersionString = GetFuncPtr<lzma_version_string>(nameof(lzma_version_string));
             #endregion
         }
 
@@ -150,12 +157,16 @@ namespace Joveler.Compression.XZ
 
             #region Container - Encoders and Decoders
             LzmaEasyEncoder = null;
-            LzmaEasyBufferEncode = null;
             LzmaStreamEncoder = null;
             LzmaStreamEncoderMt = null;
             LzmaStreamBufferEncode = null;
             LzmaStreamDecoder = null;
             LzmaStreamBufferDecode = null;
+            #endregion
+
+            #region Hardware - PhyMem & CPU Threads
+            LzmaPhysMem = null;
+            LzmaCpuThreads = null;
             #endregion
 
             #region Version - LzmaVersionNumber, LzmaVersionString
@@ -187,6 +198,14 @@ namespace Joveler.Compression.XZ
 
         #region Container - Encoders and Decoders
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_easy_encoder_memusage(uint preset);
+        internal static lzma_easy_encoder_memusage LzmaEasyEncoderMemUsage;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_easy_decoder_memusage(uint preset);
+        internal static lzma_easy_decoder_memusage LzmaEasyDecoderMemUsage;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_easy_encoder(
             LzmaStream strm,
             uint preset,
@@ -194,23 +213,15 @@ namespace Joveler.Compression.XZ
         internal static lzma_easy_encoder LzmaEasyEncoder;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_easy_buffer_encode(
-            uint preset,
-            LzmaCheck check,
-            IntPtr allocator,
-            IntPtr in_buf,
-            UIntPtr in_size, // size_t
-            IntPtr out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_easy_buffer_encode LzmaEasyBufferEncode;
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder(
             LzmaStream strm,
             [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters,
             LzmaCheck check);
         internal static lzma_stream_encoder LzmaStreamEncoder;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_stream_encoder_mt_memusage(LzmaMt options);
+        internal static lzma_stream_encoder_mt_memusage LzmaStreamEncoderMtMemUsage;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder_mt(
@@ -324,14 +335,23 @@ namespace Joveler.Compression.XZ
         internal static lzma_stream_buffer_decode LzmaStreamBufferDecode;
         #endregion
 
+        #region Hardware - PhyMem & CPU Threads
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_physmem(); 
+        internal static lzma_physmem LzmaPhysMem;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate uint lzma_cputhreads();
+        internal static lzma_cputhreads LzmaCpuThreads;
+        #endregion
+
         #region Version - LzmaVersionNumber, LzmaVersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_version_number();
         internal static lzma_version_number LzmaVersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal delegate string lzma_version_string();
+        internal delegate IntPtr lzma_version_string();
         internal static lzma_version_string LzmaVersionString;
         #endregion
         #endregion
