@@ -40,7 +40,7 @@ namespace Joveler.Compression.XZ
         {
             [LzmaRet.NO_CHECK] = "No integrity check; not verifying file integrity",
             [LzmaRet.UNSUPPORTED_CHECK] = "Unsupported type of integrity check; not verifying file integrity",
-            [LzmaRet.MEM_ERROR] = "Not Enough Memory",
+            [LzmaRet.MEM_ERROR] = "Not enough memory",
             [LzmaRet.MEMLIMIT_ERROR] = "Memory usage limit reached",
             [LzmaRet.OPTIONS_ERROR] = "Unsupported options",
             [LzmaRet.DATA_ERROR] = "Compressed data is corrupt",

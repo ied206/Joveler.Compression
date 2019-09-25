@@ -77,7 +77,6 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Linux libdl API
-#pragma warning disable IDE1006 // 명명 스타일
         internal static class Linux
         {
             internal const int RTLD_NOW = 0x0002;
@@ -95,7 +94,6 @@ namespace Joveler.Compression.ZLib
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
-#pragma warning restore IDE1006 // 명명 스타일
         #endregion
 
         #region LoadFunctions, ResetFunctions

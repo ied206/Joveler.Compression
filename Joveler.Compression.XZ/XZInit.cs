@@ -26,9 +26,6 @@
 */
 
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
@@ -40,109 +37,21 @@ namespace Joveler.Compression.XZ
         #region GlobalInit
         public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
         {
-            if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
-#if !NET451
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-#endif
-            {
-                if (libPath == null)
-                    throw new ArgumentNullException(nameof(libPath));
-
-                libPath = Path.GetFullPath(libPath);
-                if (!File.Exists(libPath))
-                    throw new ArgumentException("Specified .dll file does not exist");
-
-                // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
-                string libDir = Path.GetDirectoryName(libPath);
-                if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
-                    NativeMethods.Win32.SetDllDirectory(libDir);
-
-                NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
-
-                // Reset dll search directory to prevent dll hijacking
-                NativeMethods.Win32.SetDllDirectory(null);
-
-                // Check if dll is valid (liblzma.dll)
-                if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid liblzma library");
-                }
-            }
-#if !NET451
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                if (libPath == null)
-                    libPath = "/lib/x86_64-linux-gnu/liblzma.so.5"; // Try to call system-installed lz4
-                if (!File.Exists(libPath))
-                    throw new ArgumentException("Specified .so file does not exist");
-
-                NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
-
-                // Check if dll is valid (liblzma.dll)
-                if (NativeMethods.Linux.dlsym(NativeMethods.hModule, "lzma_version_number") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid liblzma.so");
-                }
-            }
-#endif
-
-            if (bufferSize < 0)
-                throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            if (bufferSize < 4096)
-                bufferSize = 4096;
-            XZStream.BufferSize = bufferSize;
-
-            try
-            {
-                NativeMethods.LoadFunctions();
-                XZStream.BufferSize = bufferSize;
-            }
-            catch (Exception)
-            {
-                GlobalCleanup();
-                throw;
-            }
+            NativeMethods.GlobalInit(libPath, bufferSize);
         }
         #endregion
 
         #region GlobalCleanup
         public static void GlobalCleanup()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            NativeMethods.ResetFunctions();
-#if !NET451
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-#endif
-            {
-                int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
-                Debug.Assert(ret != 0);
-            }
-#if !NET451
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
-                Debug.Assert(ret == 0);
-            }
-#endif
-
-            NativeMethods.hModule = IntPtr.Zero;
+            NativeMethods.GlobalCleanup();
         }
         #endregion
 
         #region Version - (Static)
         public static Version Version()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             /*
              * Note from "lzma\version.h"
@@ -158,19 +67,18 @@ namespace Joveler.Compression.XZ
              * or 5.1.0 stable.
              */
 
-            int verInt = (int)NativeMethods.LzmaVersionNumber();
-            int major = verInt / 10000000;
-            int minor = verInt % 10000000 / 10000;
-            int revision = verInt % 10000 / 10;
-            int stability = verInt % 10;
+            uint verInt = NativeMethods.LzmaVersionNumber();
+            int major = (int)(verInt / 10000000u);
+            int minor = (int)(verInt % 10000000u / 10000u);
+            int revision = (int)(verInt % 10000u / 10u);
+            int stability = (int)(verInt % 10u);
 
             return new Version(major, minor, revision, stability);
         }
 
         public static string VersionString()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             IntPtr ptr = NativeMethods.LzmaVersionString();
             return Marshal.PtrToStringAnsi(ptr);
@@ -180,16 +88,14 @@ namespace Joveler.Compression.XZ
         #region Hardware - PhysMem & CPU Threads
         public static ulong PhysMem()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             return NativeMethods.LzmaPhysMem();
         }
 
         public static uint CpuThreads()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             return NativeMethods.LzmaCpuThreads();
         }

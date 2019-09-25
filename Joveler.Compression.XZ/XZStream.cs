@@ -28,6 +28,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 
@@ -43,7 +44,7 @@ namespace Joveler.Compression.XZ
 
         private LzmaStream _lzmaStream;
         private GCHandle _lzmaStreamPin;
-        internal static int BufferSize = 64 * 1024;
+        private int _bufferSize = 64 * 1024;
 
         private int _internalBufPos = 0;
         private const int ReadDone = -1;
@@ -84,8 +85,7 @@ namespace Joveler.Compression.XZ
 
         public unsafe XZStream(Stream stream, LzmaMode mode, uint preset, int threads, bool leaveOpen)
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             if (9 < preset)
                 throw new ArgumentOutOfRangeException(nameof(preset));
@@ -102,10 +102,11 @@ namespace Joveler.Compression.XZ
             _mode = mode;
             _leaveOpen = leaveOpen;
             _disposed = false;
+            _bufferSize = NativeMethods.BufferSize;
 
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
-            _internalBuf = new byte[BufferSize];
+            _internalBuf = new byte[_bufferSize];
 
             switch (mode)
             {
@@ -170,7 +171,6 @@ namespace Joveler.Compression.XZ
         ~XZStream()
         {
             Dispose(false);
-            GC.SuppressFinalize(this);
         }
 
         protected override void Dispose(bool disposing)
@@ -206,6 +206,21 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
+        #region ValidateReadWriteArgs
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void ValidateReadWriteArgs(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+            if (buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+        #endregion
+
         #region Stream Methods
         /// <inheritdoc />
         /// <summary>
@@ -215,12 +230,7 @@ namespace Joveler.Compression.XZ
         {
             if (_mode != LzmaMode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            ValidateReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
 
@@ -235,7 +245,6 @@ namespace Joveler.Compression.XZ
         {
             if (_mode != LzmaMode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-
             if (_internalBufPos == ReadDone)
                 return 0;
 
@@ -297,12 +306,7 @@ namespace Joveler.Compression.XZ
         {
             if (_mode != LzmaMode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            ValidateReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 

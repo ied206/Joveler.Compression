@@ -27,6 +27,8 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ArrangeTypeMemberModifiers
@@ -42,16 +44,48 @@ namespace Joveler.Compression.XZ
         public const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
-        #region Fields
-        internal static IntPtr hModule;
-        public static bool Loaded => hModule != IntPtr.Zero;
+        #region BufferSize
+        internal static int BufferSize = 64 * 1024;
+        #endregion
+
+        #region Native Library Loading
+        internal static IntPtr hModule = IntPtr.Zero;
+        internal static readonly object LoadLock = new object();
+        private static bool Loaded => hModule != IntPtr.Zero;
+
+        public static bool IsLoaded()
+        {
+            lock (LoadLock)
+            {
+                return Loaded;
+            }
+        }
+
+        public static void EnsureLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+            }
+        }
+
+        public static void EnsureNotLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+            }
+        }
         #endregion
 
         #region Windows kernel32 API
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Win32
         {
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPTStr)] string lpFileName);
+            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
@@ -62,10 +96,12 @@ namespace Joveler.Compression.XZ
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern int SetDllDirectory([MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
         }
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
         #endregion
 
         #region Linux libdl API
 #pragma warning disable IDE1006 // 명명 스타일
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Linux
         {
             internal const int RTLD_NOW = 0x0002;
@@ -79,11 +115,123 @@ namespace Joveler.Compression.XZ
 
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern string dlerror();
-
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
 #pragma warning restore IDE1006 // 명명 스타일
+        #endregion
+
+        #region GlobalInit
+        internal static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    if (libPath == null)
+                        throw new ArgumentNullException(nameof(libPath));
+
+                    libPath = Path.GetFullPath(libPath);
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .dll file does not exist");
+
+                    // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                    string libDir = Path.GetDirectoryName(libPath);
+                    if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                        Win32.SetDllDirectory(libDir);
+                    // SetDllDictionary guard
+                    try
+                    {
+                        hModule = Win32.LoadLibrary(libPath);
+                        if (hModule == IntPtr.Zero)
+                            throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+                    }
+                    finally
+                    {
+                        // Reset dll search directory to prevent dll hijacking
+                        Win32.SetDllDirectory(null);
+                    }
+
+                    // Check if dll is valid (liblzma.dll)
+                    if (Win32.GetProcAddress(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid liblzma library");
+                    }
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    if (libPath == null)
+                        libPath = "/lib/x86_64-linux-gnu/liblzma.so.5"; // Try to call system-installed xz-utils
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .so file does not exist");
+
+                    NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
+                    if (NativeMethods.hModule == IntPtr.Zero)
+                        throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
+
+                    // Check if dll is valid (liblzma.dll)
+                    if (NativeMethods.Linux.dlsym(NativeMethods.hModule, nameof(NativeMethods.lzma_version_number)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid liblzma.so");
+                    }
+                }
+#endif
+
+                // Set buffer size
+                if (bufferSize < 0)
+                    throw new ArgumentOutOfRangeException(nameof(bufferSize));
+                BufferSize = Math.Max(bufferSize, 4096);
+
+                // Load functions
+                try
+                {
+                    LoadFunctions();
+                }
+                catch (Exception)
+                {
+                    GlobalCleanup();
+                    throw;
+                }
+            }
+        }
+        #endregion
+
+        #region GlobalCleanup
+        internal static void GlobalCleanup()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+
+                ResetFunctions();
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    int ret = Win32.FreeLibrary(hModule);
+                    Debug.Assert(ret != 0);
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
+                    Debug.Assert(ret == 0);
+                }
+#endif
+
+                hModule = IntPtr.Zero;
+            }
+        }
         #endregion
 
         #region GetFuncPtr
@@ -141,6 +289,11 @@ namespace Joveler.Compression.XZ
             LzmaCpuThreads = GetFuncPtr<lzma_cputhreads>(nameof(lzma_cputhreads));
             #endregion
 
+            #region Check - Crc32, Crc64
+            LzmaCrc32 = GetFuncPtr<lzma_crc32>(nameof(lzma_crc32));
+            LzmaCrc64 = GetFuncPtr<lzma_crc64>(nameof(lzma_crc64));
+            #endregion
+
             #region Version - LzmaVersionNumber, LzmaVersionString
             LzmaVersionNumber = GetFuncPtr<lzma_version_number>(nameof(lzma_version_number));
             LzmaVersionString = GetFuncPtr<lzma_version_string>(nameof(lzma_version_string));
@@ -167,6 +320,11 @@ namespace Joveler.Compression.XZ
             #region Hardware - PhyMem & CPU Threads
             LzmaPhysMem = null;
             LzmaCpuThreads = null;
+            #endregion
+
+            #region Check - Crc32, Crc64
+            LzmaCrc32 = null;
+            LzmaCrc64 = null;
             #endregion
 
             #region Version - LzmaVersionNumber, LzmaVersionString
@@ -343,6 +501,22 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_cputhreads();
         internal static lzma_cputhreads LzmaCpuThreads;
+        #endregion
+
+        #region Check - Crc32, Crc64
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate uint lzma_crc32(
+            byte* buf,
+            UIntPtr size, // size_t
+            uint crc);
+        internal static lzma_crc32 LzmaCrc32;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate ulong lzma_crc64(
+            byte* buf,
+            UIntPtr size, // size_t
+            ulong crc);
+        internal static lzma_crc64 LzmaCrc64;
         #endregion
 
         #region Version - LzmaVersionNumber, LzmaVersionString
