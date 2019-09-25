@@ -13,7 +13,7 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public string[] SrcFileNames { get; set; } =
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
         {
             "Banner.bmp",
             "Banner.svg",
@@ -55,12 +55,30 @@ namespace Benchmark
         }
         #endregion
 
+        #region Adler32
+        [Benchmark]
+        public uint Adler32_ZLibNative()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            Joveler.Compression.ZLib.Adler32Checksum crc32 = new Joveler.Compression.ZLib.Adler32Checksum();
+            return crc32.Append(compData);
+        }
+        #endregion
+
         #region CRC32
         [Benchmark]
         public uint CRC32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
             Joveler.Compression.ZLib.Crc32Checksum crc32 = new Joveler.Compression.ZLib.Crc32Checksum();
+            return crc32.Append(compData);
+        }
+
+        [Benchmark]
+        public uint CRC32_XZNative()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            Joveler.Compression.XZ.Checksum.Crc32Checksum crc32 = new Joveler.Compression.XZ.Checksum.Crc32Checksum();
             return crc32.Append(compData);
         }
 
@@ -80,14 +98,15 @@ namespace Benchmark
             crc32.Update(compData);
             return crc32.Digest();
         }
+        #endregion
 
+        #region CRC64
         [Benchmark]
-        public ulong CRC32_TomatoManaged()
+        public ulong CRC64_XZbNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
-            InvertedTomato.IO.Crc crc32 = InvertedTomato.IO.CrcAlgorithm.CreateCrc32();
-            crc32.Append(compData);
-            return crc32.Check;
+            Joveler.Compression.XZ.Checksum.Crc64Checksum crc64 = new Joveler.Compression.XZ.Checksum.Crc64Checksum();
+            return crc64.Append(compData);
         }
         #endregion
     }

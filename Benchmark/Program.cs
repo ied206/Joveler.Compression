@@ -1,6 +1,5 @@
 ﻿using BenchmarkDotNet.Running;
 using CommandLine;
-using CommandLine.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -127,7 +126,7 @@ namespace Benchmark
             {
                 conf.HelpWriter = Console.Out;
                 conf.CaseInsensitiveEnumValues = true;
-                conf.CaseSensitive = false;    
+                conf.CaseSensitive = false;
             });
 
             argParser.ParseArguments<AllBenchOptions,

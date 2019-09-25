@@ -8,7 +8,6 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.11.5" />
     <PackageReference Include="Crc32.NET" Version="1.2.0" />
-    <PackageReference Include="InvertedTomato.Crc" Version="1.1.2" />
     <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.1.11" />
     <PackageReference Include="K4os.Hash.Crc" Version="1.1.4" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.6" />
