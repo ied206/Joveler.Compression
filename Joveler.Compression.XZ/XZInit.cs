@@ -32,9 +32,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
-#if !NET451
-using System.Runtime.InteropServices;
-#endif
 
 namespace Joveler.Compression.XZ
 {
