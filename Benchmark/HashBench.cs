@@ -55,6 +55,32 @@ namespace Benchmark
         }
         #endregion
 
+        #region xxHash32
+#pragma warning disable IDE1006 // 명명 스타일
+        [Benchmark]
+        public uint xxHash32_K4osManaged()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            K4os.Hash.xxHash.XXH32 xxh32 = new K4os.Hash.xxHash.XXH32();
+            xxh32.Update(compData);
+            return xxh32.Digest();
+        }
+#pragma warning restore IDE1006 // 명명 스타일
+        #endregion
+
+        #region xxHash64
+#pragma warning disable IDE1006 // 명명 스타일
+        [Benchmark]
+        public ulong xxHash64_K4osManaged()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            K4os.Hash.xxHash.XXH64 xxh64 = new K4os.Hash.xxHash.XXH64();
+            xxh64.Update(compData);
+            return xxh64.Digest();
+        }
+#pragma warning restore IDE1006 // 명명 스타일
+        #endregion
+
         #region Adler32
         [Benchmark]
         public uint Adler32_ZLibNative()

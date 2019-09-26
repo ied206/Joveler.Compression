@@ -10,7 +10,7 @@ namespace Joveler.Compression.XZ.Checksum
         protected readonly int _bufferSize = 64 * 1024;
 
         public virtual T InitChecksum { get; private set; }
-        public virtual T Checksum { get; private set; }
+        public virtual T Checksum { get; protected set; }
         #endregion
 
         #region Constructor
@@ -29,21 +29,7 @@ namespace Joveler.Compression.XZ.Checksum
         }
         #endregion
 
-        #region ValidateReadWriteArgs
-        public void ValidateReadWriteArgs(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count));
-            if (buffer.Length - offset < count)
-                throw new ArgumentOutOfRangeException(nameof(count));
-        }
-        #endregion
-
-        #region Append, Reset
+        #region Append
         public T Append(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
@@ -54,14 +40,19 @@ namespace Joveler.Compression.XZ.Checksum
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (buffer.Length - offset < count)
                 throw new ArgumentOutOfRangeException(nameof(count));
+            if (count == 0)
+                return Checksum;
 
-            Checksum = Compute(Checksum, buffer, offset, count);
+            Checksum = AppendCore(Checksum, buffer, offset, count);
             return Checksum;
         }
 
         public T Append(ReadOnlySpan<byte> span)
         {
-            Checksum = Compute(Checksum, span);
+            if (span.Length == 0)
+                return Checksum;
+
+            Checksum = AppendCore(Checksum, span);
             return Checksum;
         }
 
@@ -72,34 +63,33 @@ namespace Joveler.Compression.XZ.Checksum
             do
             {
                 bytesRead = stream.Read(buffer, 0, _bufferSize);
-                Checksum = Compute(Checksum, buffer, 0, bytesRead);
+                Checksum = AppendCore(Checksum, buffer, 0, bytesRead);
             }
             while (0 < bytesRead);
 
             return Checksum;
         }
+        #endregion
 
-        public void Reset()
-        {
-            Checksum = InitChecksum;
-        }
+        #region Reset
+        public abstract void Reset();
+        public abstract void Reset(T reset);
         #endregion
 
         #region Compute methods
         /// <summary>
-        /// Does not affect internal Checksum property, working just like a static method.
+        /// Please override this method to implement actual checksum calculation.
+        /// Must not affect internal Checksum property, make it works like a static method.
+        /// Arguments are prefilted by Append methods, so do not need to check them here.
         /// </summary>
-        public abstract T Compute(T checksum, byte[] buffer, int offset, int count);
+        protected abstract T AppendCore(T checksum, byte[] buffer, int offset, int count);
 
         /// <summary>
-        /// Does not affect internal Checksum property, working just like a static method.
+        /// /// Please override this method to implement actual checksum calculation.
+        /// Must not affect internal Checksum property, make it works like a static method.
+        /// Arguments are prefilted by Append methods, so do not need to check them here.
         /// </summary>
-        public abstract T Compute(T checksum, ReadOnlySpan<byte> span);
-
-        /// <summary>
-        /// Does not affect internal Checksum property, working just like a static method.
-        /// </summary>
-        public abstract T Compute(T checksum, Stream stream);
+        protected abstract T AppendCore(T checksum, ReadOnlySpan<byte> span);
         #endregion
     }
     #endregion
@@ -108,7 +98,7 @@ namespace Joveler.Compression.XZ.Checksum
     public abstract class BaseChecksumStream<T> : Stream
     {
         #region Fields and Properties
-        private readonly BaseChecksum<T> _check;
+        protected readonly BaseChecksum<T> _check;
         public T Checksum => _check.Checksum;
         public Stream BaseStream { get; }
         #endregion
@@ -117,16 +107,27 @@ namespace Joveler.Compression.XZ.Checksum
         protected BaseChecksumStream(BaseChecksum<T> check, Stream stream)
         {
             NativeMethods.EnsureLoaded();
+
             BaseStream = stream;
             _check = check;
+        }
+        #endregion
+
+        #region Reset
+        public void Reset()
+        {
+            _check.Reset();
+        }
+
+        public void Reset(T reset)
+        {
+            _check.Reset(reset);
         }
         #endregion
 
         #region Stream Methods
         public override int Read(byte[] buffer, int offset, int count)
         {
-            NativeMethods.EnsureLoaded();
-
             int bytesRead = BaseStream.Read(buffer, offset, count);
             _check.Append(buffer, offset, bytesRead);
             return bytesRead;
@@ -134,8 +135,6 @@ namespace Joveler.Compression.XZ.Checksum
 
         public override unsafe void Write(byte[] buffer, int offset, int count)
         {
-            NativeMethods.EnsureLoaded();
-
             BaseStream.Write(buffer, offset, count);
             _check.Append(buffer, offset, count);
         }

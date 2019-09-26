@@ -8,63 +8,52 @@ namespace Joveler.Compression.XZ.Checksum
     public sealed class Crc64Checksum : BaseChecksum<ulong>
     {
         #region Const
-        public const ulong InitCrc64 = 0;
+        public const ulong ResetCrc64 = 0;
         #endregion
 
         #region Constructors
-        public Crc64Checksum() : base(InitCrc64)
+        public Crc64Checksum()
+            : base(ResetCrc64, ResetCrc64)
         {
             NativeMethods.EnsureLoaded();
         }
 
-        public Crc64Checksum(int bufferSize) : base(InitCrc64, bufferSize)
+        public Crc64Checksum(ulong initCrc64)
+            : base(initCrc64, ResetCrc64)
+        {
+            NativeMethods.EnsureLoaded();
+        }
+
+        public Crc64Checksum(int bufferSize)
+            : base(ResetCrc64, ResetCrc64, bufferSize)
+        {
+            NativeMethods.EnsureLoaded();
+        }
+
+        public Crc64Checksum(ulong initCrc64, int bufferSize)
+            : base(initCrc64, ResetCrc64, bufferSize)
         {
             NativeMethods.EnsureLoaded();
         }
         #endregion
 
-        #region Compute
+        #region AppendCore
         /// <inheritdoc/>
-        public override unsafe ulong Compute(ulong checksum, byte[] buffer, int offset, int count)
+        protected override unsafe ulong AppendCore(ulong checksum, byte[] buffer, int offset, int count)
         {
-            ValidateReadWriteArgs(buffer, offset, count);
-            if (count == 0)
-                return checksum;
-
             fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.LzmaCrc64(bufPtr, new UIntPtr((uint)count), checksum);
             }
         }
-        
-        /// <inheritdoc/>
-        public override unsafe ulong Compute(ulong checksum, ReadOnlySpan<byte> span)
-        {
-            if (span.Length == 0)
-                return checksum;
 
+        /// <inheritdoc/>
+        protected override unsafe ulong AppendCore(ulong checksum, ReadOnlySpan<byte> span)
+        {
             fixed (byte* bufPtr = span)
             {
                 return NativeMethods.LzmaCrc64(bufPtr, new UIntPtr((uint)span.Length), checksum);
             }
-        }
-
-        /// <inheritdoc/>
-        public override unsafe ulong Compute(ulong checksum, Stream stream)
-        {
-            byte[] buffer = new byte[_bufferSize];
-            int bytesRead;
-            do
-            {
-                bytesRead = stream.Read(buffer, 0, buffer.Length);
-                fixed (byte* bufPtr = buffer)
-                {
-                    checksum = NativeMethods.LzmaCrc64(bufPtr, new UIntPtr((uint)bytesRead), checksum);
-                }
-            }
-            while (0 < bytesRead);
-
-            return checksum;
         }
         #endregion
     }
@@ -74,12 +63,26 @@ namespace Joveler.Compression.XZ.Checksum
     public sealed class Crc64Stream : BaseChecksumStream<ulong>
     {
         #region Constructor
-        public Crc64Stream(Stream stream) : base(new Crc64Checksum(), stream)
+        public Crc64Stream(Stream stream)
+            : base(new Crc64Checksum(), stream)
         {
             NativeMethods.EnsureLoaded();
         }
 
-        public Crc64Stream(Stream stream, int bufferSize) : base(new Crc64Checksum(bufferSize), stream)
+        public Crc64Stream(Stream stream, ulong initCrc64)
+            : base(new Crc64Checksum(initCrc64), stream)
+        {
+            NativeMethods.EnsureLoaded();
+        }
+
+        public Crc64Stream(Stream stream, int bufferSize)
+            : base(new Crc64Checksum(bufferSize), stream)
+        {
+            NativeMethods.EnsureLoaded();
+        }
+
+        public Crc64Stream(Stream stream, ulong initCrc64, int bufferSize)
+            : base(new Crc64Checksum(initCrc64, bufferSize), stream)
         {
             NativeMethods.EnsureLoaded();
         }
@@ -95,6 +98,7 @@ namespace Joveler.Compression.XZ.Checksum
         public override void Initialize()
         {
             NativeMethods.EnsureLoaded();
+
             _crc64 = new Crc64Checksum();
         }
 
