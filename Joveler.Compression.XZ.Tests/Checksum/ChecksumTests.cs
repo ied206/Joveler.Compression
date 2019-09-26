@@ -12,16 +12,14 @@ namespace Joveler.Compression.XZ.Tests.Checksum
     [TestCategory("Joveler.Compression.XZ")]
     public class ChecksumTests
     {
-        #region (private) TestKind
+        #region Template
         private enum TestKind
         {
             Array,
             Span,
             Stream,
         }
-        #endregion
 
-        #region Template
         private void CheckTemplate<T>(BaseChecksum<T> check, string fileName, TestKind kind, T expected)
         {
             check.Reset();
@@ -72,64 +70,89 @@ namespace Joveler.Compression.XZ.Tests.Checksum
             }
         }
 
-        private void HashAlgorithmTemplate<T>(HashAlgorithm hash, string fileName, TestKind kind, T expected)
+        private void HashAlgorithmTemplate<T>(HashAlgorithm hash, string fileName, T expected)
         {
-            /*
-            hash.Clear();
-            try
+            byte[] checksum;
+            string filePath = Path.Combine(TestSetup.SampleDir, fileName);
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                byte[] checksum;
-                string filePath = Path.Combine(TestSetup.SampleDir, fileName);
-                using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    byte[] buffer = new byte[fs.Length];
-                    int bytesRead = fs.Read(buffer, 0, buffer.Length);
-                    checksum = hash.ComputeHash(buffer, 0, bytesRead);
-                }
+                byte[] buffer = new byte[fs.Length];
+                int bytesRead = fs.Read(buffer, 0, buffer.Length);
+                checksum = hash.ComputeHash(buffer, 0, bytesRead);
+            }
 
-                StringBuilder b = new StringBuilder(8);
-                foreach (byte c in checksum)
-                    b.Append(c.ToString("X2"));
-                string checkStr = b.ToString();
-
-                foreach (byte e in BitConverter.GetBytes(expected))
-                    b.Append(c.ToString("X2"));
-                string expectStr = b.ToString();
-
+            if (checksum.Length == 8)
+            {
+                ulong actual = BitConverter.ToUInt64(checksum);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{checkStr:X16}");
-                Assert.AreEqual(expected, checkStr);
+                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
+                Assert.AreEqual(expected, actual);
             }
-            finally
+            else if (checksum.Length == 4)
             {
-                hash.Clear();
+                uint actual = BitConverter.ToUInt32(checksum);
+                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
+                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
+                Assert.AreEqual(expected, actual);
             }
-            */
+            else
+            {
+                Assert.Fail();
+            }
         }
         #endregion
 
         #region Crc32
         [TestMethod]
-        public void Crc32Checksum()
+        public void Crc32()
         {
-            Crc32Checksum crc32 = new Crc32Checksum();
-            CheckTemplate(crc32, "A.pdf", TestKind.Array, 0x07A6FCC5u);
-            CheckTemplate(crc32, "B.txt", TestKind.Span, 0x675845AEu);
-            CheckTemplate(crc32, "C.bin", TestKind.Stream, 0x70047868u);
+            (string, uint)[] samples = new (string, uint)[]
+            {
+                ("A.pdf", 0x07A6FCC5u),
+                ("B.txt", 0x675845AEu),
+                ("C.bin", 0x70047868u),
+            };
+
+            Crc32Checksum crc = new Crc32Checksum();
+            foreach ((string fileName, uint checksum) in samples)
+            {
+                foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
+                {
+                    CheckTemplate(crc, fileName, kind, checksum);
+                }
+
+                using (Crc32Algorithm hash = new Crc32Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
+            }
         }
         #endregion
 
         #region Crc64
         [TestMethod]
-        public void Crc64Checksum()
+        public void Crc64()
         {
+            (string, ulong)[] samples = new (string, ulong)[]
+            {
+                ("A.pdf", 0x70DAC0EC5A353DCELu),
+                ("B.txt", 0x221708D24F085975Lu),
+                ("C.bin", 0x56C3415F06F17315Lu),
+            };
+
             Crc64Checksum crc64 = new Crc64Checksum();
-            CheckTemplate(crc64, "A.pdf", TestKind.Array, 0x70DAC0EC5A353DCELu);
-            CheckTemplate(crc64, "B.txt", TestKind.Span, 0x221708D24F085975Lu);
-            CheckTemplate(crc64, "C.bin", TestKind.Stream, 0x56C3415F06F17315Lu);
-            //ComputeTemplate(crc64, "A.pdf", TestKind.Array, 0x70DAC0EC5A353DCELu);
-            //ComputeTemplate(crc64, "B.txt", TestKind.Span, 0x221708D24F085975Lu);
-            //ComputeTemplate(crc64, "C.bin", TestKind.Stream, 0x56C3415F06F17315Lu);
+            foreach ((string fileName, ulong checksum) in samples)
+            {
+                foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
+                {
+                    CheckTemplate(crc64, fileName, kind, checksum);
+                }
+
+                using (Crc64Algorithm hash = new Crc64Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
+            }
         }
         #endregion
     }

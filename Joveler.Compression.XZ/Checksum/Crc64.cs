@@ -8,32 +8,30 @@ namespace Joveler.Compression.XZ.Checksum
     public sealed class Crc64Checksum : BaseChecksum<ulong>
     {
         #region Const
-        public const ulong ResetCrc64 = 0;
+        public const ulong InitCrc64 = 0;
         #endregion
 
         #region Constructors
-        public Crc64Checksum()
-            : base(ResetCrc64, ResetCrc64)
+        public Crc64Checksum() : base(InitCrc64)
         {
             NativeMethods.EnsureLoaded();
         }
 
-        public Crc64Checksum(ulong initCrc64)
-            : base(initCrc64, ResetCrc64)
+        public Crc64Checksum(int bufferSize) : base(InitCrc64, bufferSize)
         {
             NativeMethods.EnsureLoaded();
         }
+        #endregion
 
-        public Crc64Checksum(int bufferSize)
-            : base(ResetCrc64, ResetCrc64, bufferSize)
+        #region Reset
+        public override void Reset()
         {
-            NativeMethods.EnsureLoaded();
+            Checksum = InitCrc64;
         }
 
-        public Crc64Checksum(ulong initCrc64, int bufferSize)
-            : base(initCrc64, ResetCrc64, bufferSize)
+        public override void Reset(ulong reset)
         {
-            NativeMethods.EnsureLoaded();
+            Checksum = InitCrc64;
         }
         #endregion
 
@@ -59,41 +57,15 @@ namespace Joveler.Compression.XZ.Checksum
     }
     #endregion
 
-    #region Crc64Stream
-    public sealed class Crc64Stream : BaseChecksumStream<ulong>
-    {
-        #region Constructor
-        public Crc64Stream(Stream stream)
-            : base(new Crc64Checksum(), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-
-        public Crc64Stream(Stream stream, ulong initCrc64)
-            : base(new Crc64Checksum(initCrc64), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-
-        public Crc64Stream(Stream stream, int bufferSize)
-            : base(new Crc64Checksum(bufferSize), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-
-        public Crc64Stream(Stream stream, ulong initCrc64, int bufferSize)
-            : base(new Crc64Checksum(initCrc64, bufferSize), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-        #endregion
-    }
-    #endregion
-
     #region Crc64Algorithm
     public sealed class Crc64Algorithm : HashAlgorithm
     {
         private Crc64Checksum _crc64;
+
+        public Crc64Algorithm()
+        {
+            Initialize();
+        }
 
         public override void Initialize()
         {

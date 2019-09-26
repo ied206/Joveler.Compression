@@ -57,29 +57,15 @@ namespace Joveler.Compression.XZ.Checksum
     }
     #endregion
 
-    #region Crc32Stream
-    public sealed class Crc32Stream : BaseChecksumStream<uint>
-    {
-        #region Constructor
-        public Crc32Stream(Stream stream)
-            : base(new Crc32Checksum(), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-
-        public Crc32Stream(Stream stream, int bufferSize)
-            : base(new Crc32Checksum(bufferSize), stream)
-        {
-            NativeMethods.EnsureLoaded();
-        }
-        #endregion
-    }
-    #endregion
-
     #region Crc32Algorithm
     public sealed class Crc32Algorithm : HashAlgorithm
     {
         private Crc32Checksum _crc32;
+
+        public Crc32Algorithm()
+        {
+            Initialize();
+        }
 
         public override void Initialize()
         {
