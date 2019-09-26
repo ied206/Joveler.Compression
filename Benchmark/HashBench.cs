@@ -98,6 +98,15 @@ namespace Benchmark
             crc32.Update(compData);
             return crc32.Digest();
         }
+
+        [Benchmark]
+        public ulong CRC32_TomatoManaged()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            InvertedTomato.IO.Crc crc32 = InvertedTomato.IO.CrcAlgorithm.CreateCrc32();
+            crc32.Append(compData);
+            return crc32.Check;
+        }
         #endregion
 
         #region CRC64
