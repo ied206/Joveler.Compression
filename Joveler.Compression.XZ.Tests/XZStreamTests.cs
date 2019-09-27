@@ -41,28 +41,31 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", false, 1, 7);
-            CompressTemplate("B.txt", false, 1, XZStream.DefaultPreset);
-            CompressTemplate("C.bin", false, 1, 1);
+            CompressTemplate("A.pdf", false, true, 1, 7);
+            CompressTemplate("B.txt", false, true, 1, XZStream.DefaultPreset);
+            CompressTemplate("C.bin", false, true, 1, 1 | XZStream.ExtremeFlag);
+            CompressTemplate("C.bin", false, false, 1, 255);
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("A.pdf", true, 1, 7);
-            CompressTemplate("B.txt", true, 1, XZStream.DefaultPreset);
-            CompressTemplate("C.bin", true, 1, 1);
+            CompressTemplate("A.pdf", true, true, 1, 7);
+            CompressTemplate("B.txt", true, true, 1, XZStream.DefaultPreset);
+            CompressTemplate("C.bin", true, true, 1, 1 | XZStream.ExtremeFlag);
+            CompressTemplate("C.bin", true, false, 1, 255);
         }
 
         [TestMethod]
         public void CompressMulti()
         {
-            CompressTemplate("A.pdf", false, 2, 7);
-            CompressTemplate("B.txt", false, 2, 3);
-            CompressTemplate("C.bin", false, Environment.ProcessorCount, 1);
+            CompressTemplate("A.pdf", false, true, 2, 7);
+            CompressTemplate("B.txt", false, true, 2, 3 | XZStream.ExtremeFlag);
+            CompressTemplate("C.bin", false, true, Environment.ProcessorCount, 1);
+            CompressTemplate("C.bin", false, false, Environment.ProcessorCount, 255);
         }
 
-        private static void CompressTemplate(string sampleFileName, bool useSpan, int threads, uint preset)
+        private static void CompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, uint preset)
         {
             string destDir = Path.GetTempFileName();
             File.Delete(destDir);
@@ -108,21 +111,22 @@ namespace Joveler.Compression.XZ.Tests
                 byte[] originDigest;
                 using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    using (HashAlgorithm hash = SHA256.Create())
-                    {
-                        originDigest = hash.ComputeHash(fs);
-                    }
+                    using HashAlgorithm hash = SHA256.Create();
+                    originDigest = hash.ComputeHash(fs);
                 }
 
                 using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    using (HashAlgorithm hash = SHA256.Create())
-                    {
-                        decompDigest = hash.ComputeHash(fs);
-                    }
+                    using HashAlgorithm hash = SHA256.Create();
+                    decompDigest = hash.ComputeHash(fs);
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
+                Assert.IsTrue(success);
+            }
+            catch
+            {
+                Assert.IsFalse(success);
             }
             finally
             {
@@ -189,18 +193,14 @@ namespace Joveler.Compression.XZ.Tests
                 }
                 decompMs.Position = 0;
 
-                using (HashAlgorithm hash = SHA256.Create())
-                {
-                    decompDigest = hash.ComputeHash(decompMs);
-                }
+                using HashAlgorithm hash = SHA256.Create();
+                decompDigest = hash.ComputeHash(decompMs);
             }
 
             using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                using (HashAlgorithm hash = SHA256.Create())
-                {
-                    originDigest = hash.ComputeHash(originFs);
-                }
+                using HashAlgorithm hash = SHA256.Create();
+                originDigest = hash.ComputeHash(originFs);
             }
 
             Assert.IsTrue(decompDigest.SequenceEqual(originDigest));

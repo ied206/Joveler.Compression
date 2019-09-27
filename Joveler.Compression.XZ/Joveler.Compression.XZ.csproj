@@ -19,6 +19,7 @@ Supports Windows and Linux.</Description>
 - Drop .Net Standard 1.3 support</PackageReleaseNotes>
     <Version>1.2.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Platforms>AnyCPU;x86</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
   <ItemGroup>

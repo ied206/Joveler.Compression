@@ -86,7 +86,7 @@ namespace Joveler.Compression.XZ
     /// values from lzma_get_progress().
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public unsafe class LzmaStream
+    internal unsafe class LzmaStream
     {
         /// <summary>
         ///  Pointer to the next input byte.
@@ -164,7 +164,7 @@ namespace Joveler.Compression.XZ
     /// Options for encoding/decoding Stream Header and Stream Footer
     /// </summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class LzmaStreamFlags
+    internal class LzmaStreamFlags
     {
         /// <summary>
         /// Stream Flags format version
@@ -228,7 +228,7 @@ namespace Joveler.Compression.XZ
 
     #region Struct LzmaMt
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class LzmaMt
+    internal class LzmaMt
     {
         /// <summary>
         /// Set this to zero if no flags are wanted.
@@ -337,6 +337,30 @@ namespace Joveler.Compression.XZ
         private IntPtr ReservedPtr2;
         private IntPtr ReservedPtr3;
         private IntPtr ReservedPtr4;
+
+        public static LzmaMt DefaultTemplate(uint preset, int threads)
+        {
+            // Reference : 04_compress_easy_mt.c
+            return new LzmaMt()
+            {
+                // No flags are needed.
+                Flags = 0,
+                // Let liblzma determine a sane block size.
+                BlockSize = 0,
+                // Use no timeout for lzma_code() calls by setting timeout to zero.
+                // That is, sometimes lzma_code() might block for a long time (from several seconds to even minutes).
+                // If this is not OK, for example due to progress indicator needing updates, specify a timeout in milliseconds here.
+                // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
+                TimeOut = 0,
+                // To use a preset, filters must be set to NULL.
+                Filters = IntPtr.Zero,
+                Preset = preset,
+                // Use XZ default
+                Check = LzmaCheck.CHECK_CRC64,
+                // Set threads
+                Threads = (uint)threads,
+            };
+        }
     }
     #endregion
 
@@ -357,7 +381,7 @@ namespace Joveler.Compression.XZ
     /// array would make liblzma write past the end of the filters array.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct LzmaFilter
+    internal struct LzmaFilter
     {
         /// <summary>
         /// Filter ID
@@ -392,7 +416,7 @@ namespace Joveler.Compression.XZ
     /// LZMA_STREAM_END. Changing the `action' or modifying the amount of input
     /// will make lzma_code() return LZMA_PROG_ERROR.
     /// </remarks>
-    public enum LzmaAction : uint
+    internal enum LzmaAction : uint
     {
         /// <summary>
         /// Continue coding
@@ -687,7 +711,7 @@ namespace Joveler.Compression.XZ
     #endregion
 
     #region Enum LzmaCheck
-    public enum LzmaCheck
+    internal enum LzmaCheck
     {
         /// <summary>
         /// No Check is calculated.
@@ -718,7 +742,7 @@ namespace Joveler.Compression.XZ
 
     #region Enum LzmaDecodingFlag
     [Flags]
-    public enum LzmaDecodingFlag : uint
+    internal enum LzmaDecodingFlag : uint
     {
         /// <summary>
         /// This flag makes lzma_code() return LZMA_NO_CHECK if the input stream

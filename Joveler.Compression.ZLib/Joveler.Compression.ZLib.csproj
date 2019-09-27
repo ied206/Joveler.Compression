@@ -20,6 +20,7 @@ Supports Windows and Linux.</Description>
     <Company>Joveler</Company>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <PackageLicenseExpression>Zlib</PackageLicenseExpression>
+    <Platforms>AnyCPU;x86</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.ZLib.targets" />
   <ItemGroup>

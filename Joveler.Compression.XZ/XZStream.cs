@@ -87,7 +87,8 @@ namespace Joveler.Compression.XZ
         {
             NativeMethods.EnsureLoaded();
 
-            if (9 < preset)
+            if (!(MinimumPreset <= preset && preset <= MaximumPreset) &&
+                !((MinimumPreset | ExtremeFlag) <= preset && preset <= (MaximumPreset | ExtremeFlag)))
                 throw new ArgumentOutOfRangeException(nameof(preset));
             if (threads < 0)
                 throw new ArgumentOutOfRangeException(nameof(threads));
@@ -122,26 +123,8 @@ namespace Joveler.Compression.XZ
                             MaxMemUsage = NativeMethods.LzmaEasyEncoderMemUsage(preset);
                         }
                         else
-                        { // Reference : 04_compress_easy_mt.c
-                            LzmaMt mtOptions = new LzmaMt
-                            {
-                                // No flags are needed.
-                                Flags = 0,
-                                // Let liblzma determine a sane block size.
-                                BlockSize = 0,
-                                // Use no timeout for lzma_code() calls by setting timeout to zero.
-                                // That is, sometimes lzma_code() might block for a long time (from several seconds to even minutes).
-                                // If this is not OK, for example due to progress indicator needing updates, specify a timeout in milliseconds here.
-                                // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
-                                TimeOut = 0,
-                                // To use a preset, filters must be set to NULL.
-                                Filters = IntPtr.Zero,
-                                Preset = preset,
-                                // Use XZ default
-                                Check = LzmaCheck.CHECK_CRC64,
-                                // Set threads
-                                Threads = (uint)threads,
-                            };
+                        { 
+                            LzmaMt mtOptions = LzmaMt.DefaultTemplate(preset, threads);
 
                             // Initialize the threaded encoder.
                             LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mtOptions);

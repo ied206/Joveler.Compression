@@ -15,6 +15,7 @@ Supports Windows and Linux.</Description>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
     <Authors>Yann Collet, Hajin Jang</Authors>
+    <Platforms>AnyCPU;x86</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.LZ4.targets" />
   <ItemGroup>
