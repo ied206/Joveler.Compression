@@ -10,39 +10,44 @@ using System.Runtime.InteropServices;
 
 namespace Benchmark
 {
-    #region Program
-    public class Program
+    #region Parameter
+    public abstract class ParamOptions
     {
-        #region Parameter
-        public abstract class ParamOptions
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Cast<T>() where T : ParamOptions
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public T Cast<T>() where T : ParamOptions
-            {
-                T cast = this as T;
-                Debug.Assert(cast != null);
-                return cast;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static T Cast<T>(ParamOptions opts) where T : ParamOptions
-            {
-                return opts.Cast<T>();
-            }
+            T cast = this as T;
+            Debug.Assert(cast != null);
+            return cast;
         }
 
-        [Verb("all", HelpText = "Benchmark all")]
-        public class AllBenchOptions : ParamOptions { }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Cast<T>(ParamOptions opts) where T : ParamOptions
+        {
+            return opts.Cast<T>();
+        }
+    }
 
-        [Verb("comp", HelpText = "Benchmark compression")]
-        public class CompBenchOptions : ParamOptions { }
+    [Verb("all", HelpText = "Benchmark all")]
+    public class AllBenchOptions : ParamOptions { }
 
-        [Verb("decomp", HelpText = "Benchmark decompression")]
-        public class DecompBenchOptions : ParamOptions { }
+    [Verb("comp", HelpText = "Benchmark compression")]
+    public class CompBenchOptions : ParamOptions { }
 
-        [Verb("hash", HelpText = "Benchmark hash and checksums")]
-        public class HashBenchOptions : ParamOptions { }
+    [Verb("decomp", HelpText = "Benchmark decompression")]
+    public class DecompBenchOptions : ParamOptions { }
 
+    [Verb("hash", HelpText = "Benchmark hash and checksums")]
+    public class HashBenchOptions : ParamOptions { }
+
+    [Verb("buffer", HelpText = "Benchmark buffer size")]
+    public class BufferSizeBenchOptions : ParamOptions { }
+    #endregion
+
+    #region Program
+    public static class Program
+    {
+        #region PrintErrorAndExit
         internal static void PrintErrorAndExit(IEnumerable<Error> errs)
         {
             foreach (Error err in errs)
@@ -130,11 +135,12 @@ namespace Benchmark
             });
 
             argParser.ParseArguments<AllBenchOptions,
-                CompBenchOptions, DecompBenchOptions, HashBenchOptions>(args)
+                CompBenchOptions, DecompBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => opts = x)
                 .WithParsed<CompBenchOptions>(x => opts = x)
                 .WithParsed<DecompBenchOptions>(x => opts = x)
                 .WithParsed<HashBenchOptions>(x => opts = x)
+                .WithParsed<BufferSizeBenchOptions>(x => opts = x)
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(opts != null, $"{nameof(opts)} != null");
 
@@ -144,6 +150,7 @@ namespace Benchmark
                     BenchmarkRunner.Run<CompBench>();
                     BenchmarkRunner.Run<DecompBench>();
                     BenchmarkRunner.Run<HashBench>();
+                    BenchmarkRunner.Run<BufferSizeBench>();
                     break;
                 case CompBenchOptions _:
                     BenchmarkRunner.Run<CompBench>();
@@ -153,6 +160,9 @@ namespace Benchmark
                     break;
                 case HashBenchOptions _:
                     BenchmarkRunner.Run<HashBench>();
+                    break;
+                case BufferSizeBenchOptions _:
+                    BenchmarkRunner.Run<BufferSizeBench>();
                     break;
             }
         }

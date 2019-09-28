@@ -1,7 +1,9 @@
 ﻿using BenchmarkDotNet.Attributes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Benchmark
@@ -9,19 +11,24 @@ namespace Benchmark
     public class BufferSizeBench
     {
         #region Fields and Properties
-        private string _sampleDir;
-        private string _destDir;
-
-        // SrcFiles
-        [ParamsSource(nameof(SrcFileNames))]
-        public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
+        // BufferSizes
+        [ParamsSource(nameof(BufferSizes))]
+        public int BufferSize { get; set; }
+        public IReadOnlyList<int> BufferSizes { get; set; } = new int[]
         {
-            "Banner.bmp",
-            "Banner.svg",
-            "Type4.txt",
+            4 * 1024,
+            16 * 1024,
+            64 * 1024,
+            256 * 1024,
+            1024 * 1024,
+            4 * 1024 * 1024,
         };
-        public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+
+        // RawData
+        public List<byte[]> RawDataList { get; set; } = new List<byte[]>(2);
+
+        // XZData
+        public List<byte[]> XZDataList { get; set; } = new List<byte[]>(2);
         #endregion
 
         #region Startup and Cleanup
@@ -30,121 +37,75 @@ namespace Benchmark
         {
             Program.NativeGlobalInit();
 
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
-
-            _destDir = Path.GetTempFileName();
-            File.Delete(_destDir);
-            Directory.CreateDirectory(_destDir);
-
-            foreach (string srcFileName in SrcFileNames)
+            // Populate RawDataList and XZDataList
+            int bigSize = BufferSizes.Max() * 2;
+            int medianSize = BufferSizes[BufferSizes.Count / 2];
+            for (int i = 0; i < 2; i++)
             {
-                string srcFile = Path.Combine(_sampleDir, "Raw", srcFileName);
-                using MemoryStream ms = new MemoryStream();
-                using (FileStream fs = new FileStream(srcFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    fs.CopyTo(ms);
-                }
+                byte[] rawData = i == 0 ? new byte[bigSize] : new byte[medianSize];
+                Span<byte> firstSpan = rawData.AsSpan(0, rawData.Length / 4);
+                Span<byte> secondSpan = rawData.AsSpan(rawData.Length / 2, rawData.Length / 4);
+                Random random = new Random(rawData.Length);
+                random.NextBytes(firstSpan);
+                random.NextBytes(secondSpan);
+                RawDataList.Add(rawData);
 
-                SrcFiles[srcFileName] = ms.ToArray();
+                // Populate _xzData
+                Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
+                Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions();
+                using MemoryStream ms = new MemoryStream();
+                using MemoryStream rms = new MemoryStream(rawData);
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts))
+                {
+                    rms.CopyTo(xzs);
+                }
+                byte[] xzData = ms.ToArray();
+                XZDataList.Add(xzData);
             }
         }
 
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            if (Directory.Exists(_destDir))
-                Directory.Delete(_destDir);
+            RawDataList = null;
+            XZDataList = null;
             Program.NativeGlobalCleanup();
         }
         #endregion
 
-        #region xxHash32
-#pragma warning disable IDE1006 // 명명 스타일
+        #region XZ_Compress
         [Benchmark]
-        public uint xxHash32_K4osManaged()
+        public void XZ_Compress()
         {
-            byte[] compData = SrcFiles[SrcFileName];
-            K4os.Hash.xxHash.XXH32 xxh32 = new K4os.Hash.xxHash.XXH32();
-            xxh32.Update(compData);
-            return xxh32.Digest();
-        }
-#pragma warning restore IDE1006 // 명명 스타일
-        #endregion
+            Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
+            Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions()
+            {
+                BufferSize = BufferSize,
+            };
 
-        #region xxHash64
-#pragma warning disable IDE1006 // 명명 스타일
-        [Benchmark]
-        public ulong xxHash64_K4osManaged()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            K4os.Hash.xxHash.XXH64 xxh64 = new K4os.Hash.xxHash.XXH64();
-            xxh64.Update(compData);
-            return xxh64.Digest();
-        }
-#pragma warning restore IDE1006 // 명명 스타일
-        #endregion
-
-        #region Adler32
-        [Benchmark]
-        public uint Adler32_ZLibNative()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.ZLib.Adler32Checksum crc32 = new Joveler.Compression.ZLib.Adler32Checksum();
-            return crc32.Append(compData);
+            foreach (byte[] rawData in RawDataList)
+            {
+                using MemoryStream ms = new MemoryStream();
+                using MemoryStream rms = new MemoryStream(rawData);
+                using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts);
+                rms.CopyTo(xzs);
+            }
         }
         #endregion
 
-        #region CRC32
+        #region XZ_Deompress
         [Benchmark]
-        public uint CRC32_ZLibNative()
+        public void XZ_Decompress()
         {
-            byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.ZLib.Crc32Checksum crc32 = new Joveler.Compression.ZLib.Crc32Checksum();
-            return crc32.Append(compData);
-        }
+            Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
 
-        [Benchmark]
-        public uint CRC32_XZNative()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.XZ.Checksum.Crc32Checksum crc32 = new Joveler.Compression.XZ.Checksum.Crc32Checksum();
-            return crc32.Append(compData);
-        }
-
-        [Benchmark]
-        public byte[] CRC32_ForceManaged()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            using Force.Crc32.Crc32Algorithm crc32 = new Force.Crc32.Crc32Algorithm();
-            return crc32.ComputeHash(compData);
-        }
-
-        [Benchmark]
-        public uint CRC32_K4osManaged()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            K4os.Hash.Crc.Crc32 crc32 = new K4os.Hash.Crc.Crc32();
-            crc32.Update(compData);
-            return crc32.Digest();
-        }
-
-        [Benchmark]
-        public ulong CRC32_TomatoManaged()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            InvertedTomato.IO.Crc crc32 = InvertedTomato.IO.CrcAlgorithm.CreateCrc32();
-            crc32.Append(compData);
-            return crc32.Check;
-        }
-        #endregion
-
-        #region CRC64
-        [Benchmark]
-        public ulong CRC64_XZbNative()
-        {
-            byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.XZ.Checksum.Crc64Checksum crc64 = new Joveler.Compression.XZ.Checksum.Crc64Checksum();
-            return crc64.Append(compData);
+            foreach (byte[] xzData in XZDataList)
+            {
+                using MemoryStream ms = new MemoryStream();
+                using MemoryStream rms = new MemoryStream(xzData);
+                using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, decompOpts);
+                rms.CopyTo(xzs);
+            }
         }
         #endregion
     }
