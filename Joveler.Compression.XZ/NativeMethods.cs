@@ -270,9 +270,7 @@ namespace Joveler.Compression.XZ
             LzmaStreamEncoder = GetFuncPtr<lzma_stream_encoder>(nameof(lzma_stream_encoder));
             LzmaStreamEncoderMtMemUsage = GetFuncPtr<lzma_stream_encoder_mt_memusage>(nameof(lzma_stream_encoder_mt_memusage));
             LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>(nameof(lzma_stream_encoder_mt));
-            LzmaStreamBufferEncode = GetFuncPtr<lzma_stream_buffer_encode>(nameof(lzma_stream_buffer_encode));
             LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>(nameof(lzma_stream_decoder));
-            LzmaStreamBufferDecode = GetFuncPtr<lzma_stream_buffer_decode>(nameof(lzma_stream_buffer_decode));
             #endregion
 
             #region Hardware - PhyMem & CPU Threads
@@ -303,9 +301,7 @@ namespace Joveler.Compression.XZ
             LzmaEasyEncoder = null;
             LzmaStreamEncoder = null;
             LzmaStreamEncoderMt = null;
-            LzmaStreamBufferEncode = null;
             LzmaStreamDecoder = null;
-            LzmaStreamBufferDecode = null;
             #endregion
 
             #region Hardware - PhyMem & CPU Threads
@@ -378,18 +374,6 @@ namespace Joveler.Compression.XZ
             LzmaMt options);
         internal static lzma_stream_encoder_mt LzmaStreamEncoderMt;
 
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_stream_buffer_encode(
-            [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters,
-            LzmaCheck check,
-            IntPtr allocator,
-            IntPtr in_buf,
-            UIntPtr in_size, // size_t
-            IntPtr out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_stream_buffer_encode LzmaStreamBufferEncode;
-
         /// <summary>
         /// Initialize .xz Stream decoder
         /// </summary>
@@ -413,71 +397,6 @@ namespace Joveler.Compression.XZ
             ulong memlimit,
             LzmaDecodingFlag flags);
         internal static lzma_stream_decoder LzmaStreamDecoder;
-
-        /// <summary>
-        /// Single-call .xz Stream decoder
-        /// </summary>
-        /// <param name="memlimit">
-        /// Pointer to how much memory the decoder is allowed to allocate. 
-        /// The value pointed by this pointer is modified if and only if LZMA_MEMLIMIT_ERROR is returned.
-        /// </param>
-        /// <param name="flags">
-        /// Bitwise-or of zero or more of the decoder flags:
-        /// LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK, LZMA_CONCATENATED. 
-        /// Note that LZMA_TELL_ANY_CHECK is not allowed and will return LZMA_PROG_ERROR.
-        /// </param>
-        /// <param name="allocator">
-        /// lzma_allocator for custom allocator functions.
-        /// Set to NULL to use malloc() and free().
-        /// </param>
-        /// <param name="in_buf">
-        /// Beginning of the input buffer
-        /// </param>
-        /// <param name="in_pos">
-        /// The next byte will be read from in[*in_pos]. 
-        /// *in_pos is updated only if decoding succeeds.
-        /// </param>
-        /// <param name="in_size">
-        /// Size of the input buffer; the first byte that won't be read is in[in_size].
-        /// </param>
-        /// <param name="out_buf">
-        /// Beginning of the output buffer
-        /// </param>
-        /// <param name="out_pos">
-        /// The next byte will be written to out[*out_pos].
-        /// *out_pos is updated only if decoding succeeds.
-        /// </param>
-        /// <param name="out_size">
-        /// Size of the out buffer; the first byte into
-        /// which no data is written to is out[out_size].
-        /// </param>
-        /// <returns>
-        /// - LZMA_OK: Decoding was successful.
-        /// - LZMA_FORMAT_ERROR
-        /// - LZMA_OPTIONS_ERROR
-        /// - LZMA_DATA_ERROR
-        /// - LZMA_NO_CHECK: This can be returned only if using
-        ///   the LZMA_TELL_NO_CHECK flag.
-        /// - LZMA_UNSUPPORTED_CHECK: This can be returned only if using
-        ///   the LZMA_TELL_UNSUPPORTED_CHECK flag.
-        /// - LZMA_MEM_ERROR
-        /// - LZMA_MEMLIMIT_ERROR: Memory usage limit was reached.
-        ///   The minimum required memlimit value was stored to *memlimit.
-        /// - LZMA_BUF_ERROR: Output buffer was too small.
-        /// - LZMA_PROG_ERROR
-        /// </returns>
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_stream_buffer_decode(
-            uint memlimit,
-            LzmaDecodingFlag flags,
-            IntPtr allocator,
-            byte[] in_buf,
-            ref UIntPtr in_pos,
-            UIntPtr in_size, // size_t
-            byte[] out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_stream_buffer_decode LzmaStreamBufferDecode;
         #endregion
 
         #region Hardware - PhyMem & CPU Threads

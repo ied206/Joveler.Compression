@@ -77,7 +77,7 @@ namespace Joveler.Compression.XZ
     // ReSharper disable once InconsistentNaming
     public class XZStream : Stream
     {
-        #region Enums
+        #region enum Mode
         private enum Mode
         {
             Compress,
@@ -268,7 +268,7 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        #region Stream Methods
+        #region Stream Methods and Properties
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         { // For Decompress

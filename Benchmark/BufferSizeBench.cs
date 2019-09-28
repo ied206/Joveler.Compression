@@ -104,7 +104,7 @@ namespace Benchmark
                 using MemoryStream ms = new MemoryStream();
                 using MemoryStream rms = new MemoryStream(xzData);
                 using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, decompOpts);
-                rms.CopyTo(xzs);
+                xzs.CopyTo(ms);
             }
         }
         #endregion
