@@ -75,10 +75,23 @@ namespace Joveler.Compression.XZ.Tests
                 string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
                 string tempXzFile = tempDecompFile + ".xz";
 
+                XZCompressOptions compOpts = new XZCompressOptions
+                {
+                    Preset = preset,
+                };
+                XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                {
+                    Threads = (uint)threads,
+                };
+                XZStreamOptions advOpts = new XZStreamOptions
+                {
+                    LeaveOpen = true,
+                };
+
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream xzCompFs = new FileStream(tempXzFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZStream xzs = new XZStream(xzCompFs, LzmaMode.Compress, preset, threads, true))
+                using (XZStream xzs = new XZStream(xzCompFs, compOpts, threadOpts, advOpts))
                 {
                     if (useSpan)
                     {
@@ -95,7 +108,7 @@ namespace Joveler.Compression.XZ.Tests
                     {
                         sampleFs.CopyTo(xzs);
                     }
-                    
+
                     xzs.Flush();
                     xzs.GetProgress(out ulong finalIn, out ulong finalOut);
 
@@ -124,10 +137,12 @@ namespace Joveler.Compression.XZ.Tests
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
                 Assert.IsTrue(success);
             }
-            catch
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception)
             {
                 Assert.IsFalse(success);
             }
+#pragma warning restore CA1031 // Do not catch general exception types
             finally
             {
                 if (Directory.Exists(destDir))
@@ -164,8 +179,10 @@ namespace Joveler.Compression.XZ.Tests
             string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
             using (MemoryStream decompMs = new MemoryStream())
             {
+                XZDecompressOptions decompOpts = new XZDecompressOptions();
+
                 using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZStream xz = new XZStream(compFs, LzmaMode.Decompress))
+                using (XZStream xz = new XZStream(compFs, decompOpts))
                 {
                     if (useSpan)
                     {

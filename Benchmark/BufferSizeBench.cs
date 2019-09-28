@@ -2,10 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace Benchmark
 {
-    public class HashBench
+    public class BufferSizeBench
     {
         #region Fields and Properties
         private string _sampleDir;

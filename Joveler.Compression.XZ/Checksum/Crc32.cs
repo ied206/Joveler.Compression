@@ -31,7 +31,7 @@ namespace Joveler.Compression.XZ.Checksum
 
         public override void Reset(uint reset)
         {
-            Checksum = Crc32Init;
+            Checksum = reset;
         }
         #endregion
 

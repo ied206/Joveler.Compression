@@ -39,32 +39,71 @@ namespace Joveler.Compression.XZ.Tests
             Console.WriteLine($"Hardware CPU Threads = {xzCoreCount}");
         }
 
+        #region EncoderMemUsage
         private void EncoderMemUsageTemplate(uint preset)
         {
-            ulong mem1 = XZInit.EncoderMemUsage(preset);
-            Assert.AreNotEqual(ulong.MaxValue, mem1);
-
-            ulong mem2;
-            using (MemoryStream ms = new MemoryStream())
-            using (XZStream xzs = new XZStream(ms, LzmaMode.Compress, preset))
+            void PrintMemUsage(ulong usage, int threads = 0)
             {
-                mem2 = xzs.MaxMemUsage;
+                char isExtreme = (preset & XZStream.ExtremeFlag) > 0 ? 'e' : ' ';
+                uint purePreset = preset & ~XZStream.ExtremeFlag;
+                string msg;
+                if (threads == 0)
+                    msg = $"Encoder Mem Usage (p{purePreset}{isExtreme}) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
+                else
+                    msg = $"Encoder Mem Usage (p{purePreset}{isExtreme}, {threads}T) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
+                Console.WriteLine(msg);
             }
-            Assert.AreNotEqual(ulong.MaxValue, mem2);
 
-            Assert.AreEqual(mem2, mem1);
+            ulong single = XZInit.EncoderMemUsage(preset);
+            ulong multi1 = XZInit.EncoderMultiMemUsage(preset, 1);
+            ulong multi2 = XZInit.EncoderMultiMemUsage(preset, 2);
+            PrintMemUsage(single);
+            PrintMemUsage(multi1, 1);
+            PrintMemUsage(multi2, 2);
 
-            char isExtreme = (preset & XZStream.ExtremeFlag) > 0 ? 'e' : ' ';
-            preset &= ~XZStream.ExtremeFlag;
-            Console.WriteLine($"Encoder Mem Usage (p{preset}{isExtreme}) = {mem1 / (1024 * 1024) + 1}MB");
-                
+            Assert.AreNotEqual(ulong.MaxValue, single);
+            Assert.AreNotEqual(ulong.MaxValue, multi1);
+            Assert.AreNotEqual(ulong.MaxValue, multi2);
+            Assert.IsTrue(single < multi1);
         }
 
         [TestMethod]
         public void EncoderMemUsage()
         {
+            EncoderMemUsageTemplate(XZStream.MinimumPreset);
+            EncoderMemUsageTemplate(XZStream.MinimumPreset | XZStream.ExtremeFlag);
+            EncoderMemUsageTemplate(XZStream.DefaultPreset);
             EncoderMemUsageTemplate(XZStream.DefaultPreset | XZStream.ExtremeFlag);
-            
+            EncoderMemUsageTemplate(XZStream.MaximumPreset);
+            EncoderMemUsageTemplate(XZStream.MaximumPreset | XZStream.ExtremeFlag);
         }
+        #endregion
+
+        #region DecoderMemUsage
+        private void DecoderMemUsageTemplate(uint preset)
+        {
+            void PrintMemUsage(ulong usage, int threads = 0)
+            {
+                char isExtreme = (preset & XZStream.ExtremeFlag) > 0 ? 'e' : ' ';
+                uint purePreset = preset & ~XZStream.ExtremeFlag;
+                Console.WriteLine($"Decoder Mem Usage (p{purePreset}{isExtreme}) = {usage / (1024 * 1024) + 1}MB ({usage}B)");
+            }
+
+            ulong usage = XZInit.DecoderMemUsage(preset);
+            PrintMemUsage(usage);
+            Assert.AreNotEqual(ulong.MaxValue, usage);
+        }
+
+        [TestMethod]
+        public void DecoderMemUsage()
+        {
+            DecoderMemUsageTemplate(XZStream.MinimumPreset);
+            DecoderMemUsageTemplate(XZStream.MinimumPreset | XZStream.ExtremeFlag);
+            DecoderMemUsageTemplate(XZStream.DefaultPreset);
+            DecoderMemUsageTemplate(XZStream.DefaultPreset | XZStream.ExtremeFlag);
+            DecoderMemUsageTemplate(XZStream.MaximumPreset);
+            DecoderMemUsageTemplate(XZStream.MaximumPreset | XZStream.ExtremeFlag);
+        }
+        #endregion
     }
 }

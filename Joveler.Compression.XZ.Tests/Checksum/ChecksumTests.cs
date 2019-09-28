@@ -1,9 +1,7 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Joveler.Compression.XZ.Checksum;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using Joveler.Compression.XZ.Checksum;
 using System.Security.Cryptography;
 
 namespace Joveler.Compression.XZ.Tests.Checksum
@@ -100,13 +98,52 @@ namespace Joveler.Compression.XZ.Tests.Checksum
                 Assert.Fail();
             }
         }
+
+        private void ResetTemplate<T>(BaseChecksum<T> check, string firstFileName, string secondFileName)
+        {
+            try
+            {
+                // Get first cheksum
+                check.Reset();
+                string firstFilePath = Path.Combine(TestSetup.SampleDir, firstFileName);
+                using (FileStream fs = new FileStream(firstFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    check.Append(fs);
+                }
+                T firstCheck = check.Checksum;
+
+                // Get concat cheksum
+                string secondFilePath = Path.Combine(TestSetup.SampleDir, secondFileName);
+                using (FileStream fs = new FileStream(secondFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    check.Append(fs);
+                }
+                T concatCheck = check.Checksum;
+
+                // Reset and get concat checksum again
+                check.Reset(firstCheck);
+                using (FileStream fs = new FileStream(secondFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    check.Append(fs);
+                }
+                T actualCheck = check.Checksum;
+
+                Console.WriteLine($"(Check) Expected   checksum : 0x{concatCheck:X16}");
+                Console.WriteLine($"(Check) Calculated checksum : 0x{actualCheck:X16}");
+                Assert.AreEqual(concatCheck, actualCheck);
+            }
+            finally
+            {
+                check.Reset();
+            }
+        }
         #endregion
 
         #region Crc32
         [TestMethod]
         public void Crc32()
         {
-            (string, uint)[] samples = new (string, uint)[]
+            (string FileName, uint Checksum)[] samples = new (string, uint)[]
             {
                 ("A.pdf", 0x07A6FCC5u),
                 ("B.txt", 0x675845AEu),
@@ -121,11 +158,11 @@ namespace Joveler.Compression.XZ.Tests.Checksum
                     CheckTemplate(crc, fileName, kind, checksum);
                 }
 
-                using (Crc32Algorithm hash = new Crc32Algorithm())
-                {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
-                }
+                using Crc32Algorithm hash = new Crc32Algorithm();
+                HashAlgorithmTemplate(hash, fileName, checksum);
             }
+
+            ResetTemplate(crc, samples[0].FileName, samples[1].FileName);
         }
         #endregion
 
@@ -133,26 +170,24 @@ namespace Joveler.Compression.XZ.Tests.Checksum
         [TestMethod]
         public void Crc64()
         {
-            (string, ulong)[] samples = new (string, ulong)[]
+            (string FileName, ulong Checksum)[] samples = new (string, ulong)[]
             {
                 ("A.pdf", 0x70DAC0EC5A353DCELu),
                 ("B.txt", 0x221708D24F085975Lu),
                 ("C.bin", 0x56C3415F06F17315Lu),
             };
 
-            Crc64Checksum crc64 = new Crc64Checksum();
+            Crc64Checksum crc = new Crc64Checksum();
             foreach ((string fileName, ulong checksum) in samples)
             {
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
-                {
-                    CheckTemplate(crc64, fileName, kind, checksum);
-                }
+                    CheckTemplate(crc, fileName, kind, checksum);
 
-                using (Crc64Algorithm hash = new Crc64Algorithm())
-                {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
-                }
+                using Crc64Algorithm hash = new Crc64Algorithm();
+                HashAlgorithmTemplate(hash, fileName, checksum);
             }
+
+            ResetTemplate(crc, samples[0].FileName, samples[1].FileName);
         }
         #endregion
     }

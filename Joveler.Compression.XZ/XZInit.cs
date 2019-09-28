@@ -35,9 +35,9 @@ namespace Joveler.Compression.XZ
     public static class XZInit
     {
         #region GlobalInit
-        public static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
+        public static void GlobalInit(string libPath)
         {
-            NativeMethods.GlobalInit(libPath, bufferSize);
+            NativeMethods.GlobalInit(libPath);
         }
         #endregion
 
@@ -103,7 +103,7 @@ namespace Joveler.Compression.XZ
 
         #region MemUsage
         /// <summary>
-        /// Calculate approximate memory usage of encoder
+        /// Calculate approximate memory usage of single-threaded encoder
         /// </summary>
         /// <param name="preset">Compression preset (level and possible flags)</param>
         /// <returns>
@@ -113,7 +113,23 @@ namespace Joveler.Compression.XZ
         public static ulong EncoderMemUsage(uint preset)
         {
             NativeMethods.EnsureLoaded();
+
             return NativeMethods.LzmaEasyEncoderMemUsage(preset);
+        }
+
+        /// <summary>
+        /// Calculate approximate memory usage of single-threaded encoder
+        /// </summary>
+        /// <param name="preset">Compression preset (level and possible flags)</param>
+        /// <returns>
+        /// Number of bytes of memory required for the given preset when encoding.
+        /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
+        /// </returns>
+        public static ulong EncoderMemUsage(XZCompressOptions compOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            return NativeMethods.LzmaEasyEncoderMemUsage(compOpts.Preset);
         }
 
         /// <summary>
@@ -125,10 +141,28 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for encoding with the given options. 
         /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
         /// </returns>
-        public static ulong EncoderMemUsage(uint preset, int threads)
+        public static ulong EncoderMultiMemUsage(uint preset, int threads)
         {
             NativeMethods.EnsureLoaded();
-            LzmaMt mtOpts = LzmaMt.DefaultTemplate(preset, threads);
+
+            LzmaMt mtOpts = LzmaMt.Create(preset, threads);
+            return NativeMethods.LzmaStreamEncoderMtMemUsage(mtOpts);
+        }
+
+        /// <summary>
+        /// Calculate approximate memory usage of multithreaded .xz encoder
+        /// </summary>
+        /// <param name="preset">Compression preset (level and possible flags)</param>
+        /// <param name="threads">Number of worker threads to use</param>
+        /// <returns>
+        /// Number of bytes of memory required for encoding with the given options. 
+        /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
+        /// </returns>
+        public static ulong EncoderMultiMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
             return NativeMethods.LzmaStreamEncoderMtMemUsage(mtOpts);
         }
 
@@ -143,7 +177,23 @@ namespace Joveler.Compression.XZ
         public static ulong DecoderMemUsage(uint preset)
         {
             NativeMethods.EnsureLoaded();
+
             return NativeMethods.LzmaEasyDecoderMemUsage(preset);
+        }
+
+        /// <summary>
+        /// Calculate approximate decoder memory usage of a preset
+        /// </summary>
+        /// <param name="preset">Compression preset (level and possible flags)</param>
+        /// <returns>
+        /// Number of bytes of memory required to decompress a file that was compressed using the given preset.
+        /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
+        /// </returns>
+        public static ulong DecoderMemUsage(XZCompressOptions compOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            return NativeMethods.LzmaEasyDecoderMemUsage(compOpts.Preset);
         }
         #endregion
     }

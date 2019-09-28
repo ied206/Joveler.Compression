@@ -16,7 +16,7 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public string[] SrcFileNames { get; set; } =
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
         {
             "Banner.bmp",
             "Banner.svg",
@@ -27,7 +27,7 @@ namespace Benchmark
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
-        public string[] Levels { get; set; } =
+        public IReadOnlyList<string> Levels { get; set; } = new string[]
         {
             "Fastest",
             "Default",
@@ -87,15 +87,13 @@ namespace Benchmark
             foreach (string srcFileName in SrcFileNames)
             {
                 string srcFile = Path.Combine(_sampleDir, "Raw", srcFileName);
-                using (MemoryStream ms = new MemoryStream())
+                using MemoryStream ms = new MemoryStream();
+                using (FileStream fs = new FileStream(srcFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    using (FileStream fs = new FileStream(srcFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        fs.CopyTo(ms);
-                    }
-
-                    SrcFiles[srcFileName] = ms.ToArray();
+                    fs.CopyTo(ms);
                 }
+
+                SrcFiles[srcFileName] = ms.ToArray();
             }
         }
 
@@ -177,13 +175,12 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
-                using (MemoryStream rms = new MemoryStream(rawData))
-                using (SharpCompress.Compressors.Deflate.ZlibStream zs = new SharpCompress.Compressors.Deflate.ZlibStream(ms, SharpCompress.Compressors.CompressionMode.Compress, ManagedZLibLevelDict[Level]))
-                {
-                    rms.CopyTo(zs);
-                    ms.Flush();
-                    compLen = ms.Position;
-                }
+                using MemoryStream rms = new MemoryStream(rawData);
+                using SharpCompress.Compressors.Deflate.ZlibStream zs = new SharpCompress.Compressors.Deflate.ZlibStream(ms, SharpCompress.Compressors.CompressionMode.Compress, ManagedZLibLevelDict[Level]);
+                rms.CopyTo(zs);
+
+                ms.Flush();
+                compLen = ms.Position;
             }
 
             CompRatio = (double)compLen / rawData.Length;
@@ -197,8 +194,16 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
+                Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions
+                {
+                    Preset = XZPresetDict[Level]
+                };
+                Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions
+                {
+                    LeaveOpen = true,
+                };
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, Joveler.Compression.XZ.LzmaMode.Compress, XZPresetDict[Level], true))
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts))
                 {
                     rms.CopyTo(xzs);
                 }

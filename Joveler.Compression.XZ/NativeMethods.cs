@@ -44,10 +44,6 @@ namespace Joveler.Compression.XZ
         public const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
-        #region BufferSize
-        internal static int BufferSize = 64 * 1024;
-        #endregion
-
         #region Native Library Loading
         internal static IntPtr hModule = IntPtr.Zero;
         internal static readonly object LoadLock = new object();
@@ -123,7 +119,7 @@ namespace Joveler.Compression.XZ
         #endregion
 
         #region GlobalInit
-        internal static void GlobalInit(string libPath, int bufferSize = 64 * 1024)
+        internal static void GlobalInit(string libPath)
         {
             lock (LoadLock)
             {
@@ -185,11 +181,6 @@ namespace Joveler.Compression.XZ
                     }
                 }
 #endif
-
-                // Set buffer size
-                if (bufferSize < 0)
-                    throw new ArgumentOutOfRangeException(nameof(bufferSize));
-                BufferSize = Math.Max(bufferSize, 4096);
 
                 // Load functions
                 try
@@ -427,16 +418,13 @@ namespace Joveler.Compression.XZ
         /// Single-call .xz Stream decoder
         /// </summary>
         /// <param name="memlimit">
-        /// Pointer to how much memory the decoder is allowed
-        /// to allocate. The value pointed by this pointer is
-        /// modified if and only if LZMA_MEMLIMIT_ERROR is
-        /// returned.
+        /// Pointer to how much memory the decoder is allowed to allocate. 
+        /// The value pointed by this pointer is modified if and only if LZMA_MEMLIMIT_ERROR is returned.
         /// </param>
         /// <param name="flags">
         /// Bitwise-or of zero or more of the decoder flags:
-        /// LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
-        /// LZMA_CONCATENATED. Note that LZMA_TELL_ANY_CHECK
-        /// is not allowed and will return LZMA_PROG_ERROR.
+        /// LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK, LZMA_CONCATENATED. 
+        /// Note that LZMA_TELL_ANY_CHECK is not allowed and will return LZMA_PROG_ERROR.
         /// </param>
         /// <param name="allocator">
         /// lzma_allocator for custom allocator functions.
@@ -446,12 +434,11 @@ namespace Joveler.Compression.XZ
         /// Beginning of the input buffer
         /// </param>
         /// <param name="in_pos">
-        /// The next byte will be read from in[*in_pos].
+        /// The next byte will be read from in[*in_pos]. 
         /// *in_pos is updated only if decoding succeeds.
         /// </param>
         /// <param name="in_size">
-        /// Size of the input buffer; the first byte that
-        /// won't be read is in[in_size].
+        /// Size of the input buffer; the first byte that won't be read is in[in_size].
         /// </param>
         /// <param name="out_buf">
         /// Beginning of the output buffer
@@ -495,7 +482,7 @@ namespace Joveler.Compression.XZ
 
         #region Hardware - PhyMem & CPU Threads
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate ulong lzma_physmem(); 
+        internal delegate ulong lzma_physmem();
         internal static lzma_physmem LzmaPhysMem;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]

@@ -31,7 +31,7 @@ namespace Joveler.Compression.XZ.Checksum
 
         public override void Reset(ulong reset)
         {
-            Checksum = InitCrc64;
+            Checksum = reset;
         }
         #endregion
 

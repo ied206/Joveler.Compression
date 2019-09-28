@@ -28,23 +28,25 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
 
 namespace Joveler.Compression.XZ
 {
+    [Serializable]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class XZException : Exception
     {
-        public LzmaRet Ret;
+        public LzmaRet Ret { get; set; }
 
         private static readonly Dictionary<LzmaRet, string> ErrorMsgDict = new Dictionary<LzmaRet, string>
         {
-            [LzmaRet.NO_CHECK] = "No integrity check; not verifying file integrity",
-            [LzmaRet.UNSUPPORTED_CHECK] = "Unsupported type of integrity check; not verifying file integrity",
-            [LzmaRet.MEM_ERROR] = "Not enough memory",
-            [LzmaRet.MEMLIMIT_ERROR] = "Memory usage limit reached",
-            [LzmaRet.OPTIONS_ERROR] = "Unsupported options",
-            [LzmaRet.DATA_ERROR] = "Compressed data is corrupt",
-            [LzmaRet.BUF_ERROR] = "Unexpected end of input",
+            [LzmaRet.NoCheck] = "No integrity check; not verifying file integrity",
+            [LzmaRet.UnsupportedCheck] = "Unsupported type of integrity check; not verifying file integrity",
+            [LzmaRet.MemError] = "Not enough memory",
+            [LzmaRet.MemLimitError] = "Memory usage limit reached",
+            [LzmaRet.OptionsError] = "Unsupported options",
+            [LzmaRet.DataError] = "Compressed data is corrupt",
+            [LzmaRet.BufError] = "Unexpected end of input",
         };
 
         private static string GetErrorMessage(LzmaRet ret) => ErrorMsgDict.ContainsKey(ret) ? ErrorMsgDict[ret] : ret.ToString();
@@ -56,8 +58,25 @@ namespace Joveler.Compression.XZ
 
         public static void CheckReturnValue(LzmaRet ret)
         {
-            if (ret != LzmaRet.OK)
+            if (ret != LzmaRet.Ok)
                 throw new XZException(ret);
         }
+
+        
+
+        #region Serializable
+        protected XZException(SerializationInfo info, StreamingContext ctx)
+        {
+            Ret = (LzmaRet)info.GetValue(nameof(Ret), typeof(LzmaRet));
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException(nameof(info));
+            info.AddValue(nameof(Ret), Ret);
+            base.GetObjectData(info, context);
+        }
+        #endregion
     }
 }
