@@ -32,6 +32,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 // ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.LZ4.Tests
@@ -106,6 +107,22 @@ namespace Joveler.Compression.LZ4.Tests
             if (Path.GetDirectoryName(path) != null)
                 path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return path;
+        }
+
+        public static byte[] SHA256Digest(Stream stream)
+        {
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return hash.ComputeHash(stream);
+            }
+        }
+
+        public static byte[] SHA256Digest(byte[] input)
+        {
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return hash.ComputeHash(input);
+            }
         }
 
         public static int RunLZ4(string tempArchiveFile, string destFile)
