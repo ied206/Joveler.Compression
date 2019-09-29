@@ -71,12 +71,14 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Native_LZ4()
+        public long LZ4_Native()
         {
+            Joveler.Compression.LZ4.LZ4FrameDecompressOptions decompOpts = new Joveler.Compression.LZ4.LZ4FrameDecompressOptions();
+
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
-            using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, Joveler.Compression.LZ4.LZ4Mode.Decompress))
+            using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, decompOpts))
             {
                 zs.CopyTo(ms);
             }
@@ -86,7 +88,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Managed_LZ4()
+        public long LZ4_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
             using MemoryStream ms = new MemoryStream();
@@ -101,7 +103,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Native_ZLib()
+        public long ZLib_Native()
         {
             Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
 
@@ -118,7 +120,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Managed_ZLib()
+        public long ZLib_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
             using MemoryStream ms = new MemoryStream();
@@ -133,7 +135,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Native_XZ()
+        public long XZ_Native()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();
@@ -149,7 +151,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public long Managed_XZ()
+        public long XZ_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();

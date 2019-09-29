@@ -36,7 +36,7 @@ namespace Joveler.Compression.XZ
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class XZException : Exception
     {
-        public LzmaRet Ret { get; set; }
+        public LzmaRet ReturnCode { get; set; }
 
         private static readonly Dictionary<LzmaRet, string> ErrorMsgDict = new Dictionary<LzmaRet, string>
         {
@@ -53,7 +53,7 @@ namespace Joveler.Compression.XZ
 
         public XZException(LzmaRet ret) : base(GetErrorMessage(ret))
         {
-            Ret = ret;
+            ReturnCode = ret;
         }
 
         public static void CheckReturnValue(LzmaRet ret)
@@ -62,19 +62,17 @@ namespace Joveler.Compression.XZ
                 throw new XZException(ret);
         }
 
-        
-
         #region Serializable
         protected XZException(SerializationInfo info, StreamingContext ctx)
         {
-            Ret = (LzmaRet)info.GetValue(nameof(Ret), typeof(LzmaRet));
+            ReturnCode = (LzmaRet)info.GetValue(nameof(ReturnCode), typeof(LzmaRet));
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(Ret), Ret);
+            info.AddValue(nameof(ReturnCode), ReturnCode);
             base.GetObjectData(info, context);
         }
         #endregion

@@ -41,14 +41,14 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.LZ4
 {
-    #region Struct FrameInfo
+    #region (internal) struct FrameInfo
     /// <summary>
     /// makes it possible to set or read frame parameters.
     /// It's not required to set all fields, as long as the structure was initially memset() to zero.
     /// For all fields, 0 sets it to default value
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct FrameInfo
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FrameInfo
     {
         /// <summary>
         /// max64KB, max256KB, max1MB, max4MB ; 0 == default
@@ -81,14 +81,14 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Struct FramePreferences
+    #region (internal) struct FramePreferences
     /// <summary>
     /// makes it possible to supply detailed compression parameters to the stream interface.
     /// It's not required to set all fields, as long as the structure was initially memset() to zero.
     /// All reserved fields must be set to zero.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class FramePreferences
+    internal class FramePreferences
     {
         public FrameInfo FrameInfo;
         /// <summary>
@@ -100,16 +100,24 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public uint AutoFlush;
         /// <summary>
+        /// 1 == parser favors decompression speed vs compression ratio. Only works for high compression modes (>= LZ4HC_CLEVEL_OPT_MIN)
+        /// </summary>
+        /// <remarks>
+        /// v1.8.2+
+        /// </remarks>
+        public uint FavorDecSpeed; 
+        /// <summary>
         /// must be zero for forward compatibility
         /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public uint[] Reserved;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
+        private uint[] Reserved;
     }
     #endregion
 
-    #region Struct FrameCompressOptions
+    #region (internal) struct FrameCompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class FrameCompressOptions
+    internal class FrameCompressOptions
     {
         /// <summary>
         ///  1 == src content will remain present on future calls to LZ4F_compress(); skip copying src content within tmp buffer
@@ -119,27 +127,29 @@ namespace Joveler.Compression.LZ4
         /// must be zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public uint[] Reserved;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
+        private uint[] Reserved;
     }
     #endregion
 
-    #region Struct FrameDecompressOptions
+    #region (internal) struct FrameDecompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class FrameDecompressOptions
+    internal class FrameDecompressOptions
     {
         /// <summary>
-        /// pledge that at least 64KB+64Bytes of previously decompressed data remain unmodifed where it was decoded. This optimization skips storage operations in tmp buffers
+        /// pledges that last 64KB decompressed data will remain available unmodified. This optimization skips storage operations in tmp buffers.
         /// </summary>
         public uint StableDst;
         /// <summary>
         /// must be set to zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public uint[] Reserved;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
+        private uint[] Reserved;
     }
     #endregion
 
-    #region Enum FrameBlockSizeId
+    #region (public) enum FrameBlockSizeId
     /// <summary>
     /// The larger the block size, the (slightly) better the compression ratio, though there are diminishing returns.
     /// Larger blocks also increase memory usage on both compression and decompression sides.
@@ -154,11 +164,10 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Enum FrameBlockMode
+    #region (public) enum FrameBlockMode
     /// <summary>
-    /// Linked blocks sharply reduce inefficiencies when using small blocks,
-    /// they compress better.
-    /// However, some LZ4 decoders are only compatible with independent blocks
+    /// Linked blocks sharply reduce inefficiencies when using small blocks, they compress better.
+    /// However, some LZ4 decoders are only compatible with independent blocks.
     /// </summary>
     public enum FrameBlockMode : uint
     {
@@ -167,7 +176,7 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Enum FrameContentChecksum
+    #region (public) enum FrameContentChecksum
     public enum FrameContentChecksum : uint
     {
         NoContentChecksum = 0,
@@ -175,7 +184,7 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Enum FrameBlockChecksum
+    #region (public) enum FrameBlockChecksum
     public enum FrameBlockChecksum : uint
     {
         NoBlockChecksum = 0,
@@ -183,7 +192,7 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Enum FrameType
+    #region (public) enum FrameType
     public enum FrameType : uint
     {
         Frame = 0,
@@ -191,38 +200,48 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region Enum LZ4CompLevel
-
+    #region (public) enum LZ4CompLevel
+    /// <summary>
+    /// 0: default (fast mode), 0 through 2 is identical (default). 3 ~ 12 : HC mode. 
+    /// </summary>
+    /// <remarks>
+    /// values > 12 count as 12; values < 0 trigger "fast acceleration".
+    /// </remarks>
     public enum LZ4CompLevel : int
     {
         /// <summary>
-        /// Fast compression, 0 through 2 is identical (default)
+        /// Fast compression
         /// </summary>
         Default = 0,
+        VeryFast = -1,
         Fast = 0,
         High = 9,
         VeryHigh = 12,
         Level0 = 0,
         Level1 = 1,
         Level2 = 2,
+        /// <summary>
+        /// LZ4HC_CLEVEL_MIN
+        /// </summary>
         Level3 = 3,
         Level4 = 4,
         Level5 = 5,
         Level6 = 6,
         Level7 = 7,
         Level8 = 8,
+        /// <summary>
+        /// LZ4HC_CLEVEL_DEFAULT
+        /// </summary>
         Level9 = 9,
+        /// <summary>
+        /// LZ4HC_CLEVEL_OPT_MIN
+        /// </summary>
         Level10 = 10,
         Level11 = 11,
+        /// <summary>
+        /// LZ4HC_CLEVEL_MAX
+        /// </summary>
         Level12 = 12,
-    }
-    #endregion
-
-    #region Enum LZ4Mode
-    public enum LZ4Mode
-    {
-        Compress,
-        Decompress,
     }
     #endregion
 }

@@ -158,7 +158,7 @@ namespace Joveler.Compression.XZ
                     if (Win32.GetProcAddress(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
                     {
                         GlobalCleanup();
-                        throw new ArgumentException($"[{libPath}] is not a valid liblzma.dll");
+                        throw new ArgumentException($"[{libPath}] is not a valid lzma library");
                     }
                 }
 #if !NET451
@@ -169,15 +169,15 @@ namespace Joveler.Compression.XZ
                     if (!File.Exists(libPath))
                         throw new ArgumentException("Specified .so file does not exist");
 
-                    NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
-                    if (NativeMethods.hModule == IntPtr.Zero)
-                        throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
+                    hModule = Linux.dlopen(libPath, Linux.RTLD_NOW | Linux.RTLD_GLOBAL);
+                    if (hModule == IntPtr.Zero)
+                        throw new ArgumentException($"Unable to load [{libPath}], {Linux.dlerror()}");
 
                     // Check if dll is valid (liblzma.dll)
-                    if (NativeMethods.Linux.dlsym(NativeMethods.hModule, nameof(NativeMethods.lzma_version_number)) == IntPtr.Zero)
+                    if (Linux.dlsym(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
                     {
                         GlobalCleanup();
-                        throw new ArgumentException($"[{libPath}] is not a valid liblzma.so");
+                        throw new ArgumentException($"[{libPath}] is not a valid lzma library");
                     }
                 }
 #endif
@@ -213,7 +213,7 @@ namespace Joveler.Compression.XZ
 #if !NET451
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
-                    int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
+                    int ret = Linux.dlclose(hModule);
                     Debug.Assert(ret == 0);
                 }
 #endif

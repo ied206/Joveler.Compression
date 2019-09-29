@@ -54,7 +54,7 @@ namespace Joveler.Compression.ZLib
     /// Return codes for the compression/decompression functions.
     /// Negative values are errors, positive values are used for special but normal events.
     /// </summary>
-    public enum ZLibReturn
+    public enum ZLibRet
     {
         Ok = 0,
         StreamEnd = 1,
@@ -65,24 +65,6 @@ namespace Joveler.Compression.ZLib
         MemoryError = -4,
         BufferError = -5,
         VersionError = -6,
-    }
-
-    public enum ZLibCompLevel : int
-    {
-        Default = -1,
-        NoCompression = 0,
-        BestSpeed = 1,
-        BestCompression = 9,
-        Level0 = 0,
-        Level1 = 1,
-        Level2 = 2,
-        Level3 = 3,
-        Level4 = 4,
-        Level5 = 5,
-        Level6 = 6,
-        Level7 = 7,
-        Level8 = 8,
-        Level9 = 9,
     }
 
     internal enum ZLibCompStrategy : int
@@ -112,25 +94,48 @@ namespace Joveler.Compression.ZLib
         Deflated = 8,
     }
 
-    public enum ZLibOpenType : int
+    public enum ZLibCompLevel : int
     {
-        // If a compressed stream with a larger window
-        // size is given as input, inflate() will return with the error code
-        // Z_DATA_ERROR instead of trying to allocate a larger window.
-        Deflate = -15, // -8..-15
-        ZLib = 15, // 8..15, 0 = use the window size in the zlib header of the compressed stream.
-        GZip = 15 + 16,
-        BothZLibGZip = 15 + 32,
+        Default = -1,
+        NoCompression = 0,
+        BestSpeed = 1,
+        BestCompression = 9,
+        Level0 = 0,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
     }
 
-    public enum ZLibWriteType : int // == WindowBits
+    public enum ZLibWindowBits : int
     {
-        // If a compressed stream with a larger window
-        // size is given as input, inflate() will return with the error code
-        // Z_DATA_ERROR instead of trying to allocate a larger window.
-        Deflate = -15, // -8..-15
-        ZLib = 15, // 8..15, 0 = use the window size in the zlib header of the compressed stream.
-        GZip = 15 + 16,
+        Default = 15,
+        Bits9 = 9,
+        Bits10 = 10,
+        Bits11 = 11,
+        Bits12 = 12,
+        Bits13 = 13,
+        Bits14 = 14,
+        Bits15 = 15,  
+    }
+
+    public enum ZLibMemLevel : int
+    {
+        Default = 8,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
     }
     #endregion
 

@@ -40,23 +40,23 @@ namespace Joveler.Compression.XZ.Tests
         }
 
         #region EncoderMemUsage
-        private void EncoderMemUsageTemplate(uint preset)
+        private void EncoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
         {
             void PrintMemUsage(ulong usage, int threads = 0)
             {
-                char isExtreme = (preset & XZStream.ExtremeFlag) > 0 ? 'e' : ' ';
-                uint purePreset = preset & ~XZStream.ExtremeFlag;
+                char extremeChar = extreme ? 'e' : ' ';
+                uint purePreset = (uint)level;
                 string msg;
                 if (threads == 0)
-                    msg = $"Encoder Mem Usage (p{purePreset}{isExtreme}) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
+                    msg = $"Encoder Mem Usage (p{purePreset}{extremeChar}) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
                 else
-                    msg = $"Encoder Mem Usage (p{purePreset}{isExtreme}, {threads}T) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
+                    msg = $"Encoder Mem Usage (p{purePreset}{extremeChar}, {threads}T) = {usage / (1024 * 1024) + 1}MB ({usage}B)";
                 Console.WriteLine(msg);
             }
 
-            ulong single = XZInit.EncoderMemUsage(preset);
-            ulong multi1 = XZInit.EncoderMultiMemUsage(preset, 1);
-            ulong multi2 = XZInit.EncoderMultiMemUsage(preset, 2);
+            ulong single = XZInit.EncoderMemUsage(level, extreme);
+            ulong multi1 = XZInit.EncoderMultiMemUsage(level, extreme, 1);
+            ulong multi2 = XZInit.EncoderMultiMemUsage(level, extreme, 2);
             PrintMemUsage(single);
             PrintMemUsage(multi1, 1);
             PrintMemUsage(multi2, 2);
@@ -70,26 +70,26 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void EncoderMemUsage()
         {
-            EncoderMemUsageTemplate(XZStream.MinimumPreset);
-            EncoderMemUsageTemplate(XZStream.MinimumPreset | XZStream.ExtremeFlag);
-            EncoderMemUsageTemplate(XZStream.DefaultPreset);
-            EncoderMemUsageTemplate(XZStream.DefaultPreset | XZStream.ExtremeFlag);
-            EncoderMemUsageTemplate(XZStream.MaximumPreset);
-            EncoderMemUsageTemplate(XZStream.MaximumPreset | XZStream.ExtremeFlag);
+            EncoderMemUsageTemplate(LzmaCompLevel.Minimum, false);
+            EncoderMemUsageTemplate(LzmaCompLevel.Minimum, true);
+            EncoderMemUsageTemplate(LzmaCompLevel.Default, false);
+            EncoderMemUsageTemplate(LzmaCompLevel.Default, true);
+            EncoderMemUsageTemplate(LzmaCompLevel.Maximum, false);
+            EncoderMemUsageTemplate(LzmaCompLevel.Maximum, true);
         }
         #endregion
 
         #region DecoderMemUsage
-        private void DecoderMemUsageTemplate(uint preset)
+        private void DecoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
         {
-            void PrintMemUsage(ulong usage, int threads = 0)
+            void PrintMemUsage(ulong usage)
             {
-                char isExtreme = (preset & XZStream.ExtremeFlag) > 0 ? 'e' : ' ';
-                uint purePreset = preset & ~XZStream.ExtremeFlag;
-                Console.WriteLine($"Decoder Mem Usage (p{purePreset}{isExtreme}) = {usage / (1024 * 1024) + 1}MB ({usage}B)");
+                char extremeChar = extreme ? 'e' : ' ';
+                uint purePreset = (uint)level;
+                Console.WriteLine($"Decoder Mem Usage (p{purePreset}{extremeChar}) = {usage / (1024 * 1024) + 1}MB ({usage}B)");
             }
 
-            ulong usage = XZInit.DecoderMemUsage(preset);
+            ulong usage = XZInit.DecoderMemUsage(level, extreme);
             PrintMemUsage(usage);
             Assert.AreNotEqual(ulong.MaxValue, usage);
         }
@@ -97,12 +97,12 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void DecoderMemUsage()
         {
-            DecoderMemUsageTemplate(XZStream.MinimumPreset);
-            DecoderMemUsageTemplate(XZStream.MinimumPreset | XZStream.ExtremeFlag);
-            DecoderMemUsageTemplate(XZStream.DefaultPreset);
-            DecoderMemUsageTemplate(XZStream.DefaultPreset | XZStream.ExtremeFlag);
-            DecoderMemUsageTemplate(XZStream.MaximumPreset);
-            DecoderMemUsageTemplate(XZStream.MaximumPreset | XZStream.ExtremeFlag);
+            DecoderMemUsageTemplate(LzmaCompLevel.Minimum, false);
+            DecoderMemUsageTemplate(LzmaCompLevel.Minimum, true);
+            DecoderMemUsageTemplate(LzmaCompLevel.Default, false);
+            DecoderMemUsageTemplate(LzmaCompLevel.Default, true);
+            DecoderMemUsageTemplate(LzmaCompLevel.Maximum, false);
+            DecoderMemUsageTemplate(LzmaCompLevel.Maximum, true);
         }
         #endregion
     }

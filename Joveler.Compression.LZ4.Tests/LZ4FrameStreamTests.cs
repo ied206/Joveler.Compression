@@ -37,11 +37,11 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
+    [TestCategory("Joveler.Compression.LZ4")]
     public class LZ4FrameStreamTests
     {
         #region Compress
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
         public void Compress()
         {
             CompressTemplate("A.pdf", LZ4CompLevel.Fast, false);
@@ -71,10 +71,17 @@ namespace Joveler.Compression.LZ4.Tests
                 string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
                 string tempLz4File = tempDecompFile + ".lz4";
 
+                LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                {
+                    Level = compLevel,
+                    AutoFlush = false,
+                    LeaveOpen = true,
+                };
+
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, LZ4Mode.Compress, compLevel, true))
+                using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, compOpts))
                 {
                     if (useSpan)
                     {
@@ -126,7 +133,6 @@ namespace Joveler.Compression.LZ4.Tests
 
         #region Decompress
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
         public void Decompress()
         {
             DecompressTemplate("A.pdf.lz4", "A.pdf", false); // -12
@@ -135,7 +141,6 @@ namespace Joveler.Compression.LZ4.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
         public void DecompressSpan()
         {
             DecompressTemplate("A.pdf.lz4", "A.pdf", true); // -12
@@ -148,12 +153,14 @@ namespace Joveler.Compression.LZ4.Tests
             byte[] decompDigest;
             byte[] originDigest;
 
+            LZ4FrameDecompressOptions decompOpts = new LZ4FrameDecompressOptions();
+
             string lz4File = Path.Combine(TestSetup.SampleDir, lz4FileName);
             string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
             using (MemoryStream decompMs = new MemoryStream())
             {
                 using (FileStream compFs = new FileStream(lz4File, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, LZ4Mode.Decompress))
+                using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, decompOpts))
                 {
                     if (useSpan)
                     {

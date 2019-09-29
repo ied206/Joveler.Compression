@@ -28,130 +28,30 @@
 */
 
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-#if !NET451
 using System.Runtime.InteropServices;
-#endif
 
 namespace Joveler.Compression.LZ4
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class LZ4Init
     {
-        #region GlobalInit
-        public static void GlobalInit(string libPath) => GlobalInit(libPath, 64 * 1024);
-
-        public static void GlobalInit(string libPath, int bufferSize)
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit(string libPath)
         {
-            if (NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
-
-#if !NET451
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-#endif
-            {
-                if (libPath == null)
-                    throw new ArgumentNullException(nameof(libPath));
-
-                libPath = Path.GetFullPath(libPath);
-                if (!File.Exists(libPath))
-                    throw new ArgumentException("Specified .dll file does not exist");
-
-                // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
-                string libDir = Path.GetDirectoryName(libPath);
-                if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
-                    NativeMethods.Win32.SetDllDirectory(libDir);
-
-                NativeMethods.hModule = NativeMethods.Win32.LoadLibrary(libPath);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
-
-                // Reset dll search directory to prevent dll hijacking
-                NativeMethods.Win32.SetDllDirectory(null);
-
-                // Check if dll is valid (liblz4.so.1.8.2.dll)
-                if (NativeMethods.Win32.GetProcAddress(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
-                }
-            }
-#if !NET451
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                if (libPath == null)
-                    libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4
-                if (!File.Exists(libPath))
-                    throw new ArgumentException("Specified .so file does not exist");
-
-                NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
-                if (NativeMethods.hModule == IntPtr.Zero)
-                    throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
-
-                // Check if dll is valid libz.so
-                if (NativeMethods.Linux.dlsym(NativeMethods.hModule, "LZ4F_getVersion") == IntPtr.Zero)
-                {
-                    GlobalCleanup();
-                    throw new ArgumentException($"[{libPath}] is not a valid liblz4.so");
-                }
-            }
-#endif
-
-            if (bufferSize < 0)
-                throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            if (bufferSize < 4096)
-                bufferSize = 4096;
-            LZ4FrameStream.BufferSize = bufferSize;
-
-            try
-            {
-                NativeMethods.LoadFunctions();
-                LZ4FrameStream.FrameVersion = NativeMethods.GetFrameVersion();
-            }
-            catch (Exception)
-            {
-                GlobalCleanup();
-                throw;
-            }
+            NativeMethods.GlobalInit(libPath);
         }
-        #endregion
 
-        #region GlobalCleanup
         public static void GlobalCleanup()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
-
-            NativeMethods.ResetFunctions();
-
-#if !NET451
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            
-#endif
-            {
-                int ret = NativeMethods.Win32.FreeLibrary(NativeMethods.hModule);
-                Debug.Assert(ret != 0);
-            }
-#if !NET451
-            
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
-                Debug.Assert(ret == 0);
-            }
-#endif
-            NativeMethods.hModule = IntPtr.Zero;
+            NativeMethods.GlobalCleanup();
         }
         #endregion
 
-        #region Version
+        #region Version - (Static)
         public static Version Version()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
             /*
                 Definition from "lz4.h"
@@ -175,10 +75,10 @@ namespace Joveler.Compression.LZ4
 
         public static string VersionString()
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
-            return NativeMethods.VersionString();
+            IntPtr ptr = NativeMethods.VersionString();
+            return Marshal.PtrToStringAnsi(ptr);
         }
         #endregion
     }

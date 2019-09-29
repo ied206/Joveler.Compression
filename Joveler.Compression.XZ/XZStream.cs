@@ -37,10 +37,45 @@ namespace Joveler.Compression.XZ
     #region StreamOptions
     public class XZCompressOptions
     {
-        public uint Preset { get; set; } = XZStream.DefaultPreset;
+        /// <summary>
+        /// Select a compression preset level. 
+        /// The default is −6. If multiple preset levels are specified, the last one takes effect. 
+        /// </summary>
+        public LzmaCompLevel Level { get; set; } = LzmaCompLevel.Default;
+        /// <summary>
+        /// Use a slower variant of the selected compression preset level (−0 ... −9) to hopefully
+        /// get a little bit better compression ratio, but with bad luck this can also make it worse.
+        /// Decompressor memory usage is not affected, but compressor memory usage increases a little at preset levels −0 ... −3.
+        /// </summary>
+        /// <remarks>
+        /// The differences between the presets are more significant than with gzip(1) and bzip2(1). 
+        /// The selected compression settings determine the memory requirements of the decompressor, 
+        /// thus using a too high preset level might make it painful to decompress the file on an old system with little RAM. 
+        /// Specifically, it’s not a good idea to blindly use −9 for everything like it often is with gzip(1) and bzip2(1).
+        /// </remarks>
+        public bool ExtremeFlag { get; set; } = false;
+        public uint Preset => ToPreset(Level, ExtremeFlag);
+
+        /// <summary>
+        /// Specify the type of the integrity check. 
+        /// The check is calculated from the uncompressed data and stored in the .xz file.
+        /// </summary>
         public LzmaCheck Check { get; set; } = LzmaCheck.Crc64;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
         public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// </summary>
         public bool LeaveOpen { get; set; } = false;
+
+        internal static uint ToPreset(LzmaCompLevel level, bool extremeFlag)
+        {
+            uint preset = (uint)level;
+            uint extreme = extremeFlag ? (1u << 31) : 0u;
+            return preset | extreme;
+        }
 
         internal LzmaMt ToLzmaMt(XZThreadedCompressOptions threadOpts)
         {
@@ -57,8 +92,31 @@ namespace Joveler.Compression.XZ
 
     public class XZThreadedCompressOptions
     {
+        /// <summary>
+        /// Maximum uncompressed size of a Block.
+        /// When compressing to the .xz format, split the input data into blocks of size bytes.
+        /// The blocks are compressed independently from each other, which helps with multithreading and makes limited random-access decompression possible.
+        /// </summary>
+        /// <remarks>
+        /// In multi-threaded mode about three times size bytes will be allocated in each thread for buffering input and output.
+        /// The default size is three times the LZMA2 dictionary size or 1 MiB, whichever is more.
+        /// Typically a good value is 2−4 times the size of the LZMA2 dictionary or at least 1 MiB.
+        /// Using size less than the LZMA2 dictionary size is waste of RAM because then the LZMA2 dictionary buffer will never get fully used. 
+        /// The sizes of the blocks are stored in the block headers, which a future version of xz will use for multi-threaded decompression.
+        /// </remarks>
         public ulong BlockSize { get; set; } = 0;
+        /// <summary>
+        /// Timeout to allow lzma_code() to return early.
+        /// </summary>
+        /// <remarks>
+        /// If long blocking times are fine for you, set timeout to a special value of 0.
+        /// Even with a timeout, lzma_code() might sometimes take somewhat long time to return. 
+        /// No timing guarantees are made.
+        /// </remarks>
         public uint TimeOut { get; set; } = 0;
+        /// <summary>
+        /// Number of worker threads to use.
+        /// </summary>
         public uint Threads { get; set; } = 1;
     }
 
@@ -66,7 +124,13 @@ namespace Joveler.Compression.XZ
     {
         public ulong MemLimit { get; set; } = ulong.MaxValue;
         public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlag;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
         public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
     #endregion
@@ -90,10 +154,10 @@ namespace Joveler.Compression.XZ
 
         private LzmaStream _lzmaStream;
         private GCHandle _lzmaStreamPin;
-        private readonly int _bufferSize = DefaultBufferSize;
 
-        private int _internalBufPos = 0;
-        private readonly byte[] _internalBuf;
+        private readonly int _bufferSize = DefaultBufferSize;
+        private int _workBufPos = 0;
+        private readonly byte[] _workBuf;
 
         // Property
         public Stream BaseStream { get; private set; }
@@ -108,10 +172,12 @@ namespace Joveler.Compression.XZ
         private const int ReadDone = -1;
         internal const int DefaultBufferSize = 64 * 1024;
         internal const LzmaDecodingFlag DefaultDecodingFlag = LzmaDecodingFlag.Concatenated;
-        public const uint MinimumPreset = 0;
-        public const uint DefaultPreset = 6;
-        public const uint MaximumPreset = 9;
-        public const uint ExtremeFlag = 1u << 31;
+
+        // Readonly
+        internal static readonly uint MinPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Minimum, false);
+        internal static readonly uint MaxPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Maximum, false);
+        internal static readonly uint MinExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Minimum, true);
+        internal static readonly uint MaxExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Maximum, true);
         #endregion
 
         #region Constructor
@@ -129,21 +195,22 @@ namespace Joveler.Compression.XZ
             // Check and set compress options
             _leaveOpen = compOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
-            _internalBuf = new byte[_bufferSize];
+            _workBuf = new byte[_bufferSize];
 
             // Prepare LzmaStream
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
 
-            // Check LzmaMt instance
-            CheckPreset(compOpts.Preset);
+            // Check preset
+            uint preset = compOpts.Preset;
+            CheckPreset(preset);
 
             // Initialize the encoder
-            LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, compOpts.Preset, compOpts.Check);
+            LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, preset, compOpts.Check);
             XZException.CheckReturnValue(ret);
 
             // Set possible max memory usage.
-            MaxMemUsage = NativeMethods.LzmaEasyEncoderMemUsage(compOpts.Preset);
+            MaxMemUsage = NativeMethods.LzmaEasyEncoderMemUsage(preset);
         }
 
         /// <summary>
@@ -160,14 +227,10 @@ namespace Joveler.Compression.XZ
             // Check and set XZStreamOptions
             _leaveOpen = compOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
-            _internalBuf = new byte[_bufferSize];
+            _workBuf = new byte[_bufferSize];
 
             // Prepare LzmaStream and buffers
-            _lzmaStream = new LzmaStream
-            {
-                NextIn = (byte*)0,
-                AvailIn = 0
-            };
+            _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
 
             // Check LzmaMt instance
@@ -197,7 +260,7 @@ namespace Joveler.Compression.XZ
             // Check and set decompress options
             _leaveOpen = decompOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(decompOpts.BufferSize);
-            _internalBuf = new byte[_bufferSize];
+            _workBuf = new byte[_bufferSize];
 
             // Prepare LzmaStream and buffers
             _lzmaStream = new LzmaStream();
@@ -228,7 +291,7 @@ namespace Joveler.Compression.XZ
                     }
                     else
                     {
-                        _internalBufPos = ReadDone;
+                        _workBufPos = ReadDone;
                     }
 
                     NativeMethods.LzmaEnd(_lzmaStream);
@@ -267,16 +330,16 @@ namespace Joveler.Compression.XZ
         { // For Decompress
             if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-            if (_internalBufPos == ReadDone)
+            if (_workBufPos == ReadDone)
                 return 0;
 
             int readSize = 0;
             LzmaAction action = LzmaAction.Run;
 
-            fixed (byte* readPtr = _internalBuf)
+            fixed (byte* readPtr = _workBuf)
             fixed (byte* writePtr = span)
             {
-                _lzmaStream.NextIn = readPtr + _internalBufPos;
+                _lzmaStream.NextIn = readPtr + _workBufPos;
                 _lzmaStream.NextOut = writePtr;
                 _lzmaStream.AvailOut = (uint)span.Length;
 
@@ -285,10 +348,10 @@ namespace Joveler.Compression.XZ
                     if (_lzmaStream.AvailIn == 0)
                     {
                         // Read from _baseStream
-                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
+                        int baseReadSize = BaseStream.Read(_workBuf, 0, _workBuf.Length);
                         TotalIn += baseReadSize;
 
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextIn = readPtr;
                         _lzmaStream.AvailIn = (uint)baseReadSize;
 
@@ -301,13 +364,13 @@ namespace Joveler.Compression.XZ
 
                     LzmaRet ret = NativeMethods.LzmaCode(_lzmaStream, action);
 
-                    _internalBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
+                    _workBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
                     readSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // Once everything has been decoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
                     if (ret == LzmaRet.StreamEnd)
                     {
-                        _internalBufPos = ReadDone;
+                        _workBufPos = ReadDone;
                         break;
                     }
 
@@ -342,30 +405,30 @@ namespace Joveler.Compression.XZ
             TotalIn += span.Length;
 
             fixed (byte* readPtr = span)
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = readPtr;
                 _lzmaStream.AvailIn = (uint)span.Length;
-                _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
                 // Return condition : _lzmaStream.AvailIn == 0
                 while (_lzmaStream.AvailIn != 0)
                 {
                     LzmaRet ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.Run);
-                    _internalBufPos = (int)((ulong)_internalBuf.Length - _lzmaStream.AvailOut);
+                    _workBufPos = (int)((ulong)_workBuf.Length - _lzmaStream.AvailOut);
 
                     // If the output buffer is full, write the data from the output bufffer to the output file.
                     if (_lzmaStream.AvailOut == 0)
                     {
                         // Write to _baseStream
-                        BaseStream.Write(_internalBuf, 0, _internalBuf.Length);
-                        TotalOut += _internalBuf.Length;
+                        BaseStream.Write(_workBuf, 0, _workBuf.Length);
+                        TotalOut += _workBuf.Length;
 
                         // Reset NextOut and AvailOut
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextOut = writePtr;
-                        _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                        _lzmaStream.AvailOut = (uint)_workBuf.Length;
                     }
 
                     // Normally the return value of lzma_code() will be LZMA_OK until everything has been encoded.
@@ -378,19 +441,19 @@ namespace Joveler.Compression.XZ
         {
             Debug.Assert(_mode == Mode.Compress, "FinishWrite() must not be called in decompression");
 
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-                _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
                 LzmaRet ret = LzmaRet.Ok;
                 while (ret != LzmaRet.StreamEnd)
                 {
                     ulong bakAvailOut = _lzmaStream.AvailOut;
                     ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.Finish);
-                    _internalBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
+                    _workBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // If the compression finished successfully,
                     // write the data from the output buffer to the output file.
@@ -398,13 +461,13 @@ namespace Joveler.Compression.XZ
                     { // Write to _baseStream
                         // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially
                         // full. Calculate how much new data there is to be written to the output file.
-                        BaseStream.Write(_internalBuf, 0, _internalBufPos);
-                        TotalOut += _internalBufPos;
+                        BaseStream.Write(_workBuf, 0, _workBufPos);
+                        TotalOut += _workBufPos;
 
                         // Reset NextOut and AvailOut
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextOut = writePtr;
-                        _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                        _lzmaStream.AvailOut = (uint)_workBuf.Length;
                     }
                     else
                     { // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
@@ -414,6 +477,7 @@ namespace Joveler.Compression.XZ
             }
         }
 
+        /// <inheritdoc />
         public override unsafe void Flush()
         {
             if (_mode == Mode.Decompress)
@@ -422,12 +486,12 @@ namespace Joveler.Compression.XZ
                 return;
             }
 
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-                _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
                 LzmaRet ret = LzmaRet.Ok;
                 while (ret != LzmaRet.StreamEnd)
@@ -439,15 +503,15 @@ namespace Joveler.Compression.XZ
                         ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.FullFlush);
                         writeSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
                     }
-                    _internalBufPos += writeSize;
+                    _workBufPos += writeSize;
 
-                    BaseStream.Write(_internalBuf, 0, _internalBufPos);
-                    TotalOut += _internalBufPos;
+                    BaseStream.Write(_workBuf, 0, _workBufPos);
+                    TotalOut += _workBufPos;
 
                     // Reset NextOut and AvailOut
-                    _internalBufPos = 0;
+                    _workBufPos = 0;
                     _lzmaStream.NextOut = writePtr;
-                    _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                    _lzmaStream.AvailOut = (uint)_workBuf.Length;
 
                     // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
                     if (ret != LzmaRet.Ok && ret != LzmaRet.StreamEnd)
@@ -458,22 +522,26 @@ namespace Joveler.Compression.XZ
             BaseStream.Flush();
         }
 
+        /// <inheritdoc />
         public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        /// <inheritdoc />
         public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
+        /// <inheritdoc />
         public override bool CanSeek => false;
 
+        /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException("Seek() not supported");
         }
-
+        /// <inheritdoc />
         public override void SetLength(long value)
         {
             throw new NotSupportedException("SetLength not supported");
         }
-
+        /// <inheritdoc />
         public override long Length => throw new NotSupportedException("Length not supported");
-
+        /// <inheritdoc />
         public override long Position
         {
             get => throw new NotSupportedException("Position not supported");
@@ -564,8 +632,8 @@ namespace Joveler.Compression.XZ
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void CheckPreset(uint preset)
         {
-            if (!(MinimumPreset <= preset && preset <= MaximumPreset) &&
-                !((MinimumPreset | ExtremeFlag) <= preset && preset <= (MaximumPreset | ExtremeFlag)))
+            if (!(MinPreset <= preset && preset <= MaxPreset) &&
+                !(MinExtremePreset <= preset && preset <= MaxExtremePreset))
                 throw new ArgumentOutOfRangeException(nameof(preset));
         }
 

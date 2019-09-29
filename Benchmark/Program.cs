@@ -112,7 +112,7 @@ namespace Benchmark
 
             Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath);
             Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
-            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path, 16 * 1024);
+            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path);
         }
 
         public static void NativeGlobalCleanup()

@@ -41,31 +41,31 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", false, true, 1, 7);
-            CompressTemplate("B.txt", false, true, 1, XZStream.DefaultPreset);
-            CompressTemplate("C.bin", false, true, 1, 1 | XZStream.ExtremeFlag);
-            CompressTemplate("C.bin", false, false, 1, 255);
+            CompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
+            CompressTemplate("B.txt", false, true, 1, LzmaCompLevel.Default, false);
+            CompressTemplate("C.bin", false, true, 1, LzmaCompLevel.Level1, true);
+            CompressTemplate("C.bin", false, false, 1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("A.pdf", true, true, 1, 7);
-            CompressTemplate("B.txt", true, true, 1, XZStream.DefaultPreset);
-            CompressTemplate("C.bin", true, true, 1, 1 | XZStream.ExtremeFlag);
-            CompressTemplate("C.bin", true, false, 1, 255);
+            CompressTemplate("A.pdf", true, true, 1, LzmaCompLevel.Level7, false);
+            CompressTemplate("B.txt", true, true, 1, LzmaCompLevel.Default, false);
+            CompressTemplate("C.bin", true, true, 1, LzmaCompLevel.Level1, true);
+            CompressTemplate("C.bin", true, false, 1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
         public void CompressMulti()
         {
-            CompressTemplate("A.pdf", false, true, 2, 7);
-            CompressTemplate("B.txt", false, true, 2, 3 | XZStream.ExtremeFlag);
-            CompressTemplate("C.bin", false, true, Environment.ProcessorCount, 1);
-            CompressTemplate("C.bin", false, false, Environment.ProcessorCount, 255);
+            CompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Level7, false);
+            CompressTemplate("B.txt", false, true, 2, LzmaCompLevel.Level3, true);
+            CompressTemplate("C.bin", false, true, Environment.ProcessorCount, LzmaCompLevel.Level1, false);
+            CompressTemplate("C.bin", false, false, Environment.ProcessorCount, (LzmaCompLevel)255, false);
         }
 
-        private static void CompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, uint preset)
+        private static void CompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, LzmaCompLevel level, bool extreme)
         {
             string destDir = Path.GetTempFileName();
             File.Delete(destDir);
@@ -77,7 +77,8 @@ namespace Joveler.Compression.XZ.Tests
 
                 XZCompressOptions compOpts = new XZCompressOptions
                 {
-                    Preset = preset,
+                    Level = level,
+                    ExtremeFlag = extreme,
                     LeaveOpen = true,
                 };
                 XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions

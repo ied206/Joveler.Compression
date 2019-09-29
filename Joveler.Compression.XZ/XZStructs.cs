@@ -711,6 +711,9 @@ namespace Joveler.Compression.XZ
     #endregion
 
     #region (public) LzmaCheck
+    /// <summary>
+    /// Integrity check type
+    /// </summary>
     public enum LzmaCheck
     {
         /// <summary>
@@ -803,6 +806,28 @@ namespace Joveler.Compression.XZ
         /// as `action' for lzma_code(), but the usage of LZMA_FINISH isn't required.
         /// </remarks>
         Concatenated = 0x08,
+    }
+    #endregion
+
+    #region (public) LzmaCompLevel
+    /// <summary>
+    /// Integrity check type
+    /// </summary>
+    public enum LzmaCompLevel : uint
+    {
+        Minimum = 0,
+        Default = 6,
+        Maximum = 9,
+        Level0 = 0,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
     }
     #endregion
 }

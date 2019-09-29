@@ -29,6 +29,9 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ArrangeTypeMemberModifiers
@@ -40,22 +43,50 @@ namespace Joveler.Compression.LZ4
     internal static unsafe class NativeMethods
     {
         #region Const
-        public const string MsgInitFirstError = "Please call LZ4Stream.GlobalInit() first!";
-        public const string MsgAlreadyInit = "Joveler.Compression.LZ4 is already initialized.";
+        private const string MsgInitFirstError = "Please call LZ4Init.GlobalInit() first!";
+        private const string MsgAlreadyInit = "Joveler.Compression.LZ4 is already initialized.";
         #endregion
 
-        #region Fields
+        #region Native Library Loading
         internal static IntPtr hModule;
-        internal static bool Loaded => hModule != IntPtr.Zero;
+        internal static readonly object LoadLock = new object();
+        private static bool Loaded => hModule != IntPtr.Zero;
+
+        public static bool IsLoaded()
+        {
+            lock (LoadLock)
+            {
+                return Loaded;
+            }
+        }
+
+        public static void EnsureLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+            }
+        }
+
+        public static void EnsureNotLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+            }
+        }
         #endregion
 
         #region Windows kernel32 API
         internal static class Win32
         {
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPTStr)] string lpFileName);
+            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+            [SuppressMessage("Globalization", "CA2101:Specify marshaling for P/Invoke string arguments")]
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
@@ -68,6 +99,7 @@ namespace Joveler.Compression.LZ4
 
         #region Linux libdl API
 #pragma warning disable IDE1006 // 명명 스타일
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Linux
         {
             internal const int RTLD_NOW = 0x0002;
@@ -85,7 +117,114 @@ namespace Joveler.Compression.LZ4
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
 #pragma warning restore IDE1006 // 명명 스타일
+        #endregion
+
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit(string libPath)
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    if (libPath == null)
+                        throw new ArgumentNullException(nameof(libPath));
+
+                    libPath = Path.GetFullPath(libPath);
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .dll file does not exist");
+
+                    // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                    string libDir = Path.GetDirectoryName(libPath);
+                    if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                        Win32.SetDllDirectory(libDir);
+                    // SetDllDictionary guard
+                    try
+                    {
+                        hModule = Win32.LoadLibrary(libPath);
+                        if (hModule == IntPtr.Zero)
+                            throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+                    }
+                    finally
+                    {
+                        // Reset dll search directory to prevent dll hijacking
+                        Win32.SetDllDirectory(null);
+                    }
+
+                    // Check if dll is valid (liblz4.so.1.8.2.dll)
+                    if (Win32.GetProcAddress(hModule, nameof(LZ4F_getVersion)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
+                    }
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    if (libPath == null)
+                        libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .so file does not exist");
+
+                    hModule = Linux.dlopen(libPath, Linux.RTLD_NOW | Linux.RTLD_GLOBAL);
+                    if (hModule == IntPtr.Zero)
+                        throw new ArgumentException($"Unable to load [{libPath}], {Linux.dlerror()}");
+
+                    // Check if dll is valid libz.so
+                    if (Linux.dlsym(hModule, nameof(LZ4F_getVersion)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
+                    }
+                }
+#endif
+
+                try
+                {
+                    LoadFunctions();
+                    LZ4FrameStream.FrameVersion = GetFrameVersion();
+                }
+                catch (Exception)
+                {
+                    GlobalCleanup();
+                    throw;
+                }
+            }
+        }
+
+        public static void GlobalCleanup()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+
+                ResetFunctions();
+
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    int ret = Win32.FreeLibrary(hModule);
+                    Debug.Assert(ret != 0);
+                }
+#if !NET451
+
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    int ret = Linux.dlclose(hModule);
+                    Debug.Assert(ret == 0);
+                }
+#endif
+                hModule = IntPtr.Zero;
+            }
+        }
         #endregion
 
         #region GetFuncPtr
@@ -132,21 +271,21 @@ namespace Joveler.Compression.LZ4
             #endregion
 
             #region FrameCompression
-            CreateFrameCompressionContext = GetFuncPtr<LZ4F_createCompressionContext>(nameof(LZ4F_createCompressionContext));
-            FreeFrameCompressionContext = GetFuncPtr<LZ4F_freeCompressionContext>(nameof(LZ4F_freeCompressionContext));
-            FrameCompressionBegin = GetFuncPtr<LZ4F_compressBegin>(nameof(LZ4F_compressBegin));
-            FrameCompressionBound = GetFuncPtr<LZ4F_compressBound>(nameof(LZ4F_compressBound));
-            FrameCompressionUpdate = GetFuncPtr<LZ4F_compressUpdate>(nameof(LZ4F_compressUpdate));
+            CreateFrameCompressContext = GetFuncPtr<LZ4F_createCompressionContext>(nameof(LZ4F_createCompressionContext));
+            FreeFrameCompressContext = GetFuncPtr<LZ4F_freeCompressionContext>(nameof(LZ4F_freeCompressionContext));
+            FrameCompressBegin = GetFuncPtr<LZ4F_compressBegin>(nameof(LZ4F_compressBegin));
+            FrameCompressBound = GetFuncPtr<LZ4F_compressBound>(nameof(LZ4F_compressBound));
+            FrameCompressUpdate = GetFuncPtr<LZ4F_compressUpdate>(nameof(LZ4F_compressUpdate));
             FrameFlush = GetFuncPtr<LZ4F_flush>(nameof(LZ4F_flush));
-            FrameCompressionEnd = GetFuncPtr<LZ4F_compressEnd>(nameof(LZ4F_compressEnd));
+            FrameCompressEnd = GetFuncPtr<LZ4F_compressEnd>(nameof(LZ4F_compressEnd));
             #endregion
 
             #region FrameDecompression
-            CreateFrameDecompressionContext = GetFuncPtr<LZ4F_createDecompressionContext>(nameof(LZ4F_createDecompressionContext));
-            FreeFrameDecompressionContext = GetFuncPtr<LZ4F_freeDecompressionContext>(nameof(LZ4F_freeDecompressionContext));
+            CreateFrameDecompressContext = GetFuncPtr<LZ4F_createDecompressionContext>(nameof(LZ4F_createDecompressionContext));
+            FreeFrameDecompressContext = GetFuncPtr<LZ4F_freeDecompressionContext>(nameof(LZ4F_freeDecompressionContext));
             GetFrameInfo = GetFuncPtr<LZ4F_getFrameInfo>(nameof(LZ4F_getFrameInfo));
             FrameDecompress = GetFuncPtr<LZ4F_decompress>(nameof(LZ4F_decompress));
-            ResetDecompressionContext = GetFuncPtr<LZ4F_resetDecompressionContext>(nameof(LZ4F_resetDecompressionContext));
+            ResetDecompressContext = GetFuncPtr<LZ4F_resetDecompressionContext>(nameof(LZ4F_resetDecompressionContext));
             #endregion
         }
 
@@ -164,21 +303,21 @@ namespace Joveler.Compression.LZ4
             #endregion
 
             #region FrameCompression
-            CreateFrameCompressionContext = null;
-            FreeFrameCompressionContext = null;
-            FrameCompressionBegin = null;
-            FrameCompressionBound = null;
-            FrameCompressionUpdate = null;
+            CreateFrameCompressContext = null;
+            FreeFrameCompressContext = null;
+            FrameCompressBegin = null;
+            FrameCompressBound = null;
+            FrameCompressUpdate = null;
             FrameFlush = null;
-            FrameCompressionEnd = null;
+            FrameCompressEnd = null;
             #endregion
 
             #region FrameDecompression
-            CreateFrameDecompressionContext = null;
-            FreeFrameDecompressionContext = null;
+            CreateFrameDecompressContext = null;
+            FreeFrameDecompressContext = null;
             GetFrameInfo = null;
             FrameDecompress = null;
-            ResetDecompressionContext = null;
+            ResetDecompressContext = null;
             #endregion
         }
         #endregion
@@ -190,8 +329,7 @@ namespace Joveler.Compression.LZ4
         internal static LZ4_versionNumber VersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal delegate string LZ4_versionString();
+        internal delegate IntPtr LZ4_versionString();
         internal static LZ4_versionString VersionString;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -209,7 +347,7 @@ namespace Joveler.Compression.LZ4
         internal static LZ4F_getErrorName GetErrorName;
         #endregion
 
-        #region FrameCompression
+        #region FrameCompress
         /// <summary>
         /// The first thing to do is to create a compressionContext object, which will be used in all compression operations.
         /// This is achieved using LZ4F_createCompressionContext(), which takes as argument a version.
@@ -224,11 +362,11 @@ namespace Joveler.Compression.LZ4
         internal delegate UIntPtr LZ4F_createCompressionContext(
             ref IntPtr cctxPtr,
             uint version);
-        internal static LZ4F_createCompressionContext CreateFrameCompressionContext;
+        internal static LZ4F_createCompressionContext CreateFrameCompressContext;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_freeCompressionContext(IntPtr cctx);
-        internal static LZ4F_freeCompressionContext FreeFrameCompressionContext;
+        internal static LZ4F_freeCompressionContext FreeFrameCompressContext;
 
         /// <summary>
         ///  will write the frame header into dstBuffer.
@@ -245,7 +383,7 @@ namespace Joveler.Compression.LZ4
             byte* dstBuffer,
             UIntPtr dstCapacity, // size_t
             FramePreferences prefsPtr);
-        internal static LZ4F_compressBegin FrameCompressionBegin;
+        internal static LZ4F_compressBegin FrameCompressBegin;
 
         /// <summary>
         /// Provides minimum dstCapacity required to guarantee success of
@@ -267,7 +405,7 @@ namespace Joveler.Compression.LZ4
         internal delegate UIntPtr LZ4F_compressBound(
             UIntPtr srcSize, // size_t
             FramePreferences prefsPtr);
-        internal static LZ4F_compressBound FrameCompressionBound;
+        internal static LZ4F_compressBound FrameCompressBound;
 
         /// <summary>
         ///  When data must be generated and sent immediately, without waiting for a block to be completely filled,
@@ -287,7 +425,7 @@ namespace Joveler.Compression.LZ4
             byte* srcBuffer,
             UIntPtr srcSize, // size_t
             FrameCompressOptions cOptPtr);
-        internal static LZ4F_compressUpdate FrameCompressionUpdate;
+        internal static LZ4F_compressUpdate FrameCompressUpdate;
 
         /// <summary>
         ///  When data must be generated and sent immediately, without waiting for a block to be completely filled,
@@ -330,10 +468,10 @@ namespace Joveler.Compression.LZ4
             byte* dstBuffer,
             UIntPtr dstCapacity, // size_t
             FrameCompressOptions cOptPtr);
-        internal static LZ4F_compressEnd FrameCompressionEnd;
+        internal static LZ4F_compressEnd FrameCompressEnd;
         #endregion
 
-        #region FrameDecompression
+        #region FrameDecompress
         /// <summary>
         ///  Create an LZ4F_dctx object, to track all decompression operations.
         ///  The version provided MUST be LZ4F_VERSION.
@@ -349,11 +487,11 @@ namespace Joveler.Compression.LZ4
         internal delegate UIntPtr LZ4F_createDecompressionContext(
             ref IntPtr cctxPtr,
             uint version);
-        internal static LZ4F_createDecompressionContext CreateFrameDecompressionContext;
+        internal static LZ4F_createDecompressionContext CreateFrameDecompressContext;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_freeDecompressionContext(IntPtr dctx);
-        internal static LZ4F_freeDecompressionContext FreeFrameDecompressionContext;
+        internal static LZ4F_freeDecompressionContext FreeFrameDecompressContext;
 
         /// <summary>
         /// This function extracts frame parameters (max blockSize, dictID, etc.).
@@ -456,7 +594,7 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void LZ4F_resetDecompressionContext(IntPtr dctx);
-        internal static LZ4F_resetDecompressionContext ResetDecompressionContext;
+        internal static LZ4F_resetDecompressionContext ResetDecompressContext;
         #endregion
         #endregion
     }

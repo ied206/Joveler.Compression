@@ -49,12 +49,12 @@ namespace Benchmark
             ["Best"] = SharpCompress.Compressors.Deflate.CompressionLevel.BestCompression,
         };
 
-        // XZPreset
-        public Dictionary<string, uint> XZPresetDict = new Dictionary<string, uint>(StringComparer.Ordinal)
+        // XZLevel
+        public Dictionary<string, Joveler.Compression.XZ.LzmaCompLevel> XZLevelDict = new Dictionary<string, Joveler.Compression.XZ.LzmaCompLevel>(StringComparer.Ordinal)
         {
-            ["Fastest"] = Joveler.Compression.XZ.XZStream.MinimumPreset,
-            ["Default"] = Joveler.Compression.XZ.XZStream.DefaultPreset,
-            ["Best"] = Joveler.Compression.XZ.XZStream.MaximumPreset,
+            ["Fastest"] = Joveler.Compression.XZ.LzmaCompLevel.Minimum,
+            ["Default"] = Joveler.Compression.XZ.LzmaCompLevel.Default,
+            ["Best"] = Joveler.Compression.XZ.LzmaCompLevel.Maximum,
         };
 
         // LZ4CompLevel
@@ -106,14 +106,21 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public double Native_LZ4()
+        public double LZ4_Native()
         {
+            Joveler.Compression.LZ4.LZ4FrameCompressOptions compOpts = new Joveler.Compression.LZ4.LZ4FrameCompressOptions()
+            {
+                Level = NativeLZ4LevelDict[Level],
+                AutoFlush = false,
+                LeaveOpen = true,
+            };
+
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, Joveler.Compression.LZ4.LZ4Mode.Compress, NativeLZ4LevelDict[Level], true))
+                using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, compOpts))
                 {
                     rms.CopyTo(lzs);
                 }
@@ -127,7 +134,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public double Managed_LZ4()
+        public double LZ4_Managed()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -148,7 +155,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public double Native_ZLib()
+        public double ZLib_Native()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -175,7 +182,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public double Managed_ZLib()
+        public double ZLib_Managed()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -194,7 +201,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public double Native_XZ()
+        public double XZ_Native()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -202,7 +209,7 @@ namespace Benchmark
             {
                 Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions
                 {
-                    Preset = XZPresetDict[Level],
+                    Level = XZLevelDict[Level],
                     LeaveOpen = true,
                 };
 
