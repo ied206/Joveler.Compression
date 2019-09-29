@@ -82,15 +82,16 @@ namespace Joveler.Compression.ZLib.Checksum
 
         public T Append(Stream stream)
         {
-            int bytesRead;
             byte[] buffer = new byte[_bufferSize];
-            do
+            while (true)
             {
-                bytesRead = stream.Read(buffer, 0, _bufferSize);
+                int bytesRead = stream.Read(buffer, 0, _bufferSize);
+                if (bytesRead == 0)
+                    break;
+
+                // Some Checksum functions reset checksum to the init value when the buffer is empty. (Ex: zlib)
                 Checksum = AppendCore(Checksum, buffer, 0, bytesRead);
             }
-            while (0 < bytesRead);
-
             return Checksum;
         }
         #endregion

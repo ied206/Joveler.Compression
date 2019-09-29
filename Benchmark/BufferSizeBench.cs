@@ -24,10 +24,8 @@ namespace Benchmark
             4 * 1024 * 1024,
         };
 
-        // RawData
         public List<byte[]> RawDataList { get; set; } = new List<byte[]>(2);
-
-        // XZData
+        public List<byte[]> ZLibDataList { get; set; } = new List<byte[]>(2);
         public List<byte[]> XZDataList { get; set; } = new List<byte[]>(2);
         #endregion
 
@@ -37,7 +35,7 @@ namespace Benchmark
         {
             Program.NativeGlobalInit();
 
-            // Populate RawDataList and XZDataList
+            // Populate RawDataList and XZDataList, ZLibDataList
             int bigSize = BufferSizes.Max() * 2;
             int medianSize = BufferSizes[BufferSizes.Count / 2];
             for (int i = 0; i < 2; i++)
@@ -51,15 +49,30 @@ namespace Benchmark
                 RawDataList.Add(rawData);
 
                 // Populate _xzData
-                Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
-                using MemoryStream ms = new MemoryStream();
-                using MemoryStream rms = new MemoryStream(rawData);
-                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts))
+                using (MemoryStream ms = new MemoryStream())
                 {
-                    rms.CopyTo(xzs);
+                    Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
+                    using (MemoryStream rms = new MemoryStream(rawData))
+                    using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts))
+                    {
+                        rms.CopyTo(xzs);
+                    }
+                    byte[] xzData = ms.ToArray();
+                    XZDataList.Add(xzData);
                 }
-                byte[] xzData = ms.ToArray();
-                XZDataList.Add(xzData);
+
+                // Populate _zlibData
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions();
+                    using (MemoryStream rms = new MemoryStream(rawData))
+                    using (Joveler.Compression.ZLib.ZLibStream xzs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts))
+                    {
+                        rms.CopyTo(xzs);
+                    }
+                    byte[] zlibData = ms.ToArray();
+                    ZLibDataList.Add(zlibData);
+                }
             }
         }
 
@@ -91,7 +104,7 @@ namespace Benchmark
         }
         #endregion
 
-        #region XZ_Deompress
+        #region XZ_Decompress
         [Benchmark]
         public void XZ_Decompress()
         {
@@ -106,6 +119,44 @@ namespace Benchmark
                 using MemoryStream rms = new MemoryStream(xzData);
                 using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(rms, decompOpts);
                 xzs.CopyTo(ms);
+            }
+        }
+        #endregion
+
+        #region ZLib_Compress
+        [Benchmark]
+        public void ZLib_Compress()
+        {
+            Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions()
+            {
+                BufferSize = BufferSize,
+            };
+
+            foreach (byte[] rawData in RawDataList)
+            {
+                using MemoryStream ms = new MemoryStream();
+                using MemoryStream rms = new MemoryStream(rawData);
+                using Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts);
+                rms.CopyTo(zs);
+            }
+        }
+        #endregion
+
+        #region ZLib_Decompress
+        [Benchmark]
+        public void ZLib_Decompress()
+        {
+            Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions()
+            {
+                BufferSize = BufferSize,
+            };
+
+            foreach (byte[] zlibData in ZLibDataList)
+            {
+                using MemoryStream ms = new MemoryStream();
+                using MemoryStream rms = new MemoryStream(zlibData);
+                using Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(rms, decompOpts);
+                zs.CopyTo(ms);
             }
         }
         #endregion

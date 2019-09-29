@@ -176,19 +176,19 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                 ("ex3.jpg", 0x63D4D64Bu),
             };
 
-            Crc32Checksum crc = new Crc32Checksum();
+            Crc32Checksum crc32 = new Crc32Checksum();
             foreach ((string fileName, uint checksum) in samples)
             {
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    CheckTemplate(crc, fileName, kind, checksum);
+                    CheckTemplate(crc32, fileName, kind, checksum);
                 }
 
                 using Crc32Algorithm hash = new Crc32Algorithm();
                 HashAlgorithmTemplate(hash, fileName, checksum);
             }
 
-            ResetTemplate(crc, samples[0].FileName, samples[1].FileName);
+            ResetTemplate(crc32, samples[0].FileName, samples[1].FileName);
         }
         #endregion
 
@@ -203,19 +203,19 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                 ("ex3.jpg", 0x94B04C6Fu),
             };
 
-            Adler32Checksum crc = new Adler32Checksum();
+            Adler32Checksum adler32 = new Adler32Checksum();
             foreach ((string fileName, uint checksum) in samples)
             {
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    CheckTemplate(crc, fileName, kind, checksum);
+                    CheckTemplate(adler32, fileName, kind, checksum);
                 }
 
-                using Crc32Algorithm hash = new Crc32Algorithm();
+                using Adler32Algorithm hash = new Adler32Algorithm();
                 HashAlgorithmTemplate(hash, fileName, checksum);
             }
 
-            ResetTemplate(crc, samples[0].FileName, samples[1].FileName);
+            ResetTemplate(adler32, samples[0].FileName, samples[1].FileName);
         }
         #endregion
     }
