@@ -140,7 +140,7 @@ namespace Joveler.Compression.ZLib
             NativeMethods.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _mode = Mode.Compress;
+            _mode = Mode.Decompress;
             _disposed = false;
 
             // Check and set decompress options

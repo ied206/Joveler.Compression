@@ -23,6 +23,7 @@
 */
 
 using System;
+using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
@@ -52,7 +53,8 @@ namespace Joveler.Compression.ZLib
         {
             NativeMethods.EnsureLoaded();
 
-            return NativeMethods.ZLibVersion();
+            IntPtr ptr = NativeMethods.ZLibVersion();
+            return Marshal.PtrToStringAnsi(ptr);
         }
         #endregion
     }

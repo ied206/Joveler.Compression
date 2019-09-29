@@ -23,12 +23,10 @@
 */
 
 using Joveler.Compression.ZLib.Checksum;
-using Joveler.Compression.ZLib.Tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 // ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
 // ReSharper disable CommentTypo
 
@@ -205,7 +203,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                 ("ex3.jpg", 0x94B04C6Fu),
             };
 
-            Crc32Checksum crc = new Crc32Checksum();
+            Adler32Checksum crc = new Adler32Checksum();
             foreach ((string fileName, uint checksum) in samples)
             {
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))

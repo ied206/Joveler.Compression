@@ -485,8 +485,7 @@ namespace Joveler.Compression.ZLib
 
         #region Version - ZLibVersion
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal delegate string zlibVersion();
+        internal delegate IntPtr zlibVersion();
         internal static zlibVersion ZLibVersion;
         #endregion
         #endregion
