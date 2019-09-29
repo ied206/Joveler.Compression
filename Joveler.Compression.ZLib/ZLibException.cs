@@ -34,28 +34,28 @@ namespace Joveler.Compression.ZLib
     #region ZLibException
     public class ZLibException : Exception
     {
-        public ZLibReturnCode ErrorCode;
+        public ZLibReturn ErrorCode;
 
-        public ZLibException(ZLibReturnCode errorCode)
+        public ZLibException(ZLibReturn errorCode)
             : base(ForgeErrorMessage(errorCode))
         {
             ErrorCode = errorCode;
         }
 
-        public ZLibException(ZLibReturnCode errorCode, string msg)
+        public ZLibException(ZLibReturn errorCode, string msg)
             : base(ForgeErrorMessage(errorCode, msg))
         {
             ErrorCode = errorCode;
         }
 
-        private static string ForgeErrorMessage(ZLibReturnCode errorCode, string msg = null)
+        private static string ForgeErrorMessage(ZLibReturn errorCode, string msg = null)
         {
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL32 zs = null)
+        internal static void CheckReturnValue(ZLibReturn ret, ZStreamL32 zs = null)
         {
-            if (ret != ZLibReturnCode.OK)
+            if (ret != ZLibReturn.Ok)
             {
                 if (zs == null)
                     throw new ZLibException(ret);
@@ -64,9 +64,9 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL64 zs = null)
+        internal static void CheckReturnValue(ZLibReturn ret, ZStreamL64 zs = null)
         {
-            if (ret != ZLibReturnCode.OK)
+            if (ret != ZLibReturn.Ok)
             {
                 if (zs == null)
                     throw new ZLibException(ret);

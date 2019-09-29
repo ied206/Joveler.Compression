@@ -29,6 +29,9 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
@@ -39,33 +42,60 @@ namespace Joveler.Compression.ZLib
     internal static class NativeMethods
     {
         #region Const
-        internal const string MsgInitFirstError = "Please call ZLib.GlobalInit() first!";
+        internal const string MsgInitFirstError = "Please call ZLibInit.GlobalInit() first!";
         internal const string MsgAlreadyInit = "Joveler.Compression.ZLib is already initialized.";
 
         private const int DEF_MEM_LEVEL = 8;
         private const string ZLIB_VERSION = "1.2.11"; // This code is based on zlib 1.2.11's zlib.h
         #endregion
 
-        #region Fields
+        #region Native Library Loading
+        internal static IntPtr hModule = IntPtr.Zero;
+        internal static readonly object LoadLock = new object();
+        internal static bool Loaded => hModule != IntPtr.Zero;
+
         internal enum LongBits
         {
             Long64 = 0, // Windows, Linux 32bit
             Long32 = 1, // Linux 64bit
         }
-
-        internal static IntPtr hModule;
         internal static LongBits LongBitType { get; set; }
-        internal static bool Loaded => hModule != IntPtr.Zero;
-        internal static int BufferSize { get; set; } = 64 * 1024;
+
+        public static bool IsLoaded()
+        {
+            lock (LoadLock)
+            {
+                return Loaded;
+            }
+        }
+
+        public static void EnsureLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+            }
+        }
+
+        public static void EnsureNotLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+            }
+        }
         #endregion
 
         #region Windows kernel32 API
         internal static class Win32
         {
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPTStr)] string lpFileName);
+            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+            [SuppressMessage("Globalization", "CA2101:Specify marshaling for P/Invoke string arguments")]
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
@@ -77,6 +107,8 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Linux libdl API
+#pragma warning disable IDE1006 // 명명 스타일
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Linux
         {
             internal const int RTLD_NOW = 0x0002;
@@ -94,9 +126,132 @@ namespace Joveler.Compression.ZLib
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning restore IDE1006 // 명명 스타일
         #endregion
 
-        #region LoadFunctions, ResetFunctions
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit(string libPath = null)
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    LongBitType = LongBits.Long32;
+                    if (libPath == null)
+                        throw new ArgumentNullException(nameof(libPath));
+
+                    libPath = Path.GetFullPath(libPath);
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .dll file does not exist");
+
+                    // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                    string libDir = Path.GetDirectoryName(libPath);
+                    if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                        Win32.SetDllDirectory(libDir);
+                    // SetDllDictionary guard
+                    try
+                    {
+                        hModule = Win32.LoadLibrary(libPath);
+                        if (hModule == IntPtr.Zero)
+                            throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+                    }
+                    finally
+                    {
+                        // Reset dll search directory to prevent dll hijacking
+                        Win32.SetDllDirectory(null);
+                    }
+
+                    // Check if dll is valid (zlibwapi.dll)
+                    if (Win32.GetProcAddress(hModule, nameof(L32.deflate)) == IntPtr.Zero ||
+                        Win32.GetProcAddress(hModule, nameof(L32.inflate)) == IntPtr.Zero ||
+                        Win32.GetProcAddress(hModule, nameof(adler32)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not valid zlibwapi.dll");
+                    }
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    Architecture arch = RuntimeInformation.ProcessArchitecture;
+                    switch (arch)
+                    {
+                        case Architecture.Arm:
+                        case Architecture.X86:
+                            NativeMethods.LongBitType = NativeMethods.LongBits.Long32;
+                            break;
+                        case Architecture.Arm64:
+                        case Architecture.X64:
+                            NativeMethods.LongBitType = NativeMethods.LongBits.Long64;
+                            break;
+                    }
+
+                    if (libPath == null)
+                        libPath = "/lib/x86_64-linux-gnu/libz.so.1"; // Try to call system-installed zlib
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .so file does not exist");
+
+                    NativeMethods.hModule = NativeMethods.Linux.dlopen(libPath, NativeMethods.Linux.RTLD_NOW | NativeMethods.Linux.RTLD_GLOBAL);
+                    if (NativeMethods.hModule == IntPtr.Zero)
+                        throw new ArgumentException($"Unable to load [{libPath}], {NativeMethods.Linux.dlerror()}");
+
+                    // Check if dll is valid libz.so
+                    if (NativeMethods.Linux.dlsym(NativeMethods.hModule, nameof(L32.deflate)) == IntPtr.Zero ||
+                        NativeMethods.Linux.dlsym(NativeMethods.hModule, nameof(L32.inflate)) == IntPtr.Zero ||
+                        NativeMethods.Linux.dlsym(NativeMethods.hModule, nameof(adler32)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid libz.so");
+                    }
+                }
+#endif
+
+                try
+                {
+                    LoadFunctions();
+                }
+                catch (Exception)
+                {
+                    GlobalCleanup();
+                    throw;
+                }
+            }
+        }
+
+        public static void GlobalCleanup()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+
+                ResetFunctions();
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    int ret = Win32.FreeLibrary(hModule);
+                    Debug.Assert(ret != 0);
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    int ret = NativeMethods.Linux.dlclose(NativeMethods.hModule);
+                    Debug.Assert(ret == 0);
+                }
+#endif
+                hModule = IntPtr.Zero;
+            }
+        }
+        #endregion
+
+        #region GetFuncPtr
         private static T GetFuncPtr<T>(string funcSymbol) where T : Delegate
         {
             IntPtr funcPtr;
@@ -120,47 +275,50 @@ namespace Joveler.Compression.ZLib
                 throw new PlatformNotSupportedException();
             }
 #endif
+
             return Marshal.GetDelegateForFunctionPointer<T>(funcPtr);
         }
+        #endregion
 
+        #region LoadFunctions, ResetFunctions
         public static void LoadFunctions()
         {
             if (LongBitType == LongBits.Long32)
             {
                 #region (Common) Deflate - DeflateInit2, Deflate, DeflateEnd
-                L32.DeflateInit2 = GetFuncPtr<L32.deflateInit2_>("deflateInit2_");
-                L32.Deflate = GetFuncPtr<L32.deflate>("deflate");
-                L32.DeflateEnd = GetFuncPtr<L32.deflateEnd>("deflateEnd");
+                L32.DeflateInit2 = GetFuncPtr<L32.deflateInit2_>(nameof(L32.deflateInit2_));
+                L32.Deflate = GetFuncPtr<L32.deflate>(nameof(L32.deflate));
+                L32.DeflateEnd = GetFuncPtr<L32.deflateEnd>(nameof(L32.deflateEnd));
                 #endregion
 
                 #region (Common) Inflate - InflateInit2, Inflate, InflateEnd
-                L32.InflateInit2 = GetFuncPtr<L32.inflateInit2_>("inflateInit2_");
-                L32.Inflate = GetFuncPtr<L32.inflate>("inflate");
-                L32.InflateEnd = GetFuncPtr<L32.inflateEnd>("inflateEnd");
+                L32.InflateInit2 = GetFuncPtr<L32.inflateInit2_>(nameof(L32.inflateInit2_));
+                L32.Inflate = GetFuncPtr<L32.inflate>(nameof(L32.inflate));
+                L32.InflateEnd = GetFuncPtr<L32.inflateEnd>(nameof(L32.inflateEnd));
                 #endregion
             }
             else
             {
                 #region (Common) Deflate - DeflateInit2, Deflate, DeflateEnd
-                L64.DeflateInit2 = GetFuncPtr<L64.deflateInit2_>("deflateInit2_");
-                L64.Deflate = GetFuncPtr<L64.deflate>("deflate");
-                L64.DeflateEnd = GetFuncPtr<L64.deflateEnd>("deflateEnd");
+                L64.DeflateInit2 = GetFuncPtr<L64.deflateInit2_>(nameof(L64.deflateInit2_));
+                L64.Deflate = GetFuncPtr<L64.deflate>(nameof(L64.deflate));
+                L64.DeflateEnd = GetFuncPtr<L64.deflateEnd>(nameof(L64.deflateEnd));
                 #endregion
 
                 #region (Common) Inflate - InflateInit2, Inflate, InflateEnd
-                L64.InflateInit2 = GetFuncPtr<L64.inflateInit2_>("inflateInit2_");
-                L64.Inflate = GetFuncPtr<L64.inflate>("inflate");
-                L64.InflateEnd = GetFuncPtr<L64.inflateEnd>("inflateEnd");
+                L64.InflateInit2 = GetFuncPtr<L64.inflateInit2_>(nameof(L64.inflateInit2_));
+                L64.Inflate = GetFuncPtr<L64.inflate>(nameof(L64.inflate));
+                L64.InflateEnd = GetFuncPtr<L64.inflateEnd>(nameof(L64.inflateEnd));
                 #endregion
             }
 
             #region (zlibwapi) Checksum - Adler32, Crc32
-            Adler32 = GetFuncPtr<adler32>("adler32");
-            Crc32 = GetFuncPtr<crc32>("crc32");
+            Adler32 = GetFuncPtr<adler32>(nameof(adler32));
+            Crc32 = GetFuncPtr<crc32>(nameof(crc32));
             #endregion
 
             #region (zlibwapi) ZLibVersion
-            ZLibVersion = GetFuncPtr<zlibVersion>("zlibVersion");
+            ZLibVersion = GetFuncPtr<zlibVersion>(nameof(zlibVersion));
             #endregion
         }
 
@@ -189,70 +347,62 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region CheckZLibLoaded
-        internal static void CheckZLibLoaded()
-        {
-            if (!Loaded)
-                ZLibInit.GlobalInit();
-        }
-        #endregion
-
         #region zlib Function Pointers
         internal static class L64
         {
             #region (Common) Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflateInit2_(
+            internal delegate ZLibReturn deflateInit2_(
                 ZStreamL64 strm,
                 ZLibCompLevel level,
                 ZLibCompMethod method,
                 ZLibWriteType windowBits,
                 int memLevel,
-                ZLibCompressionStrategy strategy,
+                ZLibCompStrategy strategy,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal static deflateInit2_ DeflateInit2;
 
-            internal static ZLibReturnCode DeflateInit(ZStreamL64 strm, ZLibCompLevel level, ZLibWriteType windowBits)
+            internal static ZLibReturn DeflateInit(ZStreamL64 strm, ZLibCompLevel level, ZLibWriteType windowBits)
             {
-                return DeflateInit2(strm, level, ZLibCompMethod.DEFLATED, windowBits, DEF_MEM_LEVEL,
-                        ZLibCompressionStrategy.DEFAULT_STRATEGY, ZLIB_VERSION, Marshal.SizeOf<ZStreamL64>());
+                return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, DEF_MEM_LEVEL,
+                        ZLibCompStrategy.Default, ZLIB_VERSION, Marshal.SizeOf<ZStreamL64>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflate(
+            internal delegate ZLibReturn deflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
             internal static deflate Deflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflateEnd(
+            internal delegate ZLibReturn deflateEnd(
                 ZStreamL64 strm);
             internal static deflateEnd DeflateEnd;
             #endregion
 
             #region (Common) Inflate - InflateInit2, Inflate, InflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflateInit2_(
+            internal delegate ZLibReturn inflateInit2_(
                 ZStreamL64 strm,
                 ZLibOpenType windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal static inflateInit2_ InflateInit2;
 
-            internal static ZLibReturnCode InflateInit(ZStreamL64 strm, ZLibOpenType windowBits)
+            internal static ZLibReturn InflateInit(ZStreamL64 strm, ZLibOpenType windowBits)
             {
                 return InflateInit2(strm, windowBits, ZLIB_VERSION, Marshal.SizeOf<ZStreamL64>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflate(
+            internal delegate ZLibReturn inflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
             internal static inflate Inflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflateEnd(
+            internal delegate ZLibReturn inflateEnd(
                 ZStreamL64 strm);
             internal static inflateEnd InflateEnd;
             #endregion
@@ -262,57 +412,57 @@ namespace Joveler.Compression.ZLib
         {
             #region (Common) Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflateInit2_(
+            internal delegate ZLibReturn deflateInit2_(
                 ZStreamL32 strm,
                 ZLibCompLevel level,
                 ZLibCompMethod method,
                 ZLibWriteType windowBits,
                 int memLevel,
-                ZLibCompressionStrategy strategy,
+                ZLibCompStrategy strategy,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal static deflateInit2_ DeflateInit2;
 
-            internal static ZLibReturnCode DeflateInit(ZStreamL32 strm, ZLibCompLevel level, ZLibWriteType windowBits)
+            internal static ZLibReturn DeflateInit(ZStreamL32 strm, ZLibCompLevel level, ZLibWriteType windowBits)
             {
-                return DeflateInit2(strm, level, ZLibCompMethod.DEFLATED, windowBits, DEF_MEM_LEVEL,
-                        ZLibCompressionStrategy.DEFAULT_STRATEGY, ZLIB_VERSION, Marshal.SizeOf<ZStreamL32>());
+                return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, DEF_MEM_LEVEL,
+                        ZLibCompStrategy.Default, ZLIB_VERSION, Marshal.SizeOf<ZStreamL32>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflate(
+            internal delegate ZLibReturn deflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
             internal static deflate Deflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode deflateEnd(
+            internal delegate ZLibReturn deflateEnd(
                 ZStreamL32 strm);
             internal static deflateEnd DeflateEnd;
             #endregion
 
             #region (Common) Inflate - InflateInit2, Inflate, InflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflateInit2_(
+            internal delegate ZLibReturn inflateInit2_(
                 ZStreamL32 strm,
                 ZLibOpenType windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal static inflateInit2_ InflateInit2;
 
-            internal static ZLibReturnCode InflateInit(ZStreamL32 strm, ZLibOpenType windowBits)
+            internal static ZLibReturn InflateInit(ZStreamL32 strm, ZLibOpenType windowBits)
             {
                 return InflateInit2(strm, windowBits, ZLIB_VERSION, Marshal.SizeOf<ZStreamL32>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflate(
+            internal delegate ZLibReturn inflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
             internal static inflate Inflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-            internal delegate ZLibReturnCode inflateEnd(ZStreamL32 strm);
+            internal delegate ZLibReturn inflateEnd(ZStreamL32 strm);
             internal static inflateEnd InflateEnd;
             #endregion
         }
@@ -320,7 +470,7 @@ namespace Joveler.Compression.ZLib
         #region Checksum - Adler32, Crc32
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         internal unsafe delegate uint adler32(
-            uint crc,
+            uint adler,
             byte* buf,
             uint len);
         internal static adler32 Adler32;
@@ -333,7 +483,7 @@ namespace Joveler.Compression.ZLib
         internal static crc32 Crc32;
         #endregion
 
-        #region ZLibVersion
+        #region Version - ZLibVersion
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         [return: MarshalAs(UnmanagedType.LPStr)]
         internal delegate string zlibVersion();

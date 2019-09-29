@@ -37,79 +37,137 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
+    #region StreamOptions
+    public class ZLibCompressOptions
+    {
+        public ZLibCompLevel Level { get; set; } = ZLibCompLevel.Default;
+        public int BufferSize { get; set; } = DeflateStream.DefaultBufferSize;
+        public bool LeaveOpen { get; set; } = false;
+    }
+
+    public class ZLibDecompressOptions
+    {
+        public int BufferSize { get; set; } = DeflateStream.DefaultBufferSize;
+        public bool LeaveOpen { get; set; } = false;
+    }
+    #endregion
+
     #region DeflateStream
     public class DeflateStream : Stream
     {
+        #region enum Mode
+        private enum Mode
+        {
+            Compress,
+            Decompress,
+        }
+        #endregion
+
         #region Fields and Properties
-        private readonly ZLibMode _mode;
+        private readonly Mode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
         private ZStreamL32 _zs32;
         private ZStreamL64 _zs64;
-        private GCHandle _zsPtr;
+        private GCHandle _zsPin;
+        private readonly int _bufferSize = DefaultBufferSize;
 
-        protected virtual ZLibOpenType OpenType => ZLibOpenType.Deflate;
-        protected virtual ZLibWriteType WriteType => ZLibWriteType.Deflate;
-
-        private readonly byte[] _internalBuf;
         private int _internalBufPos = 0;
+        private readonly byte[] _internalBuf;
 
+        public Stream BaseStream { get; private set; }
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
-        public Stream BaseStream { get; private set; }
+
+        // Const
+        private const int ReadDone = -1;
+        internal const int DefaultBufferSize = 64 * 1024;
         #endregion
 
         #region Constructor
-        public DeflateStream(Stream stream, ZLibMode mode)
-            : this(stream, mode, ZLibCompLevel.Default, false) { }
+        /// <summary>
+        /// Create compressing DeflateStream.
+        /// </summary>
+        public DeflateStream(Stream baseStream, ZLibCompressOptions compOpts)
+            : this(baseStream, compOpts, ZLibWriteType.Deflate) { }
 
-        public DeflateStream(Stream stream, ZLibMode mode, ZLibCompLevel level) :
-            this(stream, mode, level, false)
-        { }
-
-        public DeflateStream(Stream stream, ZLibMode mode, bool leaveOpen) :
-            this(stream, mode, ZLibCompLevel.Default, leaveOpen)
-        { }
-
-        [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
-        public DeflateStream(Stream stream, ZLibMode mode, ZLibCompLevel level, bool leaveOpen)
+        protected DeflateStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibWriteType writeType)
         {
-            NativeMethods.CheckZLibLoaded();
+            NativeMethods.EnsureLoaded();
 
-            _leaveOpen = leaveOpen;
-            BaseStream = stream;
-            _mode = mode;
-            _internalBufPos = 0;
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Compress;
+            _disposed = false;
 
-            Debug.Assert(0 < NativeMethods.BufferSize, "Internal Logic Error at DeflateStream");
-            _internalBuf = new byte[NativeMethods.BufferSize];
+            // Check and set compress options
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _internalBuf = new byte[_bufferSize];
 
+            // Prepare and init ZStream
             switch (NativeMethods.LongBitType)
             {
                 case NativeMethods.LongBits.Long32:
                     {
                         _zs32 = new ZStreamL32();
-                        _zsPtr = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
+                        _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
 
-                        ZLibReturnCode ret;
-                        if (_mode == ZLibMode.Compress)
-                            ret = NativeMethods.L32.DeflateInit(_zs32, level, WriteType);
-                        else
-                            ret = NativeMethods.L32.InflateInit(_zs32, OpenType);
+                        ZLibReturn ret = NativeMethods.L32.DeflateInit(_zs32, compOpts.Level, writeType);
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
                 case NativeMethods.LongBits.Long64:
                     {
                         _zs64 = new ZStreamL64();
-                        _zsPtr = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
+                        _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
 
-                        ZLibReturnCode ret;
-                        if (_mode == ZLibMode.Compress)
-                            ret = NativeMethods.L64.DeflateInit(_zs64, level, WriteType);
-                        else
-                            ret = NativeMethods.L64.InflateInit(_zs64, OpenType);
+                        ZLibReturn ret = NativeMethods.L64.DeflateInit(_zs64, compOpts.Level, writeType);
+                        ZLibException.CheckReturnValue(ret, _zs64);
+                        break;
+                    }
+                default:
+                    throw new PlatformNotSupportedException();
+            }
+        }
+
+        /// <summary>
+        /// Create decompressing DeflateStream.
+        /// </summary>
+        public DeflateStream(Stream baseStream, ZLibDecompressOptions decompOpts)
+            : this(baseStream, decompOpts, ZLibOpenType.Deflate) { }
+
+        protected DeflateStream(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOpenType openType)
+        {
+            NativeMethods.EnsureLoaded();
+
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Compress;
+            _disposed = false;
+
+            // Check and set decompress options
+            _leaveOpen = decompOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(decompOpts.BufferSize);
+            _internalBuf = new byte[_bufferSize];
+
+            // Prepare and init ZStream
+            switch (NativeMethods.LongBitType)
+            {
+                case NativeMethods.LongBits.Long32:
+                    {
+                        _zs32 = new ZStreamL32();
+                        _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
+
+                        ZLibReturn ret = NativeMethods.L32.InflateInit(_zs32, openType);
+                        ZLibException.CheckReturnValue(ret, _zs32);
+                        break;
+                    }
+                case NativeMethods.LongBits.Long64:
+                    {
+                        _zs64 = new ZStreamL64();
+                        _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
+
+                        ZLibReturn ret = NativeMethods.L64.InflateInit(_zs64, openType);
                         ZLibException.CheckReturnValue(ret, _zs64);
                         break;
                     }
@@ -131,7 +189,7 @@ namespace Joveler.Compression.ZLib
             {
                 if (BaseStream != null)
                 {
-                    if (_mode == ZLibMode.Compress)
+                    if (_mode == Mode.Compress)
                         Flush();
                     if (!_leaveOpen)
                         BaseStream.Dispose();
@@ -144,11 +202,11 @@ namespace Joveler.Compression.ZLib
                         {
                             if (_zs32 != null)
                             {
-                                if (_mode == ZLibMode.Compress)
+                                if (_mode == Mode.Compress)
                                     NativeMethods.L32.DeflateEnd(_zs32);
                                 else
                                     NativeMethods.L32.InflateEnd(_zs32);
-                                _zsPtr.Free();
+                                _zsPin.Free();
                                 _zs32 = null;
                             }
                             break;
@@ -157,11 +215,11 @@ namespace Joveler.Compression.ZLib
                         {
                             if (_zs64 != null)
                             {
-                                if (_mode == ZLibMode.Compress)
+                                if (_mode == Mode.Compress)
                                     NativeMethods.L64.DeflateEnd(_zs64);
                                 else
                                     NativeMethods.L64.InflateEnd(_zs64);
-                                _zsPtr.Free();
+                                _zsPin.Free();
                                 _zs64 = null;
                             }
                             break;
@@ -173,134 +231,123 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region ValidateReadWriteArgs
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void ValidateReadWriteArgs(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count));
-            if (buffer.Length - offset < count)
-                throw new ArgumentOutOfRangeException(nameof(count));
-        }
-        #endregion
-
-        #region Stream Methods
+        #region Stream Methods and Properties
+        /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
-        {
-            if (_mode != ZLibMode.Decompress)
+        { // For Decompress
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-
-            ValidateReadWriteArgs(buffer, offset, count);
+            CheckReadWriteArgs(buffer, offset, count);
+            if (count == 0)
+                return 0;
 
             Span<byte> span = buffer.AsSpan(offset, count);
             return Read(span);
         }
 
+        /// <inheritdoc />
         public unsafe int Read(Span<byte> span)
-        {
-            if (_mode != ZLibMode.Decompress)
+        { // For Decompress
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
 
-            int readLen = 0;
-            if (_internalBufPos != -1)
+            if (_internalBufPos == ReadDone)
+                return 0;
+
+            int readSize = 0;
+            fixed (byte* readPtr = _internalBuf) // [In] Compressed
+            fixed (byte* writePtr = span) // [Out] Will-be-decompressed
             {
-                fixed (byte* readPtr = _internalBuf) // [In] Compressed
-                fixed (byte* writePtr = span) // [Out] Will-be-decompressed
+                switch (NativeMethods.LongBitType)
                 {
-                    switch (NativeMethods.LongBitType)
-                    {
-                        case NativeMethods.LongBits.Long32:
+                    case NativeMethods.LongBits.Long32:
+                        {
+                            _zs32.NextIn = readPtr + _internalBufPos;
+                            _zs32.NextOut = writePtr;
+                            _zs32.AvailOut = (uint)span.Length;
+
+                            while (0 < _zs32.AvailOut)
                             {
-                                _zs32.NextIn = readPtr + _internalBufPos;
-                                _zs32.NextOut = writePtr;
-                                _zs32.AvailOut = (uint)span.Length;
+                                if (_zs32.AvailIn == 0)
+                                { // Compressed Data is no longer available in array, so read more from _stream
+                                    int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
-                                while (0 < _zs32.AvailOut)
-                                {
-                                    if (_zs32.AvailIn == 0)
-                                    { // Compressed Data is no longer available in array, so read more from _stream
-                                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
-
-                                        _internalBufPos = 0;
-                                        _zs32.NextIn = readPtr;
-                                        _zs32.AvailIn = (uint)baseReadSize;
-                                        TotalIn += baseReadSize;
-                                    }
-
-                                    uint inCount = _zs32.AvailIn;
-                                    uint outCount = _zs32.AvailOut;
-
-                                    // flush method for inflate has no effect
-                                    ZLibReturnCode ret = NativeMethods.L32.Inflate(_zs32, ZLibFlush.NO_FLUSH);
-
-                                    _internalBufPos += (int)(inCount - _zs32.AvailIn);
-                                    readLen += (int)(outCount - _zs32.AvailOut);
-
-                                    if (ret == ZLibReturnCode.STREAM_END)
-                                    {
-                                        _internalBufPos = -1; // magic for StreamEnd
-                                        break;
-                                    }
-
-                                    ZLibException.CheckReturnValue(ret, _zs32);
+                                    _internalBufPos = 0;
+                                    _zs32.NextIn = readPtr;
+                                    _zs32.AvailIn = (uint)baseReadSize;
+                                    TotalIn += baseReadSize;
                                 }
+
+                                uint inCount = _zs32.AvailIn;
+                                uint outCount = _zs32.AvailOut;
+
+                                // flush method for inflate has no effect
+                                ZLibReturn ret = NativeMethods.L32.Inflate(_zs32, ZLibFlush.NoFlush);
+
+                                _internalBufPos += (int)(inCount - _zs32.AvailIn);
+                                readSize += (int)(outCount - _zs32.AvailOut);
+
+                                if (ret == ZLibReturn.StreamEnd)
+                                {
+                                    _internalBufPos = ReadDone; // magic for StreamEnd
+                                    break;
+                                }
+
+                                ZLibException.CheckReturnValue(ret, _zs32);
                             }
-                            break;
-                        case NativeMethods.LongBits.Long64:
+                        }
+                        break;
+                    case NativeMethods.LongBits.Long64:
+                        {
+                            _zs64.NextIn = readPtr + _internalBufPos;
+                            _zs64.NextOut = writePtr;
+                            _zs64.AvailOut = (uint)span.Length;
+
+                            while (0 < _zs64.AvailOut)
                             {
-                                _zs64.NextIn = readPtr + _internalBufPos;
-                                _zs64.NextOut = writePtr;
-                                _zs64.AvailOut = (uint)span.Length;
+                                if (_zs64.AvailIn == 0)
+                                { // Compressed Data is no longer available in array, so read more from _stream
+                                    int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
 
-                                while (0 < _zs64.AvailOut)
-                                {
-                                    if (_zs64.AvailIn == 0)
-                                    { // Compressed Data is no longer available in array, so read more from _stream
-                                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
-
-                                        _internalBufPos = 0;
-                                        _zs64.NextIn = readPtr;
-                                        _zs64.AvailIn = (uint)baseReadSize;
-                                        TotalIn += baseReadSize;
-                                    }
-
-                                    uint inCount = _zs64.AvailIn;
-                                    uint outCount = _zs64.AvailOut;
-
-                                    // flush method for inflate has no effect
-                                    ZLibReturnCode ret = NativeMethods.L64.Inflate(_zs64, ZLibFlush.NO_FLUSH);
-
-                                    _internalBufPos += (int)(inCount - _zs64.AvailIn);
-                                    readLen += (int)(outCount - _zs64.AvailOut);
-
-                                    if (ret == ZLibReturnCode.STREAM_END)
-                                    {
-                                        _internalBufPos = -1; // magic for StreamEnd
-                                        break;
-                                    }
-
-                                    ZLibException.CheckReturnValue(ret, _zs64);
+                                    _internalBufPos = 0;
+                                    _zs64.NextIn = readPtr;
+                                    _zs64.AvailIn = (uint)baseReadSize;
+                                    TotalIn += baseReadSize;
                                 }
+
+                                uint inCount = _zs64.AvailIn;
+                                uint outCount = _zs64.AvailOut;
+
+                                // flush method for inflate has no effect
+                                ZLibReturn ret = NativeMethods.L64.Inflate(_zs64, ZLibFlush.NoFlush);
+
+                                _internalBufPos += (int)(inCount - _zs64.AvailIn);
+                                readSize += (int)(outCount - _zs64.AvailOut);
+
+                                if (ret == ZLibReturn.StreamEnd)
+                                {
+                                    _internalBufPos = ReadDone; // magic for StreamEnd
+                                    break;
+                                }
+
+                                ZLibException.CheckReturnValue(ret, _zs64);
                             }
-                            break;
-                    }
+                        }
+                        break;
                 }
             }
 
-            TotalOut += readLen;
-            return readLen;
+            TotalOut += readSize;
+            return readSize;
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_mode != ZLibMode.Compress)
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
-
-            ValidateReadWriteArgs(buffer, offset, count);
+            CheckReadWriteArgs(buffer, offset, count);
+            if (count == 0)
+                return;
 
             ReadOnlySpan<byte> span = buffer.AsSpan(offset, count);
             Write(span);
@@ -308,8 +355,10 @@ namespace Joveler.Compression.ZLib
 
         public unsafe void Write(ReadOnlySpan<byte> span)
         {
-            if (_mode != ZLibMode.Compress)
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
+
+            TotalIn += span.Length;
 
             fixed (byte* readPtr = span) // [In] Compressed
             fixed (byte* writePtr = _internalBuf) // [Out] Will-be-decompressed
@@ -326,7 +375,7 @@ namespace Joveler.Compression.ZLib
                             while (_zs32.AvailIn != 0)
                             {
                                 uint outCount = _zs32.AvailOut;
-                                ZLibReturnCode ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.NO_FLUSH);
+                                ZLibReturn ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.NoFlush);
                                 _internalBufPos += (int)(outCount - _zs32.AvailOut);
 
                                 if (_zs32.AvailOut == 0)
@@ -353,7 +402,7 @@ namespace Joveler.Compression.ZLib
                             while (_zs64.AvailIn != 0)
                             {
                                 uint outCount = _zs64.AvailOut;
-                                ZLibReturnCode ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.NO_FLUSH);
+                                ZLibReturn ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.NoFlush);
                                 _internalBufPos += (int)(outCount - _zs64.AvailOut);
 
                                 if (_zs64.AvailOut == 0)
@@ -372,13 +421,11 @@ namespace Joveler.Compression.ZLib
                         }
                 }
             }
-
-            TotalIn += span.Length;
         }
 
         public override unsafe void Flush()
         {
-            if (_mode == ZLibMode.Decompress)
+            if (_mode == Mode.Decompress)
             {
                 BaseStream.Flush();
                 return;
@@ -395,17 +442,17 @@ namespace Joveler.Compression.ZLib
                             _zs32.NextOut = writePtr + _internalBufPos;
                             _zs32.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
-                            ZLibReturnCode ret = ZLibReturnCode.OK;
-                            while (ret != ZLibReturnCode.STREAM_END)
+                            ZLibReturn ret = ZLibReturn.Ok;
+                            while (ret != ZLibReturn.StreamEnd)
                             {
                                 if (_zs32.AvailOut != 0)
                                 {
                                     uint outCount = _zs32.AvailOut;
-                                    ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.FINISH);
+                                    ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.Finish);
 
                                     _internalBufPos += (int)(outCount - _zs32.AvailOut);
 
-                                    if (ret != ZLibReturnCode.STREAM_END && ret != ZLibReturnCode.OK)
+                                    if (ret != ZLibReturn.StreamEnd && ret != ZLibReturn.Ok)
                                         throw new ZLibException(ret, _zs32.LastErrorMsg);
                                 }
 
@@ -426,17 +473,17 @@ namespace Joveler.Compression.ZLib
                             _zs64.NextOut = writePtr + _internalBufPos;
                             _zs64.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
 
-                            ZLibReturnCode ret = ZLibReturnCode.OK;
-                            while (ret != ZLibReturnCode.STREAM_END)
+                            ZLibReturn ret = ZLibReturn.Ok;
+                            while (ret != ZLibReturn.StreamEnd)
                             {
                                 if (_zs64.AvailOut != 0)
                                 {
                                     uint outCount = _zs64.AvailOut;
-                                    ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.FINISH);
+                                    ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.Finish);
 
                                     _internalBufPos += (int)(outCount - _zs64.AvailOut);
 
-                                    if (ret != ZLibReturnCode.STREAM_END && ret != ZLibReturnCode.OK)
+                                    if (ret != ZLibReturn.StreamEnd && ret != ZLibReturn.Ok)
                                         throw new ZLibException(ret, _zs64.LastErrorMsg);
                                 }
 
@@ -456,8 +503,8 @@ namespace Joveler.Compression.ZLib
             BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == ZLibMode.Decompress && BaseStream.CanRead;
-        public override bool CanWrite => _mode == ZLibMode.Compress && BaseStream.CanWrite;
+        public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
         public override bool CanSeek => false;
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -482,7 +529,7 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-                if (_mode == ZLibMode.Compress)
+                if (_mode == Mode.Compress)
                 {
                     if (TotalIn == 0)
                         return 0;
@@ -497,6 +544,29 @@ namespace Joveler.Compression.ZLib
             }
         }
         #endregion
+
+        #region (internal, private) Check Arguments
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+            if (buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int CheckBufferSize(int bufferSize)
+        {
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            return Math.Max(bufferSize, 4096);
+        }
+        #endregion
     }
     #endregion
 
@@ -506,25 +576,19 @@ namespace Joveler.Compression.ZLib
     /// zlib header + adler32 et end.
     /// wraps a deflate stream
     /// </summary>
-    public class ZLibStream : DeflateStream
+    public sealed class ZLibStream : DeflateStream
     {
-        public ZLibStream(Stream stream, ZLibMode mode)
-            : base(stream, mode) { }
+        /// <summary>
+        /// Create compressing ZLibStream.
+        /// </summary>
+        public ZLibStream(Stream baseStream, ZLibCompressOptions compOpts)
+            : base(baseStream, compOpts, ZLibWriteType.ZLib) { }
 
-        public ZLibStream(Stream stream, ZLibMode mode, bool leaveOpen) :
-            base(stream, mode, leaveOpen)
-        { }
-
-        public ZLibStream(Stream stream, ZLibMode mode, ZLibCompLevel level) :
-            base(stream, mode, level)
-        { }
-
-        public ZLibStream(Stream stream, ZLibMode mode, ZLibCompLevel level, bool leaveOpen) :
-            base(stream, mode, level, leaveOpen)
-        { }
-
-        protected override ZLibOpenType OpenType => ZLibOpenType.ZLib;
-        protected override ZLibWriteType WriteType => ZLibWriteType.ZLib;
+        /// <summary>
+        /// Create decompressing ZLibStream.
+        /// </summary>
+        public ZLibStream(Stream baseStream, ZLibDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, ZLibOpenType.ZLib) { }
     }
     #endregion
 
@@ -537,20 +601,17 @@ namespace Joveler.Compression.ZLib
     /// </summary>
     public class GZipStream : DeflateStream
     {
-        public GZipStream(Stream stream, ZLibMode mode)
-            : base(stream, mode) { }
+        /// <summary>
+        /// Create compressing GZipStream.
+        /// </summary>
+        public GZipStream(Stream baseStream, ZLibCompressOptions compOpts)
+            : base(baseStream, compOpts, ZLibWriteType.GZip) { }
 
-        public GZipStream(Stream stream, ZLibMode mode, bool leaveOpen)
-            : base(stream, mode, leaveOpen) { }
-
-        public GZipStream(Stream stream, ZLibMode mode, ZLibCompLevel level)
-            : base(stream, mode, level) { }
-
-        public GZipStream(Stream stream, ZLibMode mode, ZLibCompLevel level, bool leaveOpen)
-            : base(stream, mode, level, leaveOpen) { }
-
-        protected override ZLibOpenType OpenType => ZLibOpenType.GZip;
-        protected override ZLibWriteType WriteType => ZLibWriteType.GZip;
+        /// <summary>
+        /// Create decompressing GZipStream.
+        /// </summary>
+        public GZipStream(Stream baseStream, ZLibDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, ZLibOpenType.GZip) { }
     }
     #endregion
 }

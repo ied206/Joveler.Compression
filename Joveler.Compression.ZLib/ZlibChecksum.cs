@@ -33,138 +33,6 @@ using System.IO;
 
 namespace Joveler.Compression.ZLib
 {
-    #region Crc32Stream
-    public class Crc32Stream : Stream
-    {
-        #region Fields and Properties
-        public uint Checksum { get; private set; } = Crc32Checksum.InitChecksum;
-        public Stream BaseStream { get; }
-        #endregion
-
-        #region Constructor
-        public Crc32Stream(Stream stream)
-        {
-            NativeMethods.CheckZLibLoaded();
-            BaseStream = stream;
-        }
-        #endregion
-
-        #region Stream Methods
-        public override unsafe int Read(byte[] buffer, int offset, int count)
-        {
-            int bytesRead = BaseStream.Read(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)bytesRead);
-            }
-            return bytesRead;
-        }
-
-        public override unsafe void Write(byte[] buffer, int offset, int count)
-        {
-            BaseStream.Write(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                Checksum = NativeMethods.Crc32(Checksum, bufPtr, (uint)count);
-            }
-        }
-
-        public override void Flush()
-        {
-            BaseStream.Flush();
-        }
-
-        public override bool CanRead => BaseStream.CanRead;
-        public override bool CanWrite => BaseStream.CanWrite;
-        public override bool CanSeek => BaseStream.CanSeek;
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            return BaseStream.Seek(offset, origin);
-        }
-
-        public override void SetLength(long value)
-        {
-            BaseStream.SetLength(value);
-        }
-
-        public override long Length => BaseStream.Length;
-
-        public override long Position
-        {
-            get => BaseStream.Position;
-            set => BaseStream.Position = value;
-        }
-        #endregion
-    }
-    #endregion
-
-    #region Adler32Stream
-    public class Adler32Stream : Stream
-    {
-        #region Fields and Properties
-        public uint Checksum { get; private set; } = Adler32Checksum.InitChecksum;
-        public Stream BaseStream { get; }
-        #endregion
-
-        #region Constructor
-        public Adler32Stream(Stream stream)
-        {
-            NativeMethods.CheckZLibLoaded();
-            BaseStream = stream;
-        }
-        #endregion
-
-        #region Stream Methods
-        public override unsafe int Read(byte[] buffer, int offset, int count)
-        {
-            int bytesRead = BaseStream.Read(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)bytesRead);
-            }
-            return bytesRead;
-        }
-
-        public override unsafe void Write(byte[] buffer, int offset, int count)
-        {
-            BaseStream.Write(buffer, offset, count);
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                Checksum = NativeMethods.Adler32(Checksum, bufPtr, (uint)count);
-            }
-        }
-
-        public override void Flush()
-        {
-            BaseStream.Flush();
-        }
-
-        public override bool CanRead => BaseStream.CanRead;
-        public override bool CanWrite => BaseStream.CanWrite;
-        public override bool CanSeek => BaseStream.CanSeek;
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            return BaseStream.Seek(offset, origin);
-        }
-
-        public override void SetLength(long value)
-        {
-            BaseStream.SetLength(value);
-        }
-
-        public override long Length => BaseStream.Length;
-
-        public override long Position
-        {
-            get => BaseStream.Position;
-            set => BaseStream.Position = value;
-        }
-        #endregion
-    }
-    #endregion
-
     #region Crc32Checksum
     public class Crc32Checksum
     {
@@ -176,7 +44,7 @@ namespace Joveler.Compression.ZLib
         #region Constructor
         public Crc32Checksum()
         {
-            NativeMethods.CheckZLibLoaded();
+            NativeMethods.EnsureLoaded();
             Reset();
         }
         #endregion
@@ -214,9 +82,9 @@ namespace Joveler.Compression.ZLib
         #region zlib crc32 Wrapper
         public static unsafe uint Crc32(byte[] buffer, int offset, int count)
         {
-            NativeMethods.CheckZLibLoaded();
+            NativeMethods.EnsureLoaded();
 
-            DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
+            DeflateStream.CheckReadWriteArgs(buffer, offset, count);
 
             fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
@@ -254,7 +122,7 @@ namespace Joveler.Compression.ZLib
         {
             NativeMethods.CheckZLibLoaded();
 
-            DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
+            DeflateStream.CheckReadWriteArgs(buffer, offset, count);
             fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
                 return NativeMethods.Crc32(checksum, bufPtr, (uint)count);
@@ -340,7 +208,7 @@ namespace Joveler.Compression.ZLib
         {
             NativeMethods.CheckZLibLoaded();
 
-            DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
+            DeflateStream.CheckReadWriteArgs(buffer, offset, count);
 
             fixed (byte* bufPtr = buffer.AsSpan(offset))
             {
@@ -378,7 +246,7 @@ namespace Joveler.Compression.ZLib
         {
             NativeMethods.CheckZLibLoaded();
 
-            DeflateStream.ValidateReadWriteArgs(buffer, offset, count);
+            DeflateStream.CheckReadWriteArgs(buffer, offset, count);
 
             fixed (byte* bufPtr = buffer.AsSpan(offset))
             {

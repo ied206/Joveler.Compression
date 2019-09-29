@@ -28,6 +28,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
@@ -40,8 +41,8 @@ namespace Joveler.Compression.XZ
     internal static class NativeMethods
     {
         #region Const
-        public const string MsgInitFirstError = "Please call XZStream.GlobalInit() first!";
-        public const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
+        internal const string MsgInitFirstError = "Please call XZInit.GlobalInit() first!";
+        internal const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
         #region Native Library Loading
@@ -77,13 +78,13 @@ namespace Joveler.Compression.XZ
         #endregion
 
         #region Windows kernel32 API
-#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Win32
         {
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+            [SuppressMessage("Globalization", "CA2101:Specify marshaling for P/Invoke string arguments")]
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
@@ -92,7 +93,6 @@ namespace Joveler.Compression.XZ
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern int SetDllDirectory([MarshalAs(UnmanagedType.LPWStr)] string lpPathName);
         }
-#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
         #endregion
 
         #region Linux libdl API
@@ -118,7 +118,7 @@ namespace Joveler.Compression.XZ
 #pragma warning restore IDE1006 // 명명 스타일
         #endregion
 
-        #region GlobalInit
+        #region GlobalInit, GlobalCleanup
         internal static void GlobalInit(string libPath)
         {
             lock (LoadLock)
@@ -158,7 +158,7 @@ namespace Joveler.Compression.XZ
                     if (Win32.GetProcAddress(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
                     {
                         GlobalCleanup();
-                        throw new ArgumentException($"[{libPath}] is not a valid liblzma library");
+                        throw new ArgumentException($"[{libPath}] is not a valid liblzma.dll");
                     }
                 }
 #if !NET451
@@ -194,15 +194,13 @@ namespace Joveler.Compression.XZ
                 }
             }
         }
-        #endregion
 
-        #region GlobalCleanup
         internal static void GlobalCleanup()
         {
             lock (LoadLock)
             {
                 if (!Loaded)
-                    throw new InvalidOperationException(MsgAlreadyInit);
+                    throw new InvalidOperationException(MsgInitFirstError);
 
                 ResetFunctions();
 #if !NET451

@@ -34,14 +34,12 @@ namespace Joveler.Compression.XZ
 {
     public static class XZInit
     {
-        #region GlobalInit
+        #region GlobalInit, GlobalCleanup
         public static void GlobalInit(string libPath)
         {
             NativeMethods.GlobalInit(libPath);
         }
-        #endregion
 
-        #region GlobalCleanup
         public static void GlobalCleanup()
         {
             NativeMethods.GlobalCleanup();

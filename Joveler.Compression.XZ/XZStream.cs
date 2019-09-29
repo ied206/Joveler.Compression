@@ -39,6 +39,8 @@ namespace Joveler.Compression.XZ
     {
         public uint Preset { get; set; } = XZStream.DefaultPreset;
         public LzmaCheck Check { get; set; } = LzmaCheck.Crc64;
+        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        public bool LeaveOpen { get; set; } = false;
 
         internal LzmaMt ToLzmaMt(XZThreadedCompressOptions threadOpts)
         {
@@ -64,10 +66,6 @@ namespace Joveler.Compression.XZ
     {
         public ulong MemLimit { get; set; } = ulong.MaxValue;
         public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlag;
-    }
-
-    public class XZStreamOptions
-    {
         public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
         public bool LeaveOpen { get; set; } = false;
     }
@@ -95,7 +93,6 @@ namespace Joveler.Compression.XZ
         private readonly int _bufferSize = DefaultBufferSize;
 
         private int _internalBufPos = 0;
-        private const int ReadDone = -1;
         private readonly byte[] _internalBuf;
 
         // Property
@@ -108,6 +105,7 @@ namespace Joveler.Compression.XZ
         public ulong MaxMemUsage { get; private set; } = ulong.MaxValue;
 
         // Const
+        private const int ReadDone = -1;
         internal const int DefaultBufferSize = 64 * 1024;
         internal const LzmaDecodingFlag DefaultDecodingFlag = LzmaDecodingFlag.Concatenated;
         public const uint MinimumPreset = 0;
@@ -118,15 +116,9 @@ namespace Joveler.Compression.XZ
 
         #region Constructor
         /// <summary>
-        /// Create single-threaded compressing XZStream
+        /// Create single-threaded compressing XZStream.
         /// </summary>
-        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts) 
-            : this(baseStream, compOpts, new XZStreamOptions()) { }
-
-        /// <summary>
-        /// Create single-threaded compressing XZStream
-        /// </summary>
-        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZStreamOptions advOpts)
+        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts)
         {
             NativeMethods.EnsureLoaded();
 
@@ -134,12 +126,12 @@ namespace Joveler.Compression.XZ
             _mode = Mode.Compress;
             _disposed = false;
 
-            // Check and set XZStreamOptions
-            _leaveOpen = advOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(advOpts.BufferSize);
+            // Check and set compress options
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
             _internalBuf = new byte[_bufferSize];
 
-            // Prepare LzmaStream and buffers
+            // Prepare LzmaStream
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
 
@@ -158,12 +150,6 @@ namespace Joveler.Compression.XZ
         /// Create multi-threaded compressing XZStream. Requires more memory than single-threaded mode.
         /// </summary>
         public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
-            : this(baseStream, compOpts, threadOpts, new XZStreamOptions()) { }
-
-        /// <summary>
-        /// Create multi-threaded compressing XZStream. Requires more memory than single-threaded mode.
-        /// </summary>
-        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts, XZStreamOptions advOpts)
         {
             NativeMethods.EnsureLoaded();
 
@@ -172,8 +158,8 @@ namespace Joveler.Compression.XZ
             _disposed = false;
 
             // Check and set XZStreamOptions
-            _leaveOpen = advOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(advOpts.BufferSize);
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
             _internalBuf = new byte[_bufferSize];
 
             // Prepare LzmaStream and buffers
@@ -201,12 +187,6 @@ namespace Joveler.Compression.XZ
         /// Create decompressing XZStream
         /// </summary>
         public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts)
-            : this(baseStream, decompOpts, new XZStreamOptions()) { }
-
-        /// <summary>
-        /// Create decompressing XZStream
-        /// </summary>
-        public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZStreamOptions advOpts)
         {
             NativeMethods.EnsureLoaded();
 
@@ -214,9 +194,9 @@ namespace Joveler.Compression.XZ
             _mode = Mode.Decompress;
             _disposed = false;
 
-            // Check and set XZStreamOptions
-            _leaveOpen = advOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(advOpts.BufferSize);
+            // Check and set decompress options
+            _leaveOpen = decompOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(decompOpts.BufferSize);
             _internalBuf = new byte[_bufferSize];
 
             // Prepare LzmaStream and buffers
@@ -545,7 +525,7 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        #region (internal) Check Arguments
+        #region (internal, private) Check Arguments
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
         {
