@@ -118,7 +118,7 @@ namespace Joveler.Compression.ZLib.Tests
         }
         #endregion
 
-        #region ZLibStream - Decompress
+        #region Decompress
         [TestMethod]
         public void Decompress()
         {

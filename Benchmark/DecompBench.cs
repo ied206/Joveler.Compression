@@ -103,10 +103,12 @@ namespace Benchmark
         [Benchmark]
         public long Native_ZLib()
         {
+            Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
+
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
-            using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(rms, Joveler.Compression.ZLib.ZLibMode.Decompress))
+            using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(rms, decompOpts))
             {
                 zs.CopyTo(ms);
             }

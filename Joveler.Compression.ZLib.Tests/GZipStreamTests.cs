@@ -34,10 +34,15 @@ namespace Joveler.Compression.ZLib.Tests
             string tempArchiveFile = tempDecompFile + ".gz";
             try
             {
+                ZLibCompressOptions compOpts = new ZLibCompressOptions()
+                {
+                    Level = level,
+                    LeaveOpen = true,
+                };
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (FileStream archiveFs = new FileStream(tempArchiveFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (GZipStream zs = new GZipStream(archiveFs, ZLibMode.Compress, level, true))
+                using (GZipStream zs = new GZipStream(archiveFs, compOpts))
                 {
                     if (useSpan)
                     {
@@ -110,35 +115,36 @@ namespace Joveler.Compression.ZLib.Tests
         {
             string compPath = Path.Combine(TestSetup.SampleDir, fileName + ".gz");
             string decompPath = Path.Combine(TestSetup.SampleDir, fileName);
-            using (MemoryStream decompMs = new MemoryStream())
-            using (FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+
+            ZLibDecompressOptions decompOpts = new ZLibDecompressOptions();
+
+            using MemoryStream decompMs = new MemoryStream();
+            using FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using (GZipStream zs = new GZipStream(compFs, decompOpts))
             {
-                using (GZipStream zs = new GZipStream(compFs, ZLibMode.Decompress))
+                if (useSpan)
                 {
-                    if (useSpan)
+                    byte[] buffer = new byte[64 * 1024];
+                    int bytesRead;
+                    do
                     {
-                        byte[] buffer = new byte[64 * 1024];
-                        int bytesRead;
-                        do
-                        {
-                            bytesRead = zs.Read(buffer.AsSpan());
-                            decompMs.Write(buffer.AsSpan(0, bytesRead));
-                        } while (0 < bytesRead);
-                    }
-                    else
-                    {
-                        zs.CopyTo(decompMs);
-                    }
+                        bytesRead = zs.Read(buffer.AsSpan());
+                        decompMs.Write(buffer.AsSpan(0, bytesRead));
+                    } while (0 < bytesRead);
                 }
-
-                decompMs.Position = 0;
-
-                // Compare SHA256 Digest
-                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-                byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
-                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
+                else
+                {
+                    zs.CopyTo(decompMs);
+                }
             }
+
+            decompMs.Position = 0;
+
+            // Compare SHA256 Digest
+            byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+            byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+            Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
         }
         #endregion
     }

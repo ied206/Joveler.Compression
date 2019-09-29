@@ -88,7 +88,7 @@ namespace Benchmark
         public uint Adler32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.ZLib.Adler32Checksum crc32 = new Joveler.Compression.ZLib.Adler32Checksum();
+            Joveler.Compression.ZLib.Checksum.Adler32Checksum crc32 = new Joveler.Compression.ZLib.Checksum.Adler32Checksum();
             return crc32.Append(compData);
         }
         #endregion
@@ -98,7 +98,7 @@ namespace Benchmark
         public uint CRC32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
-            Joveler.Compression.ZLib.Crc32Checksum crc32 = new Joveler.Compression.ZLib.Crc32Checksum();
+            Joveler.Compression.ZLib.Checksum.Crc32Checksum crc32 = new Joveler.Compression.ZLib.Checksum.Crc32Checksum();
             return crc32.Append(compData);
         }
 

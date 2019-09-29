@@ -78,20 +78,17 @@ namespace Joveler.Compression.XZ.Tests
                 XZCompressOptions compOpts = new XZCompressOptions
                 {
                     Preset = preset,
+                    LeaveOpen = true,
                 };
                 XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
                 {
                     Threads = (uint)threads,
                 };
-                XZStreamOptions advOpts = new XZStreamOptions
-                {
-                    LeaveOpen = true,
-                };
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream xzCompFs = new FileStream(tempXzFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZStream xzs = new XZStream(xzCompFs, compOpts, threadOpts, advOpts))
+                using (XZStream xzs = new XZStream(xzCompFs, compOpts, threadOpts))
                 {
                     if (useSpan)
                     {

@@ -52,10 +52,9 @@ namespace Benchmark
 
                 // Populate _xzData
                 Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
-                Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions();
                 using MemoryStream ms = new MemoryStream();
                 using MemoryStream rms = new MemoryStream(rawData);
-                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts))
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts))
                 {
                     rms.CopyTo(xzs);
                 }
@@ -77,17 +76,16 @@ namespace Benchmark
         [Benchmark]
         public void XZ_Compress()
         {
-            Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions();
-            Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions()
+            Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions()
             {
                 BufferSize = BufferSize,
             };
-
+            
             foreach (byte[] rawData in RawDataList)
             {
                 using MemoryStream ms = new MemoryStream();
                 using MemoryStream rms = new MemoryStream(rawData);
-                using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts);
+                using Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts);
                 rms.CopyTo(xzs);
             }
         }
@@ -97,7 +95,10 @@ namespace Benchmark
         [Benchmark]
         public void XZ_Decompress()
         {
-            Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
+            Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions()
+            {
+                BufferSize = BufferSize,
+            };
 
             foreach (byte[] xzData in XZDataList)
             {

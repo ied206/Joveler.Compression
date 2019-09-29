@@ -1,11 +1,6 @@
 ﻿/*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-
-    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
-    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    
-    Maintained by Hajin Jang
     Copyright (C) 2017-2019 Hajin Jang
 
     zlib license
@@ -28,12 +23,6 @@
 */
 
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-#if !NET451
-using System.Runtime.InteropServices;
-#endif
 
 namespace Joveler.Compression.ZLib
 {

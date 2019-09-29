@@ -110,7 +110,7 @@ namespace Benchmark
             if (zlibPath == null || xzPath == null || lz4Path == null)
                 throw new PlatformNotSupportedException();
 
-            Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath, 64 * 1024);
+            Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath);
             Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
             Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path, 16 * 1024);
         }

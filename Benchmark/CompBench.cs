@@ -154,8 +154,14 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
+                Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions()
+                {
+                    Level = NativeZLibLevelDict[Level],
+                    LeaveOpen = true,
+                };
+
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, Joveler.Compression.ZLib.ZLibMode.Compress, NativeZLibLevelDict[Level], true))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts))
                 {
                     rms.CopyTo(zs);
                 }
@@ -196,14 +202,12 @@ namespace Benchmark
             {
                 Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions
                 {
-                    Preset = XZPresetDict[Level]
-                };
-                Joveler.Compression.XZ.XZStreamOptions advOpts = new Joveler.Compression.XZ.XZStreamOptions
-                {
+                    Preset = XZPresetDict[Level],
                     LeaveOpen = true,
                 };
+
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, advOpts))
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts))
                 {
                     rms.CopyTo(xzs);
                 }
