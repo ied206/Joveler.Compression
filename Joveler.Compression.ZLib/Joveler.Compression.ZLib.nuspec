@@ -7,7 +7,7 @@
     <owners>ied206</owners>
     <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</iconUrl>
+    <icon>images\Logo.png</icon>
     <license type="expression">Zlib</license>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <copyright>Copyright (c) 2017-2019 Hajin Jang</copyright>
@@ -29,6 +29,8 @@ Supports Windows and Linux.</description>
     </dependencies>
   </metadata>
   <files>
+    <!-- Logo -->
+    <file src="..\Image\Logo.png" target="images\" />
     <!-- .Net Framework 4.5.1 -->
     <file src="Joveler.Compression.ZLib.targets" target="build\net451" />
     <file src="bin\Release\net451\Joveler.Compression.ZLib.dll" target="lib\net451" />
