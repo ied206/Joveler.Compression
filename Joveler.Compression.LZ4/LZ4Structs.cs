@@ -94,7 +94,7 @@ namespace Joveler.Compression.LZ4
         /// <summary>
         ///  0 == default (fast mode); values above LZ4HC_CLEVEL_MAX count as LZ4HC_CLEVEL_MAX; values below 0 trigger "fast acceleration", proportional to value
         /// </summary>
-        public int CompressionLevel;
+        public LZ4CompLevel CompressionLevel;
         /// <summary>
         /// 1 == always flush, to reduce usage of internal buffers
         /// </summary>

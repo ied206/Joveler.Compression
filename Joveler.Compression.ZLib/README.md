@@ -4,7 +4,7 @@ C# pinvoke library for [zlib](https://zlib.net/).
 
 Targets .Net Standard 2.0, supports Windows and Linux.
 
-Based on [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
+`DefalteStream` and its familiy is based on the code of [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
 ## Install
 

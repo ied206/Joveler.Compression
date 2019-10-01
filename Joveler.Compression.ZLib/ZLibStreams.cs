@@ -38,6 +38,9 @@ namespace Joveler.Compression.ZLib
     #region StreamOptions
     public class ZLibCompressOptions
     {
+        /// <summary>
+        /// Compression level. The Default is `ZLibCompLevel.Default`.
+        /// </summary>
         public ZLibCompLevel Level { get; set; } = ZLibCompLevel.Default;
         /// <summary>
         /// The base two logarithm of the window size (the size of the history buffer).  
@@ -45,7 +48,7 @@ namespace Joveler.Compression.ZLib
         /// Larger values of this parameter result in better compression at the expense of memory usage.  
         /// </summary>
         /// <remarks>
-        /// C library allows also 8 but it have been prohibitted due to multiple issues.
+        /// C library allows value of 8 but it have been prohibitted in here due to multiple issues.
         /// </remarks>
         public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
         /// <summary>
@@ -71,6 +74,9 @@ namespace Joveler.Compression.ZLib
         /// It should be in the range from 9 to 15. The default value is 15.
         /// WindowBits must be greater than or equal to the value provided when the stream was compressed, or the decompress will fail.
         /// </summary>
+        /// <remarks>
+        /// For maximum compatibility, using ZLibWindowBits.Default (15) is recommended.
+        /// </remarks>
         public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
         public int BufferSize { get; set; } = DeflateStream.DefaultBufferSize;
         public bool LeaveOpen { get; set; } = false;

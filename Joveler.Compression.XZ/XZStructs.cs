@@ -815,9 +815,7 @@ namespace Joveler.Compression.XZ
     /// </summary>
     public enum LzmaCompLevel : uint
     {
-        Minimum = 0,
         Default = 6,
-        Maximum = 9,
         Level0 = 0,
         Level1 = 1,
         Level2 = 2,

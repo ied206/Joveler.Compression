@@ -38,7 +38,7 @@ namespace Joveler.Compression.LZ4
 {
     #region StreamOptions
     /// <summary>
-    /// 
+    /// Compress options for LZ4FrameStream
     /// </summary>
     /// <remarks>
     /// Default value is based on default value of lz4 cli
@@ -89,11 +89,14 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
         /// <summary>
-        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// Whether to leave the base stream object open after disposing the lz4 stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
 
+    /// <summary>
+    /// Decompress options for LZ4FrameStream
+    /// </summary>
     public class LZ4FrameDecompressOptions
     {
         /// <summary>
@@ -101,7 +104,7 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
         /// <summary>
-        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// Whether to leave the base stream object open after disposing the lz4 stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
@@ -174,32 +177,18 @@ namespace Joveler.Compression.LZ4
 
             // Prepare FramePreferences
             FramePreferences prefs = new FramePreferences
-            {/*
-                FrameInfo = new FrameInfo
-                {
-                    BlockSizeId = FrameBlockSizeId.Max4MB,
-                    BlockMode = FrameBlockMode.BlockLinked,
-                    ContentChecksumFlag = FrameContentChecksum.ContentChecksumEnabled,
-                    FrameType = FrameType.Frame,
-                    ContentSize = 0,
-                    DictId = 0,
-                    BlockChecksumFlag = FrameBlockChecksum.NoBlockChecksum,
-                },
-                CompressionLevel = (int)compOpts.Level,
-                AutoFlush = compOpts.AutoFlush ? 1u : 0u,
-                FavorDecSpeed = 0,
-                */
+            {
                 FrameInfo = new FrameInfo
                 {
                     BlockSizeId = compOpts.BlockSizeId,
                     BlockMode = compOpts.BlockMode,
                     ContentChecksumFlag = compOpts.ContentChecksumFlag,
                     FrameType = compOpts.FrameType,
-                    ContentSize = 0,
+                    ContentSize = compOpts.ContentSize,
                     DictId = 0,
                     BlockChecksumFlag = compOpts.BlockChecksumFlag,
                 },
-                CompressionLevel = (int)compOpts.Level,
+                CompressionLevel = compOpts.Level,
                 AutoFlush = compOpts.AutoFlush ? 1u : 0u,
                 FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
             };

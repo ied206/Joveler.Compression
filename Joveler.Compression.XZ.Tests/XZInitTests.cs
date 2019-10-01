@@ -70,12 +70,12 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void EncoderMemUsage()
         {
-            EncoderMemUsageTemplate(LzmaCompLevel.Minimum, false);
-            EncoderMemUsageTemplate(LzmaCompLevel.Minimum, true);
+            EncoderMemUsageTemplate(LzmaCompLevel.Level0, false);
+            EncoderMemUsageTemplate(LzmaCompLevel.Level0, true);
             EncoderMemUsageTemplate(LzmaCompLevel.Default, false);
             EncoderMemUsageTemplate(LzmaCompLevel.Default, true);
-            EncoderMemUsageTemplate(LzmaCompLevel.Maximum, false);
-            EncoderMemUsageTemplate(LzmaCompLevel.Maximum, true);
+            EncoderMemUsageTemplate(LzmaCompLevel.Level9, false);
+            EncoderMemUsageTemplate(LzmaCompLevel.Level9, true);
         }
         #endregion
 
@@ -97,12 +97,12 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void DecoderMemUsage()
         {
-            DecoderMemUsageTemplate(LzmaCompLevel.Minimum, false);
-            DecoderMemUsageTemplate(LzmaCompLevel.Minimum, true);
+            DecoderMemUsageTemplate(LzmaCompLevel.Level0, false);
+            DecoderMemUsageTemplate(LzmaCompLevel.Level0, true);
             DecoderMemUsageTemplate(LzmaCompLevel.Default, false);
             DecoderMemUsageTemplate(LzmaCompLevel.Default, true);
-            DecoderMemUsageTemplate(LzmaCompLevel.Maximum, false);
-            DecoderMemUsageTemplate(LzmaCompLevel.Maximum, true);
+            DecoderMemUsageTemplate(LzmaCompLevel.Level9, false);
+            DecoderMemUsageTemplate(LzmaCompLevel.Level9, true);
         }
         #endregion
     }

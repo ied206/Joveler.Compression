@@ -83,7 +83,7 @@ namespace Joveler.Compression.XZ.Tests
                 };
                 XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
                 {
-                    Threads = (uint)threads,
+                    Threads = threads,
                 };
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);

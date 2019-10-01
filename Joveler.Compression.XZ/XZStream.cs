@@ -39,7 +39,7 @@ namespace Joveler.Compression.XZ
     {
         /// <summary>
         /// Select a compression preset level. 
-        /// The default is −6. If multiple preset levels are specified, the last one takes effect. 
+        /// The default is 6. If multiple preset levels are specified, the last one takes effect. 
         /// </summary>
         public LzmaCompLevel Level { get; set; } = LzmaCompLevel.Default;
         /// <summary>
@@ -82,8 +82,7 @@ namespace Joveler.Compression.XZ
             return new LzmaMt()
             {
                 BlockSize = threadOpts.BlockSize,
-                TimeOut = threadOpts.TimeOut,
-                Threads = threadOpts.Threads,
+                Threads = XZThreadedCompressOptions.CheckThreadCount(threadOpts.Threads),
                 Preset = Preset,
                 Check = Check,
             };
@@ -106,24 +105,27 @@ namespace Joveler.Compression.XZ
         /// </remarks>
         public ulong BlockSize { get; set; } = 0;
         /// <summary>
-        /// Timeout to allow lzma_code() to return early.
-        /// </summary>
-        /// <remarks>
-        /// If long blocking times are fine for you, set timeout to a special value of 0.
-        /// Even with a timeout, lzma_code() might sometimes take somewhat long time to return. 
-        /// No timing guarantees are made.
-        /// </remarks>
-        public uint TimeOut { get; set; } = 0;
-        /// <summary>
         /// Number of worker threads to use.
         /// </summary>
-        public uint Threads { get; set; } = 1;
+        public int Threads { get; set; } = 1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint CheckThreadCount(int threads)
+        {
+            if (threads < 0)
+                throw new ArgumentOutOfRangeException(nameof(threads));
+            if (threads == 0) // Use system's thread number by default
+                threads = Environment.ProcessorCount;
+            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
+                threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
+            return (uint)threads;
+        }
     }
 
     public class XZDecompressOptions
     {
         public ulong MemLimit { get; set; } = ulong.MaxValue;
-        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlag;
+        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlags;
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
@@ -171,13 +173,13 @@ namespace Joveler.Compression.XZ
         // Const
         private const int ReadDone = -1;
         internal const int DefaultBufferSize = 64 * 1024;
-        internal const LzmaDecodingFlag DefaultDecodingFlag = LzmaDecodingFlag.Concatenated;
+        internal const LzmaDecodingFlag DefaultDecodingFlags = LzmaDecodingFlag.Concatenated;
 
         // Readonly
-        internal static readonly uint MinPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Minimum, false);
-        internal static readonly uint MaxPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Maximum, false);
-        internal static readonly uint MinExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Minimum, true);
-        internal static readonly uint MaxExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Maximum, true);
+        internal static readonly uint MinPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level0, false);
+        internal static readonly uint MaxPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level9, false);
+        internal static readonly uint MinExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level0, true);
+        internal static readonly uint MaxExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level9, true);
         #endregion
 
         #region Constructor
@@ -236,7 +238,6 @@ namespace Joveler.Compression.XZ
             // Check LzmaMt instance
             LzmaMt mt = compOpts.ToLzmaMt(threadOpts);
             CheckPreset(mt.Preset);
-            mt.Threads = CheckThreadCount(mt.Threads);
 
             // Initialize the encoder
             LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mt);
@@ -605,28 +606,6 @@ namespace Joveler.Compression.XZ
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (buffer.Length - offset < count)
                 throw new ArgumentOutOfRangeException(nameof(count));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int CheckThreadCount(int threads)
-        {
-            if (threads < 0)
-                throw new ArgumentOutOfRangeException(nameof(threads));
-            if (threads == 0) // Use system's thread number by default
-                threads = Environment.ProcessorCount;
-            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
-                threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
-            return threads;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint CheckThreadCount(uint threads)
-        {
-            if (threads == 0) // Use system's thread number by default
-                threads = (uint)Environment.ProcessorCount;
-            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
-                threads = (uint)Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
-            return threads;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

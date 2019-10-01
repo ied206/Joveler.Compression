@@ -2,7 +2,7 @@
 
 ## Initialization
 
-Joveler.Compression.LZ4 requires explicit loading of lz4 library.
+Joveler.Compression.LZ4 requires explicit loading of the lz4 library.
 
 You must call `LZ4Init.GlobalInit()` before using Joveler.Compression.LZ4.
 
@@ -59,8 +59,8 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.8.3`.  
-They will be copied into the build directory at build time.
+Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.2`.  
+They are copied into the build directory at build time.
 
 | Platform    | Binary                      | Note |
 |-------------|-----------------------------|------|
@@ -76,54 +76,77 @@ To use custom lz4 binary instead, call `LZ4Init.GlobalInit()` with a path to the
 
 #### NOTES
 
-- Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
+- Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Untested on arm64, because .Net Core 2.1 arm64 runtime has an [issue](https://github.com/dotnet/coreclr/issues/19578).
 
 ### Cleanup
 
-To unload lz4 library explicitly, call `LZ4Init.GlobalCleanup()`.
+To unload the lz4 library explicitly, call `LZ4Init.GlobalCleanup()`.
 
-## Compression
+## LZ4FrameStream
 
-### LZ4FrameStream
-
-The stream for [lz4 frame format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md).
+`LZ4FrameStream` is the stream for compressing and decompressing [lz4 frame format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md).
 
 ### Constructor
 
 ```csharp
-public LZ4FrameStream(Stream stream, LZ4Mode mode)
-    : this(stream, mode, 0, false) { }
-public LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel)
-    : this(stream, mode, compressionLevel, false) { }
-public LZ4FrameStream(Stream stream, LZ4Mode mode, bool leaveOpen)
-    : this(stream, mode, 0, leaveOpen) { }
-public unsafe LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel, bool leaveOpen)
+// Create a compressing LZ4FrameStream instance
+public LZ4FrameStream(Stream baseStream, LZ4FrameCompressOptions compOpts)
+// Create a decompressing LZ4FrameStream instance
+public LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions compOpts)
 ```
 
-- LZ4CompLevel
+#### LZ4FrameCompressOptions
 
-Select a compression level. The Default is `LZ4CompLevel.Fast`. Use `LZ4CompLevel.High` to turn on LZ4-HC mode.
+You can tune lz4 frame format compress options with this class.
+
+| Property | Summary |
+|----------|---------|
+| Level | Compression level. The Default is `LZ4CompLevel.Fast`. Use `LZ4CompLevel.High` to turn on LZ4-HC mode. |
+| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
+
+It also contains more advanced options.
+
+#### LZ4FrameDecompressOptions
+
+You can tune lz4 frame format decompress options with this class.
+
+| Property | Summary |
+|----------|---------|
+| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
 
 ### Examples
 
-#### Compress file to lz4
+#### Compress file to lz4 frame format
 
 ```csharp
+using Joveler.Compression.LZ4;
+
+LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+{
+    Level = LZ4CompLevel.Default,
+};
+
 using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
 using (FileStream fsComp = new FileStream("test.lz4", FileMode.Create))
-using (LZ4FrameStream zs = new LZ4FrameStream(fsComp, LZ4Mode.Compress, LZ4CompLevel.Default))
+using (LZ4FrameStream zs = new LZ4FrameStream(fsComp, compOpts))
 {
     fsOrigin.CopyTo(zs);
 }
 ```
 
-#### Decompress file from lz4
+#### Decompress file from lz4 frame format
 
 ```csharp
+using Joveler.Compression.LZ4;
+
+LZ4FrameDecompressOptions decompOpts = new LZ4FrameDecompressOptions();
+
 using (FileStream fsComp = new FileStream("test.lz4", FileMode.Create))
 using (FileStream fsDecomp = new FileStream("file_decomp.bin", FileMode.Open))
-using (LZ4FrameStream zs = new LZ4FrameStream(fsComp, LZ4Mode.Decompress))
+using (LZ4FrameStream zs = new LZ4FrameStream(fsComp, decompOpts))
 {
     zs.CopyTo(fsDecomp);
 }

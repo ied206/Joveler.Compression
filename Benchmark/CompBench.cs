@@ -52,9 +52,9 @@ namespace Benchmark
         // XZLevel
         public Dictionary<string, Joveler.Compression.XZ.LzmaCompLevel> XZLevelDict = new Dictionary<string, Joveler.Compression.XZ.LzmaCompLevel>(StringComparer.Ordinal)
         {
-            ["Fastest"] = Joveler.Compression.XZ.LzmaCompLevel.Minimum,
+            ["Fastest"] = Joveler.Compression.XZ.LzmaCompLevel.Level0,
             ["Default"] = Joveler.Compression.XZ.LzmaCompLevel.Default,
-            ["Best"] = Joveler.Compression.XZ.LzmaCompLevel.Maximum,
+            ["Best"] = Joveler.Compression.XZ.LzmaCompLevel.Level9,
         };
 
         // LZ4CompLevel

@@ -7,19 +7,21 @@
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>C# pinvoke library for liblzma (XZ Utils).
+The library provides the fast native implementation of XZStream.
+It also supports fast calculation of CRC32 and CRC64 checksum.
 Supports Windows and Linux.</Description>
     <PackageLicenseUrl></PackageLicenseUrl>
     <Copyright>Copyright (c) 2018-2019 Hajin Jang</Copyright>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageTags>xz liblzma lzma lzma2 compress compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Native support for Span
-- Support dll with additional dependency
-- Drop .Net Standard 1.3 support</PackageReleaseNotes>
-    <Version>1.2.0</Version>
+    <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
+    <PackageReleaseNotes>- Redesigned public API.
+- Expose CRC32 and CRC64 API of XZ-Utils.
+- Support advanced configuration of XZStream.</PackageReleaseNotes>
+    <Version>3.0.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
   <ItemGroup>

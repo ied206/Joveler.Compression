@@ -41,8 +41,7 @@ namespace Benchmark
             Program.NativeGlobalInit();
 
             // Populate _srcData
-            int bigSize = BufferSizes.Max() * 2;
-            // int medianSize = BufferSizes[BufferSizes.Count / 2];
+            int medianSize = BufferSizes[BufferSizes.Count / 2];
 
             string sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
@@ -60,10 +59,10 @@ namespace Benchmark
                 rawDataList.Add(rawData);
             }
 
-            using (MemoryStream ms = new MemoryStream(bigSize))
+            using (MemoryStream ms = new MemoryStream(medianSize))
             {
                 int i = 0;
-                while (ms.Position <= bigSize)
+                while (ms.Position <= medianSize)
                 {
                     byte[] rawData = rawDataList[i];
                     ms.Write(rawData, 0, rawData.Length);

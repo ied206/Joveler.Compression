@@ -2,7 +2,7 @@
 
 ## Initialization
 
-Joveler.Compression.XZ requires explicit loading of liblzma library.
+Joveler.Compression.XZ requires explicit loading of the liblzma library.
 
 You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ.
 
@@ -60,7 +60,7 @@ public static void InitNativeLibrary()
 ### Embedded binary
 
 Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.4`.  
-They will be copied into the build directory at build time.
+They are copied into the build directory at build time.
 
 | Platform    | Binary                       | Note |
 |-------------|------------------------------|------|
@@ -76,50 +76,45 @@ To use custom liblzma binary instead, call `XZInit.GlobalInit()` with a path to 
 
 #### NOTES
 
-- Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in project directory to prevent copy of package-embedded binary.
-- Untested on arm64, because .Net Core 2.1 arm64 runtime has an [issue](https://github.com/dotnet/coreclr/issues/19578).
+- Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copy of the package-embedded binary.
 
 ### Cleanup
 
-To unload liblzma library explicitly, call `XZInit.GlobalCleanup()`.
+To unload the liblzma library explicitly, call `XZInit.GlobalCleanup()`.
 
-## Compression
+## XZStream
 
-### XZStream
-
-The stream for [.xz file format](https://tukaani.org/xz/xz-file-format.txt).
+`XZStream` handles compressing and decompressing of [.xz file format](https://tukaani.org/xz/xz-file-format.txt).
 
 ### Constructor
 
 ```csharp
-public XZStream(Stream stream, LzmaMode mode)
-    : this(stream, mode, DefaultPreset, 1, false) { }
-public XZStream(Stream stream, LzmaMode mode, uint preset)
-    : this(stream, mode, preset, 1, false) { }
-public XZStream(Stream stream, LzmaMode mode, uint preset, int threads)
-    : this(stream, mode, preset, threads, false) { }
-public XZStream(Stream stream, LzmaMode mode, bool leaveOpen)
-    : this(stream, mode, 0, 1, leaveOpen) { }
-public XZStream(Stream stream, LzmaMode mode, uint preset, bool leaveOpen)
-    : this(stream, mode, preset, 1, leaveOpen) { }
-public XZStream(Stream stream, LzmaMode mode, uint preset, int threads, bool leaveOpen)
+// Create a compressing XZStream instance
+public XZStream(Stream baseStream, XZCompressOptions compOpts)
+// Create a multi-threaded compressing XZStream instance
+public XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+// Create a decompressing XZStream instance
+public XZStream(Stream baseStream, XZDecompressOptions decompOpts)
 ```
 
-- Preset
+#### XZCompressOptions
 
-Select a compression preset level. 0 to 9 is allowed. Default value (`XZStream.DefaultPreset`) is 6.
+You can tune xz compress options with this class.
 
-- Threads
+| Property | Summary |
+|----------|---------|
+| Level | Compression level. The Default is `ZLibCompLevel.Default` (6). |
+| ExtremeFlag | Use a slower variant to get a little bit better compression ratio hopefully. |
+| BufferSize | Size of the internal buffer. The default is 64KB. |
+| LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
 
-Specify the number of worker threads to use. Setting threads to a special value 0 makes xz use as many threads as there are CPU cores on the system.
+It also contains more advanced options.
 
-The actual number of threads can be less than threads if the input file is not big enough for threading with the given settings or if using more threads would exceed the memory usage limit.
+**NOTE**: xz file created in single-threaded mode will not be able to be decompressed in parallel in the future versions of xz-utils. It is because xz-utils does not divide the compressed stream into blocks when the multi-threaded compression is not enabled.
 
-Threaded decompression is not supported.
+**WARNING**: Beware of high memory usage at a high compression level.
 
-**WARNING**: Beware of high memory usage in high preset or many threads.
-
-| Preset | DictSize | CompCPU | CompMem | DecMem  |
+| Level  | DictSize | CompCPU | CompMem | DecMem  |
 |--------|----------|---------|---------|---------|
 | 0      | 256 KiB  | 0       |   3 MiB |   1 MiB |
 | 1      |   1 MiB  | 1       |   9 MiB |   2 MiB |
@@ -132,22 +127,85 @@ Threaded decompression is not supported.
 | 8      |  32 MiB  | 6       | 370 MiB |  33 MiB |
 | 9      |  64 MiB  | 6       | 674 MiB |  65 MiB |
 
+#### XZThreadedCompressOptions
+
+If you want to compress in parallel, pass an instance of this class to the `XZStream` constructor.
+
+| Property | Summary |
+|----------|---------|
+| Threads  | Number of worker threads to use. |
+
+It also contains more advanced options.
+
+**NOTE**: When you create XZStream with this parameter, the future versions of xz-utils may be able to be decompressed created xz file in parallel. It is even true when you used only 1 thread with threaded compression. It is because xz-utils only divide the compressed stream into blocks in threaded compression.
+
+**WARNING**: In multi-threaded compression, each thread may allocate more memory than the single-thread mode. It is true even if you run multi-threaded mode with 1 thread because xz-utils aggressively buffers input and output in parallel compression. Use `XZInit.EncoderMemUsage()` to check exact memory requirement for your config.
+
+#### XZDecompressOptions
+
+You can tune xz decompress options with this class.
+
+| Property | Summary |
+|----------|---------|
+| BufferSize | Size of the internal buffer. The default is 64KB. |
+| LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
+
+It also contains more advanced options. 
+
+**WARNING**: Threaded decompression is not supported yet in the xz library.
+
 ### Examples
 
-#### Compress file to xz
+#### Compress file to .xz
 
 ```csharp
+using Joveler.Compression.XZ;
+
+// Compress in single-threaded mode
+XZCompressOptions compOpts = new XZCompressOptions
+{
+    Level = LzmaCompLevel.Default,
+};
+
 using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
 using (FileStream fsComp = new FileStream("test.xz", FileMode.Create))
-using (XZStream zs = new XZStream(fsComp, LzmaMode.Compress, XZStream.DefaultPreset))
+using (XZStream zs = new XZStream(fsComp, compOpts))
 {
     fsOrigin.CopyTo(zs);
 }
 ```
 
-#### Decompress file from xz
+#### Compress file to .xz in parallel
 
 ```csharp
+using Joveler.Compression.XZ;
+
+// Warning: This config takes up a massive amount of memory!
+XZCompressOptions compOpts = new XZCompressOptions
+{
+    Level = LzmaCompLevel.Level9,
+    ExtremeFlag = true,
+};
+XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+{
+    Threads = Environment.ProcesserCount,
+};
+
+using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
+using (FileStream fsComp = new FileStream("test.xz", FileMode.Create))
+using (XZStream zs = new XZStream(fsComp, compOpts, threadOpts))
+{
+    fsOrigin.CopyTo(zs);
+}
+```
+
+#### Decompress file from .xz
+
+```csharp
+using Joveler.Compression.XZ;
+
+XZDecompressOptions decompOpts = new XZDecompressOptions();
+
 using (FileStream fsComp = new FileStream("test.xz", FileMode.Create))
 using (FileStream fsDecomp = new FileStream("file_decomp.bin", FileMode.Open))
 using (XZStream zs = new XZStream(fsComp, LzmaMode.Decompress))
@@ -155,3 +213,54 @@ using (XZStream zs = new XZStream(fsComp, LzmaMode.Decompress))
     zs.CopyTo(fsDecomp);
 }
 ```
+
+## Crc32Checksum
+
+`Crc32Checksum` is the class designed to compute CRC32 checksum.
+
+Use `Append()` methods to compute the checksum.  
+Use `Checksum` property to get checksum value.
+Use `Reset()` methods to reset `Checksum` property.
+
+**NOTE**: xz-utils provides about twice faster CRC32 implementation than zlib. 
+
+### Examples
+
+#### `Append(ReadOnlySpan<byte> buffer)`, `Append(byte[] buffer, int offset, int count)`
+
+```cs
+using Joveler.Compression.XZ.Checksum;
+
+Crc32Checksum crc = new Crc32Checksum();
+byte[] bin = Encoding.UTF8.GetBytes("ABCDEF");
+
+// Append(ReadOnlySpan<byte> buffer)
+crc.Append(bin.AsSpan(2, 3));
+Console.WriteLine($"0x{crc.Checksum:X8}");
+
+// Append(byte[] buffer, int offset, int count)
+crc.Reset();
+crc.Append(bin, 2, 3);
+Console.WriteLine($"0x{crc.Checksum:X8}");
+```
+
+#### `Append(Stream stream)`
+
+```cs
+using Joveler.Compression.XZ.Checksum;
+
+using (FileStream fs = new FileStream("read.txt", FileMode.Open))
+{
+    Crc32Checksum crc = new Crc32Checksum();
+
+    // Append(Stream stream)
+    crc.Append(fs);
+    Console.WriteLine($"0x{crc.Checksum:X8}");
+}
+```
+
+## Crc32Algorithm
+
+`Crc32Algorithm` is the class designed to compute CRC32 checksum.
+
+It inherits and implements [HashAlgorithm](https://docs.microsoft.com/en-US/dotnet/api/system.security.cryptography.hashalgorithm).
