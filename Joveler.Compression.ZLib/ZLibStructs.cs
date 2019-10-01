@@ -41,30 +41,57 @@ namespace Joveler.Compression.ZLib
     #region Enums
     internal enum ZLibFlush : int
     {
-        NO_FLUSH = 0,
-        PARTIAL_FLUSH = 1,
-        SYNC_FLUSH = 2,
-        FULL_FLUSH = 3,
-        FINISH = 4,
-        BLOCK = 5,
-        TREES = 6,
+        NoFlush = 0,
+        PartialFlush = 1,
+        SyncFlush = 2,
+        FullFlush = 3,
+        Finish = 4,
+        Block = 5,
+        Trees = 6,
     }
 
     /// <summary>
     /// Return codes for the compression/decompression functions.
     /// Negative values are errors, positive values are used for special but normal events.
     /// </summary>
-    public enum ZLibReturnCode
+    public enum ZLibRet
     {
-        OK = 0,
-        STREAM_END = 1,
-        NEED_DICTIONARY = 2,
-        ERRNO = -1,
-        STREAM_ERROR = -2,
-        DATA_ERROR = -3,
-        MEMORY_ERROR = -4,
-        BUFFER_ERROR = -5,
-        VERSION_ERROR = -6,
+        Ok = 0,
+        StreamEnd = 1,
+        NeedDictionary = 2,
+        ErrNo = -1,
+        StreamError = -2,
+        DataError = -3,
+        MemoryError = -4,
+        BufferError = -5,
+        VersionError = -6,
+    }
+
+    internal enum ZLibCompStrategy : int
+    {
+        Filtered = 1,
+        HuffmanOnly = 2,
+        Rle = 3,
+        Fixed = 4,
+        Default = 0,
+    }
+
+    /// <summary>
+    /// Possible values of the data_type field for deflate()
+    /// </summary>
+    internal enum ZLibDataType : int
+    {
+        Binary = 0,
+        Ascii = 1,
+        Unknown = 2,
+    }
+
+    /// <summary>
+    /// The deflate compression method (the only one supported in this version)
+    /// </summary>
+    internal enum ZLibCompMethod : int
+    {
+        Deflated = 8,
     }
 
     public enum ZLibCompLevel : int
@@ -85,62 +112,30 @@ namespace Joveler.Compression.ZLib
         Level9 = 9,
     }
 
-    internal enum ZLibCompressionStrategy : int
+    public enum ZLibWindowBits : int
     {
-        FLITERED = 1,
-        HUFFMAN_ONLY = 2,
-        RLE = 3,
-        FIXED = 4,
-        DEFAULT_STRATEGY = 0,
+        Default = 15,
+        Bits9 = 9,
+        Bits10 = 10,
+        Bits11 = 11,
+        Bits12 = 12,
+        Bits13 = 13,
+        Bits14 = 14,
+        Bits15 = 15,  
     }
 
-    /// <summary>
-    /// Possible values of the data_type field for deflate()
-    /// </summary>
-    internal enum ZLibDataType : int
+    public enum ZLibMemLevel : int
     {
-        BINARY = 0,
-        ASCII = 1,
-        /// <summary>
-        /// for compatibility with 1.2.2 and earlier
-        /// </summary>
-        TEXT = 1,
-        UNKNOWN = 2,
-    }
-
-    /// <summary>
-    /// The deflate compression method (the only one supported in this version)
-    /// </summary>
-    internal enum ZLibCompMethod : int
-    {
-        DEFLATED = 8,
-    }
-
-    public enum ZLibOpenType : int
-    {
-        // If a compressed stream with a larger window
-        // size is given as input, inflate() will return with the error code
-        // Z_DATA_ERROR instead of trying to allocate a larger window.
-        Deflate = -15, // -8..-15
-        ZLib = 15, // 8..15, 0 = use the window size in the zlib header of the compressed stream.
-        GZip = 15 + 16,
-        Both_ZLib_GZip = 15 + 32,
-    }
-
-    public enum ZLibWriteType : int // == WindowBits
-    {
-        // If a compressed stream with a larger window
-        // size is given as input, inflate() will return with the error code
-        // Z_DATA_ERROR instead of trying to allocate a larger window.
-        Deflate = -15, // -8..-15
-        ZLib = 15, // 8..15, 0 = use the window size in the zlib header of the compressed stream.
-        GZip = 15 + 16,
-    }
-
-    public enum ZLibMode
-    {
-        Compress,
-        Decompress,
+        Default = 8,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
     }
     #endregion
 

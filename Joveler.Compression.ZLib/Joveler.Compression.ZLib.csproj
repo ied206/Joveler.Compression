@@ -4,26 +4,29 @@
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Title>Joveler.Compression.ZLib</Title>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <Copyright>Copyright (c) 2017-2019 Hajin Jang</Copyright>
     <Description>C# pinvoke library for zlib.
-Provides improved DeflateStream, ZLibStream, GZipStream and Adler32Stream, Crc32Stream.
+The library provides the fast native implementation of DeflateStream, ZLibStream, GZipStream.
+It also supports fast calculation of CRC32 and Adler32 checksum.
 Supports Windows and Linux.</Description>
     <Authors>Jean-loup Gailly, Mark Adler, Hajin Jang</Authors>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageTags>zlib deflate gzip adler32 crc32 compress compression pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Include native armhf, arm64 linux binary</PackageReleaseNotes>
+    <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
+    <releaseNotes>- Redesigned public API.
+- Support advanced configuration of DeflateStream and its family.</releaseNotes>
     <LangVersion>7.3</LangVersion>
     <PackageId />
     <Company>Joveler</Company>
     <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
     <PackageLicenseExpression>Zlib</PackageLicenseExpression>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.ZLib.targets" />
   <ItemGroup>
-    <PackageReference Include="System.Memory" Version="4.5.2" />
+    <PackageReference Include="System.Memory" Version="4.5.3" />
   </ItemGroup>
 </Project>
   

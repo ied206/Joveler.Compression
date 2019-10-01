@@ -32,18 +32,18 @@ using System.Runtime.InteropServices;
 
 /*
  * This file includes definition from external C library.
- * This lines suppresses error and warning from code analyzer, due to this file's C-style naming and others.
+ * This lines suppresses error and warning from code analyzer, due to the file's C-style naming and others.
  */
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
 #pragma warning disable 169
-
 #pragma warning disable IDE0044
+
 namespace Joveler.Compression.XZ
 {
-    #region Struct LzmaStream
+    #region (internal) LzmaStream
     /// <summary>
     /// Passing data to and from liblzma
     /// </summary>
@@ -86,12 +86,12 @@ namespace Joveler.Compression.XZ
     /// values from lzma_get_progress().
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public unsafe class LzmaStream
+    internal unsafe class LzmaStream
     {
         /// <summary>
         ///  Pointer to the next input byte.
         /// </summary>
-        public byte* NextIn;
+        public byte* NextIn = null;
 
         /// <summary>
         /// Number of available input bytes in next_in.
@@ -111,7 +111,7 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// Pointer to the next output position.
         /// </summary>
-        public byte* NextOut;
+        public byte* NextOut = null;
 
         /// <summary>
         /// Amount of free space in next_out.
@@ -159,12 +159,12 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
-    #region Struct LzmaStreamFlags
+    #region (internal) LzmaStreamFlags
     /// <summary>
     /// Options for encoding/decoding Stream Header and Stream Footer
     /// </summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class LzmaStreamFlags
+    internal class LzmaStreamFlags
     {
         /// <summary>
         /// Stream Flags format version
@@ -226,16 +226,16 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
-    #region Struct LzmaMt
+    #region (internal) LzmaMt
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public class LzmaMt
+    internal class LzmaMt
     {
         /// <summary>
         /// Set this to zero if no flags are wanted.
         ///
         /// No flags are currently supported.
         /// </summary>
-        public uint Flags;
+        private uint Flags = 0;
         /// <summary>
         /// Number of worker threads to use
         /// </summary>
@@ -311,7 +311,7 @@ namespace Joveler.Compression.XZ
         /// If this is NULL, the preset above is used. Otherwise the preset
         /// is ignored and the filter chain specified here is used.
         /// </remarks>
-        public IntPtr Filters;
+        private IntPtr Filters;
         /// <summary>
         /// Integrity check type
         /// </summary>
@@ -337,10 +337,34 @@ namespace Joveler.Compression.XZ
         private IntPtr ReservedPtr2;
         private IntPtr ReservedPtr3;
         private IntPtr ReservedPtr4;
+
+        public static LzmaMt Create(uint preset, int threads)
+        {
+            // Reference : 04_compress_easy_mt.c
+            return new LzmaMt()
+            {
+                // No flags are needed.
+                Flags = 0,
+                // Let liblzma determine a sane block size.
+                BlockSize = 0,
+                // Use no timeout for lzma_code() calls by setting timeout to zero.
+                // That is, sometimes lzma_code() might block for a long time (from several seconds to even minutes).
+                // If this is not OK, for example due to progress indicator needing updates, specify a timeout in milliseconds here.
+                // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
+                TimeOut = 0,
+                // To use a preset, filters must be set to NULL.
+                Filters = IntPtr.Zero,
+                Preset = preset,
+                // Use XZ default
+                Check = LzmaCheck.Crc64,
+                // Set threads
+                Threads = (uint)threads,
+            };
+        }
     }
     #endregion
 
-    #region Struct LzmaFilter
+    #region (internal) LzmaFilter
     /// <summary>
     /// Filter options
     /// </summary>
@@ -357,7 +381,7 @@ namespace Joveler.Compression.XZ
     /// array would make liblzma write past the end of the filters array.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct LzmaFilter
+    internal struct LzmaFilter
     {
         /// <summary>
         /// Filter ID
@@ -380,7 +404,7 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
-    #region Enum LzmaAction
+    #region (internal) LzmaAction
     /// <summary>
     /// The `action' argument for lzma_code()
     /// </summary>
@@ -392,7 +416,7 @@ namespace Joveler.Compression.XZ
     /// LZMA_STREAM_END. Changing the `action' or modifying the amount of input
     /// will make lzma_code() return LZMA_PROG_ERROR.
     /// </remarks>
-    public enum LzmaAction : uint
+    internal enum LzmaAction : uint
     {
         /// <summary>
         /// Continue coding
@@ -407,7 +431,7 @@ namespace Joveler.Compression.XZ
         /// Decoder: Decode as much input as possible and produce as
         /// much output as possible.
         /// </remarks>
-        RUN = 0,
+        Run = 0,
         /// <summary>
         /// Make all the input available at output
         /// </summary>
@@ -432,7 +456,7 @@ namespace Joveler.Compression.XZ
         ///
         /// Decoders don't support LZMA_SYNC_FLUSH.
         /// </remarks>
-        SYNC_FLUSH = 1,
+        SyncFlush = 1,
         /// <summary>
         /// Finish encoding of the current Block
         /// </summary>
@@ -447,7 +471,7 @@ namespace Joveler.Compression.XZ
         /// and easy encoder (which uses Stream encoder). If there is
         /// no unfinished Block, no empty Block is created.
         /// </remarks>
-        FULL_FLUSH = 2,
+        FullFlush = 2,
         /// <summary>
         /// Finish encoding of the current Block
         /// </summary>
@@ -470,7 +494,7 @@ namespace Joveler.Compression.XZ
         /// lzma_stream_encoder() or lzma_easy_encoder(),
         /// LZMA_FULL_BARRIER is an alias for LZMA_FULL_FLUSH.
         /// </remarks>
-        FULL_BARRIER = 4,
+        FullBarrier = 4,
         /// <summary>
         /// Finish the coding operation
         /// </summary>
@@ -488,11 +512,11 @@ namespace Joveler.Compression.XZ
         /// effect of LZMA_FINISH is that the amount of input must not
         /// be changed just like in the encoder.
         /// </remarks>
-        FINISH = 3,
+        Finish = 3,
     }
     #endregion
 
-    #region Enum LzmaRet
+    #region (public) LzmaRet
     /// <summary>
     /// Return values used by several functions in liblzma
     /// </summary>
@@ -507,7 +531,7 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// Operation completed successfully
         /// </summary>
-        OK = 0,
+        Ok = 0,
         /// <summary>
         /// End of stream was reached
         /// </summary>
@@ -519,7 +543,7 @@ namespace Joveler.Compression.XZ
         /// In all cases, when LZMA_STREAM_END is returned, the last
         /// output bytes should be picked from strm->next_out.
         /// </remarks>
-        STREAM_END = 1,
+        StreamEnd = 1,
         /// <summary>
         /// Input stream has no integrity check
         /// </summary>
@@ -534,7 +558,7 @@ namespace Joveler.Compression.XZ
         /// naturally be LZMA_CHECK_NONE, but the possibility to call
         /// lzma_get_check() may be convenient in some applications.
         /// </remarks>
-        NO_CHECK = 2,
+        NoCheck = 2,
         /// <summary>
         /// Cannot calculate the integrity check
         /// </summary>
@@ -559,7 +583,7 @@ namespace Joveler.Compression.XZ
         /// LZMA_UNSUPPORTED_CHECK. This way it is possible to find
         /// out what the unsupported Check ID was.
         /// </remarks>
-        UNSUPPORTED_CHECK = 3,
+        UnsupportedCheck = 3,
         /// <summary>
         /// Integrity check type is now available
         /// </summary>
@@ -572,7 +596,7 @@ namespace Joveler.Compression.XZ
         /// implement a decoder that accepts only files that have
         /// strong enough integrity check.
         /// </remarks>
-        GET_CHECK = 4,
+        GetCheck = 4,
         /// <summary>
         /// Cannot allocate memory
         /// </summary>
@@ -584,7 +608,7 @@ namespace Joveler.Compression.XZ
         /// be continued even if more memory were made available after
         /// LZMA_MEM_ERROR.
         /// </remarks>
-        MEM_ERROR = 5,
+        MemError = 5,
         /// <summary>
         /// Memory usage limit was reached
         /// </summary>
@@ -594,7 +618,7 @@ namespace Joveler.Compression.XZ
         /// the memory usage limit has to be increased with
         /// lzma_memlimit_set().
         /// </remarks>
-        MEMLIMIT_ERROR = 6,
+        MemLimitError = 6,
         /// <summary>
         /// File format not recognized
         /// </summary>
@@ -604,7 +628,7 @@ namespace Joveler.Compression.XZ
         /// decode .lzma format file with lzma_stream_decoder,
         /// because lzma_stream_decoder accepts only the .xz format.
         /// </remarks>
-        FORMAT_ERROR = 7,
+        FormatError = 7,
         /// <summary>
         /// Invalid or unsupported options
         /// </summary>
@@ -616,7 +640,7 @@ namespace Joveler.Compression.XZ
         /// Rebuilding liblzma with more features enabled, or
         /// upgrading to a newer version of liblzma may help.
         /// </remarks>
-        OPTIONS_ERROR = 8,
+        OptionsError = 8,
         /// <summary>
         /// Data is corrupt
         /// </summary>
@@ -635,7 +659,7 @@ namespace Joveler.Compression.XZ
         /// This can mean, for example, invalid CRC32 in headers
         /// or invalid check of uncompressed data.
         /// </remarks>
-        DATA_ERROR = 9,
+        DataError = 9,
         /// <summary>
         /// No progress is possible
         /// </summary>
@@ -662,7 +686,7 @@ namespace Joveler.Compression.XZ
         /// is truncated or corrupt. This should simplify the
         /// applications a little.
         /// </remarks>
-        BUF_ERROR = 10,
+        BufError = 10,
         /// <summary>
         /// Programming error
         /// </summary>
@@ -682,11 +706,14 @@ namespace Joveler.Compression.XZ
         /// can be a sign of a bug in liblzma. See the documentation
         /// how to report bugs.
         /// </remarks>
-        PROG_ERROR = 11,
+        ProgError = 11,
     }
     #endregion
 
-    #region Enum LzmaCheck
+    #region (public) LzmaCheck
+    /// <summary>
+    /// Integrity check type
+    /// </summary>
     public enum LzmaCheck
     {
         /// <summary>
@@ -694,29 +721,29 @@ namespace Joveler.Compression.XZ
         ///
         /// Size of the Check field: 0 bytes
         /// </summary>
-        CHECK_NONE = 0,
+        None = 0,
         /// <summary>
         /// CRC32 using the polynomial from the IEEE 802.3 standard
         ///
         /// Size of the Check field: 4 bytes
         /// </summary>
-        CHECK_CRC32 = 1,
+        Crc32 = 1,
         /// <summary>
         /// CRC64 using the polynomial from the ECMA-182 standard
         ///
         /// Size of the Check field: 8 bytes
         /// </summary>
-        CHECK_CRC64 = 4,
+        Crc64 = 4,
         /// <summary>
         /// SHA-256
         ///
         /// Size of the Check field: 32 bytes
         /// </summary>
-        CHECK_SHA256 = 10,
+        Sha256 = 10,
     }
     #endregion
 
-    #region Enum LzmaDecodingFlag
+    #region (public) LzmaDecodingFlag
     [Flags]
     public enum LzmaDecodingFlag : uint
     {
@@ -726,20 +753,20 @@ namespace Joveler.Compression.XZ
         /// lzma_auto_decoder(), all .lzma files will trigger LZMA_NO_CHECK
         /// if LZMA_TELL_NO_CHECK is used.
         /// </summary>
-        TELL_NO_CHECK = 0x01,
+        TellNoCheck = 0x01,
         /// <summary>
         /// This flag makes lzma_code() return LZMA_UNSUPPORTED_CHECK if the input
         /// stream has an integrity check, but the type of the integrity check is not
         /// supported by this liblzma version or build. Such files can still be
         /// decoded, but the integrity check cannot be verified.
         /// </summary>
-        TELL_UNSUPPORTED_CHECK = 0x02,
+        TellUnsupportedCheck = 0x02,
         /// <summary>
         /// This flag makes lzma_code() return LZMA_GET_CHECK as soon as the type
         /// of the integrity check is known. The type can then be got with
         /// lzma_get_check().
         /// </summary>
-        TELL_ANY_CHECK = 0x04,
+        TellAnyCheck = 0x04,
         /// <summary>
         /// This flag makes lzma_code() not calculate and verify the integrity check
         /// of the compressed data in .xz files. This means that invalid integrity
@@ -762,7 +789,7 @@ namespace Joveler.Compression.XZ
         ///
         /// Support for this flag was added in liblzma 5.1.4beta.
         /// </remarks>
-        IGNORE_CHECK = 0x10,
+        IgnoreCheck = 0x10,
         /// <summary>
         /// This flag enables decoding of concatenated files with file formats that
         /// allow concatenating compressed files as is. From the formats currently
@@ -778,16 +805,27 @@ namespace Joveler.Compression.XZ
         /// If LZMA_CONCATENATED is not used, the decoders still accept LZMA_FINISH
         /// as `action' for lzma_code(), but the usage of LZMA_FINISH isn't required.
         /// </remarks>
-        CONCATENATED = 0x08,
+        Concatenated = 0x08,
     }
     #endregion
 
-    #region Enum LzmaMode
-    public enum LzmaMode
+    #region (public) LzmaCompLevel
+    /// <summary>
+    /// Integrity check type
+    /// </summary>
+    public enum LzmaCompLevel : uint
     {
-        Compress,
-        Decompress,
+        Default = 6,
+        Level0 = 0,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
     }
     #endregion
 }
-#pragma warning restore IDE0044

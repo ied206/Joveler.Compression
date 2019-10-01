@@ -31,132 +31,225 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 // ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.LZ4
 {
+    #region StreamOptions
+    /// <summary>
+    /// Compress options for LZ4FrameStream
+    /// </summary>
+    /// <remarks>
+    /// Default value is based on default value of lz4 cli
+    /// </remarks>
+    public class LZ4FrameCompressOptions
+    {
+        /// <summary>
+        /// 0: default (fast mode); values > LZ4CompLevel.Level12 count as LZ4CompLevel.Level12; values < 0 trigger "fast acceleration"
+        /// </summary>
+        public LZ4CompLevel Level { get; set; } = LZ4CompLevel.Default;
+        /// <summary>
+        /// max64KB, max256KB, max1MB, max4MB
+        /// </summary>
+        public FrameBlockSizeId BlockSizeId { get; set; } = FrameBlockSizeId.Max4MB;
+        /// <summary>
+        /// LZ4F_blockLinked, LZ4F_blockIndependent
+        /// </summary>
+        public FrameBlockMode BlockMode { get; set; } = FrameBlockMode.BlockLinked;
+        /// <summary>
+        /// if enabled, frame is terminated with a 32-bits checksum of decompressed data
+        /// </summary>
+        public FrameContentChecksum ContentChecksumFlag { get; set; } = FrameContentChecksum.ContentChecksumEnabled;
+        /// <summary>
+        /// read-only field : LZ4F_frame or LZ4F_skippableFrame
+        /// </summary>
+        public FrameType FrameType { get; set; } = FrameType.Frame;
+        /// <summary>
+        /// if enabled, each block is followed by a checksum of block's compressed data
+        /// </summary>
+        public FrameBlockChecksum BlockChecksumFlag { get; set; } = FrameBlockChecksum.NoBlockChecksum;
+        /// <summary>
+        /// Size of uncompressed content ; 0 == unknown
+        /// </summary>
+        public ulong ContentSize { get; set; } = 0;
+        /// <summary>
+        /// 1 == always flush, to reduce usage of internal buffers
+        /// </summary>
+        public bool AutoFlush { get; set; } = false;
+        /// <summary>
+        /// 1 == parser favors decompression speed vs compression ratio. Only works for high compression modes (>= LZ4CompLevel.Level10)
+        /// </summary>
+        /// <remarks>
+        /// v1.8.2+ 
+        /// </remarks>
+        public bool FavorDecSpeed { get; set; } = false;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the lz4 stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Decompress options for LZ4FrameStream
+    /// </summary>
+    public class LZ4FrameDecompressOptions
+    {
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the lz4 stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+    }
+    #endregion
+
+    #region LZ4FrameStream
     // ReSharper disable once InconsistentNaming
     public class LZ4FrameStream : Stream
     {
+        #region enum Mode
+        private enum Mode
+        {
+            Compress,
+            Decompress,
+        }
+        #endregion
+
         #region Fields and Properties
         // Field
-        private readonly LZ4Mode _mode;
+        private readonly Mode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
         private IntPtr _cctx = IntPtr.Zero;
         private IntPtr _dctx = IntPtr.Zero;
 
+        private readonly int _bufferSize = DefaultBufferSize;
         private readonly byte[] _workBuf;
 
         // Compression
-        internal static int BufferSize = 16 * 1024; // 16K
         private readonly uint _destBufSize;
 
         // Decompression
-        private const int DecompressComplete = -1;
         private bool _firstRead = true;
         private int _decompSrcIdx = 0;
         private int _decompSrcCount = 0;
 
         // Property
         public Stream BaseStream { get; private set; }
-
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
 
         // Const
+        private const int DecompressComplete = -1;
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal static uint FrameVersion;
+        internal const int DefaultBufferSize = 16 * 1024;
         private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
         #endregion
 
         #region Constructor
-        public LZ4FrameStream(Stream stream, LZ4Mode mode)
-            : this(stream, mode, LZ4CompLevel.Default, false) { }
-
-        public LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel)
-            : this(stream, mode, compressionLevel, false) { }
-
-        public LZ4FrameStream(Stream stream, LZ4Mode mode, bool leaveOpen)
-            : this(stream, mode, LZ4CompLevel.Default, leaveOpen) { }
-
-        public unsafe LZ4FrameStream(Stream stream, LZ4Mode mode, LZ4CompLevel compressionLevel, bool leaveOpen)
+        /// <summary>
+        /// Create compressing LZ4FrameStream.
+        /// </summary>
+        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameCompressOptions compOpts)
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
-            BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
-            _mode = mode;
-            _leaveOpen = leaveOpen;
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Compress;
             _disposed = false;
 
-            switch (mode)
+            // Check and set compress options
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+
+            // Prepare cctx
+            UIntPtr ret = NativeMethods.CreateFrameCompressContext(ref _cctx, FrameVersion);
+            LZ4FrameException.CheckReturnValue(ret);
+
+            // Prepare FramePreferences
+            FramePreferences prefs = new FramePreferences
             {
-                case LZ4Mode.Compress:
-                    {
-                        UIntPtr ret = NativeMethods.CreateFrameCompressionContext(ref _cctx, FrameVersion);
-                        LZ4FrameException.CheckReturnValue(ret);
+                FrameInfo = new FrameInfo
+                {
+                    BlockSizeId = compOpts.BlockSizeId,
+                    BlockMode = compOpts.BlockMode,
+                    ContentChecksumFlag = compOpts.ContentChecksumFlag,
+                    FrameType = compOpts.FrameType,
+                    ContentSize = compOpts.ContentSize,
+                    DictId = 0,
+                    BlockChecksumFlag = compOpts.BlockChecksumFlag,
+                },
+                CompressionLevel = compOpts.Level,
+                AutoFlush = compOpts.AutoFlush ? 1u : 0u,
+                FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
+            };
 
-                        FramePreferences prefs = new FramePreferences
-                        {
-                            // Use default value of lz4 cli
-                            FrameInfo = new FrameInfo
-                            {
-                                BlockSizeId = FrameBlockSizeId.Max4MB,
-                                BlockMode = FrameBlockMode.BlockLinked,
-                                ContentChecksumFlag = FrameContentChecksum.ContentChecksumEnabled,
-                                FrameType = FrameType.Frame,
-                                ContentSize = 0,
-                                DictId = 0,
-                                BlockChecksumFlag = FrameBlockChecksum.NoBlockChecksum,
-                            },
-                            CompressionLevel = (int)compressionLevel,
-                            AutoFlush = 1,
-                        };
+            // Query the minimum required size of compress buffer
+            // _bufferSize is the source size, frameSize is the (required) dest size
+            UIntPtr frameSizeVal = NativeMethods.FrameCompressBound((UIntPtr)_bufferSize, prefs);
+            Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
+            uint frameSize = frameSizeVal.ToUInt32();
+            /*
+            if (_bufferSize < frameSize)
+                _destBufSize = frameSize;
+            */
+            _destBufSize = (uint)_bufferSize;
+            if (_bufferSize < frameSize)
+                _destBufSize = frameSize;
+            _workBuf = new byte[_destBufSize];
 
-                        UIntPtr frameSizeVal = NativeMethods.FrameCompressionBound((UIntPtr)BufferSize, prefs);
-                        Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
-
-                        uint frameSize = frameSizeVal.ToUInt32();
-                        if (BufferSize < frameSize)
-                            _destBufSize = frameSize;
-
-                        _workBuf = new byte[_destBufSize];
-
-                        UIntPtr headerSizeVal;
-                        fixed (byte* dest = _workBuf)
-                        {
-                            headerSizeVal = NativeMethods.FrameCompressionBegin(_cctx, dest, (UIntPtr)BufferSize, prefs);
-                        }
-                        LZ4FrameException.CheckReturnValue(headerSizeVal);
-                        Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
-
-                        int headerSize = (int)headerSizeVal.ToUInt32();
-                        BaseStream.Write(_workBuf, 0, headerSize);
-                        TotalOut += headerSize;
-
-                        break;
-                    }
-                case LZ4Mode.Decompress:
-                    {
-                        UIntPtr ret = NativeMethods.CreateFrameDecompressionContext(ref _dctx, FrameVersion);
-                        LZ4FrameException.CheckReturnValue(ret);
-
-                        byte[] headerBuf = new byte[4];
-                        int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
-                        TotalIn += 4;
-
-                        if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
-                            throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
-
-                        _workBuf = new byte[BufferSize];
-
-                        break;
-                    }
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(mode));
+            // Write the frame header into _workBuf
+            UIntPtr headerSizeVal;
+            fixed (byte* dest = _workBuf)
+            {
+                headerSizeVal = NativeMethods.FrameCompressBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
             }
+            LZ4FrameException.CheckReturnValue(headerSizeVal);
+            Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
+
+            int headerSize = (int)headerSizeVal.ToUInt32();
+            BaseStream.Write(_workBuf, 0, headerSize);
+            TotalOut += headerSize;
+        }
+
+        /// <summary>
+        /// Create decompressing LZ4FrameStream.
+        /// </summary>
+        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions compOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Decompress;
+            _disposed = false;
+
+            // Check and set compress options
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+
+            // Prepare dctx
+            UIntPtr ret = NativeMethods.CreateFrameDecompressContext(ref _dctx, FrameVersion);
+            LZ4FrameException.CheckReturnValue(ret);
+
+            // Remove LZ4 frame header from the baseStream
+            byte[] headerBuf = new byte[4];
+            int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
+            TotalIn += 4;
+
+            if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
+                throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
+
+            // Prepare a work buffer
+            _workBuf = new byte[_bufferSize];
         }
         #endregion
 
@@ -164,7 +257,6 @@ namespace Joveler.Compression.LZ4
         ~LZ4FrameStream()
         {
             Dispose(false);
-            GC.SuppressFinalize(this);
         }
 
         protected override void Dispose(bool disposing)
@@ -175,7 +267,7 @@ namespace Joveler.Compression.LZ4
                 { // Compress
                     FinishWrite();
 
-                    UIntPtr ret = NativeMethods.FreeFrameCompressionContext(_cctx);
+                    UIntPtr ret = NativeMethods.FreeFrameCompressContext(_cctx);
                     LZ4FrameException.CheckReturnValue(ret);
 
                     _cctx = IntPtr.Zero;
@@ -183,7 +275,7 @@ namespace Joveler.Compression.LZ4
 
                 if (_dctx != IntPtr.Zero)
                 {
-                    UIntPtr ret = NativeMethods.FreeFrameDecompressionContext(_dctx);
+                    UIntPtr ret = NativeMethods.FreeFrameDecompressContext(_dctx);
                     LZ4FrameException.CheckReturnValue(ret);
 
                     _dctx = IntPtr.Zero;
@@ -205,19 +297,11 @@ namespace Joveler.Compression.LZ4
 
         #region Stream Methods
         /// <inheritdoc />
-        /// <summary>
-        /// For Decompress
-        /// </summary>
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (_mode != LZ4Mode.Decompress)
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
 
@@ -225,22 +309,19 @@ namespace Joveler.Compression.LZ4
             return Read(span);
         }
 
-        /// <summary>
-        /// For Decompress
-        /// </summary>
+        /// <inheritdoc />
         public unsafe int Read(Span<byte> span)
         {
-            if (_mode != LZ4Mode.Decompress)
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-
-            int readSize = 0;
-
-            int destSize = span.Length;
-            int destLeftBytes = span.Length;
 
             // Reached end of stream
             if (_decompSrcIdx == DecompressComplete)
                 return 0;
+
+            int readSize = 0;
+            int destSize = span.Length;
+            int destLeftBytes = span.Length;
 
             if (_firstRead)
             {
@@ -317,19 +398,11 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
-        /// <summary>
-        /// For Compress
-        /// </summary>
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_mode != LZ4Mode.Compress)
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 
@@ -337,25 +410,23 @@ namespace Joveler.Compression.LZ4
             Write(span);
         }
 
-        /// <summary>
-        /// For Compress
-        /// </summary>
+        /// <inheritdoc />
         public unsafe void Write(ReadOnlySpan<byte> span)
         {
-            if (_mode != LZ4Mode.Compress)
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
 
             int inputSize = span.Length;
 
             while (0 < span.Length)
             {
-                int srcWorkSize = BufferSize < span.Length ? BufferSize : span.Length;
+                int srcWorkSize = _bufferSize < span.Length ? _bufferSize : span.Length;
 
                 UIntPtr outSizeVal;
                 fixed (byte* dest = _workBuf)
                 fixed (byte* src = span)
                 {
-                    outSizeVal = NativeMethods.FrameCompressionUpdate(_cctx, dest, (UIntPtr)_destBufSize, src, (UIntPtr)srcWorkSize, null);
+                    outSizeVal = NativeMethods.FrameCompressUpdate(_cctx, dest, (UIntPtr)_destBufSize, src, (UIntPtr)srcWorkSize, null);
                 }
 
                 LZ4FrameException.CheckReturnValue(outSizeVal);
@@ -374,12 +445,12 @@ namespace Joveler.Compression.LZ4
 
         private unsafe void FinishWrite()
         {
-            Debug.Assert(_mode == LZ4Mode.Compress, "FinishWrite() must not be called in decompression");
+            Debug.Assert(_mode == Mode.Compress, "FinishWrite() cannot be called in decompression");
 
             UIntPtr outSizeVal;
             fixed (byte* dest = _workBuf)
             {
-                outSizeVal = NativeMethods.FrameCompressionEnd(_cctx, dest, (UIntPtr)_destBufSize, null);
+                outSizeVal = NativeMethods.FrameCompressEnd(_cctx, dest, (UIntPtr)_destBufSize, null);
             }
             LZ4FrameException.CheckReturnValue(outSizeVal);
 
@@ -390,27 +461,32 @@ namespace Joveler.Compression.LZ4
             TotalOut += outSize;
         }
 
+        /// <inheritdoc />
         public override void Flush()
         {
             BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == LZ4Mode.Decompress && BaseStream.CanRead;
-        public override bool CanWrite => _mode == LZ4Mode.Compress && BaseStream.CanWrite;
+        /// <inheritdoc />
+        public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        /// <inheritdoc />
+        public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
+        /// <inheritdoc />
         public override bool CanSeek => false;
 
+        /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException("Seek() not supported");
         }
-
+        /// <inheritdoc />
         public override void SetLength(long value)
         {
             throw new NotSupportedException("SetLength not supported");
         }
-
+        /// <inheritdoc />
         public override long Length => throw new NotSupportedException("Length not supported");
-
+        /// <inheritdoc />
         public override long Position
         {
             get => throw new NotSupportedException("Position not supported");
@@ -423,19 +499,43 @@ namespace Joveler.Compression.LZ4
             {
                 switch (_mode)
                 {
-                    case LZ4Mode.Compress:
+                    case Mode.Compress:
                         if (TotalIn == 0)
                             return 0;
                         return 100 - TotalOut * 100.0 / TotalIn;
-                    case LZ4Mode.Decompress:
+                    case Mode.Decompress:
                         if (TotalOut == 0)
                             return 0;
                         return 100 - TotalIn * 100.0 / TotalOut;
                     default:
-                        throw new InvalidOperationException("Internal Logic Error at LZ4Stream.CompressionRatio()");
+                        throw new InvalidOperationException($"Internal Logic Error at {nameof(LZ4FrameStream)}.{nameof(CompressionRatio)}");
                 }
             }
         }
         #endregion
+
+        #region (internal, private) Check Arguments
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+            if (buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int CheckBufferSize(int bufferSize)
+        {
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            return Math.Max(bufferSize, 4096);
+        }
+        #endregion
     }
+    #endregion
 }

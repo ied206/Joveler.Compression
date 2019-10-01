@@ -41,7 +41,9 @@ Joveler.Compression.LZ4 is similar or slower (~10x) than pure C# implementation,
 
 - 1.8.1.2
 - 1.8.2
-- 1.8.3 (Included)
+- 1.8.3
+- 1.9.1
+- 1.9.2 (Included)
 
 ## Usage
 

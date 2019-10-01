@@ -110,14 +110,18 @@ namespace Joveler.Compression.ZLib.Tests
 
         public static byte[] SHA256Digest(Stream stream)
         {
-            HashAlgorithm hash = SHA256.Create();
-            return hash.ComputeHash(stream);
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return hash.ComputeHash(stream);
+            }
         }
 
         public static byte[] SHA256Digest(byte[] input)
         {
-            HashAlgorithm hash = SHA256.Create();
-            return hash.ComputeHash(input);
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return hash.ComputeHash(input);
+            }
         }
 
         public static int RunPigz(string tempArchiveFile)

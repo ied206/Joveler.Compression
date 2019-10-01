@@ -28,34 +28,36 @@
 */
 
 using System;
+using System.Runtime.Serialization;
 
 namespace Joveler.Compression.ZLib
 {
     #region ZLibException
+    [Serializable]
     public class ZLibException : Exception
     {
-        public ZLibReturnCode ErrorCode;
+        public ZLibRet ReturnCode { get; set; }
 
-        public ZLibException(ZLibReturnCode errorCode)
+        public ZLibException(ZLibRet errorCode)
             : base(ForgeErrorMessage(errorCode))
         {
-            ErrorCode = errorCode;
+            ReturnCode = errorCode;
         }
 
-        public ZLibException(ZLibReturnCode errorCode, string msg)
+        public ZLibException(ZLibRet errorCode, string msg)
             : base(ForgeErrorMessage(errorCode, msg))
         {
-            ErrorCode = errorCode;
+            ReturnCode = errorCode;
         }
 
-        private static string ForgeErrorMessage(ZLibReturnCode errorCode, string msg = null)
+        private static string ForgeErrorMessage(ZLibRet errorCode, string msg = null)
         {
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL32 zs = null)
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamL32 zs = null)
         {
-            if (ret != ZLibReturnCode.OK)
+            if (ret != ZLibRet.Ok)
             {
                 if (zs == null)
                     throw new ZLibException(ret);
@@ -64,9 +66,9 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        internal static void CheckReturnValue(ZLibReturnCode ret, ZStreamL64 zs = null)
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamL64 zs = null)
         {
-            if (ret != ZLibReturnCode.OK)
+            if (ret != ZLibRet.Ok)
             {
                 if (zs == null)
                     throw new ZLibException(ret);
@@ -74,6 +76,21 @@ namespace Joveler.Compression.ZLib
                     throw new ZLibException(ret, zs.LastErrorMsg);
             }
         }
+
+        #region Serializable
+        protected ZLibException(SerializationInfo info, StreamingContext ctx)
+        {
+            ReturnCode = (ZLibRet)info.GetValue(nameof(ReturnCode), typeof(ZLibRet));
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException(nameof(info));
+            info.AddValue(nameof(ReturnCode), ReturnCode);
+            base.GetObjectData(info, context);
+        }
+        #endregion
     }
     #endregion
 }

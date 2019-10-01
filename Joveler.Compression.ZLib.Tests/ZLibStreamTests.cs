@@ -28,16 +28,16 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
+    [TestCategory("Joveler.Compression.ZLib")]
     public class ZLibStreamTests
     {
         #region Compress
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
+
         public void Compress()
         {
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, false);
@@ -46,7 +46,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void CompressSpan()
         {
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, true);
@@ -60,10 +59,16 @@ namespace Joveler.Compression.ZLib.Tests
             string tempArchiveFile = tempDecompFile + ".zz";
             try
             {
+                ZLibCompressOptions compOpts = new ZLibCompressOptions()
+                {
+                    Level = level,
+                    LeaveOpen = true,
+                };
+
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (FileStream archiveFs = new FileStream(tempArchiveFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (ZLibStream zs = new ZLibStream(archiveFs, ZLibMode.Compress, level, true))
+                using (ZLibStream zs = new ZLibStream(archiveFs, compOpts))
                 {
                     if (useSpan)
                     {
@@ -93,14 +98,12 @@ namespace Joveler.Compression.ZLib.Tests
                 byte[] originDigest;
                 using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    originDigest = hash.ComputeHash(fs);
+                    originDigest = TestHelper.SHA256Digest(fs);
                 }
 
                 using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    HashAlgorithm hash = SHA256.Create();
-                    decompDigest = hash.ComputeHash(fs);
+                    decompDigest = TestHelper.SHA256Digest(fs);
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
@@ -115,9 +118,8 @@ namespace Joveler.Compression.ZLib.Tests
         }
         #endregion
 
-        #region ZLibStream - Decompress
+        #region Decompress
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Decompress()
         {
             DecompressTemplate("ex1.jpg", false);
@@ -126,7 +128,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void DecompressSpan()
         {
             DecompressTemplate("ex1.jpg", true);
@@ -138,35 +139,36 @@ namespace Joveler.Compression.ZLib.Tests
         {
             string compPath = Path.Combine(TestSetup.SampleDir, fileName + ".zz");
             string decompPath = Path.Combine(TestSetup.SampleDir, fileName);
-            using (MemoryStream decompMs = new MemoryStream())
-            using (FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+
+            ZLibDecompressOptions decompOpts = new ZLibDecompressOptions();
+
+            using MemoryStream decompMs = new MemoryStream();
+            using FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using (ZLibStream zs = new ZLibStream(compFs, decompOpts))
             {
-                using (ZLibStream zs = new ZLibStream(compFs, ZLibMode.Decompress))
+                if (useSpan)
                 {
-                    if (useSpan)
+                    byte[] buffer = new byte[64 * 1024];
+                    int bytesRead;
+                    do
                     {
-                        byte[] buffer = new byte[64 * 1024];
-                        int bytesRead;
-                        do
-                        {
-                            bytesRead = zs.Read(buffer.AsSpan());
-                            decompMs.Write(buffer.AsSpan(0, bytesRead));
-                        } while (0 < bytesRead);
-                    }
-                    else
-                    {
-                        zs.CopyTo(decompMs);
-                    }
+                        bytesRead = zs.Read(buffer.AsSpan());
+                        decompMs.Write(buffer.AsSpan(0, bytesRead));
+                    } while (0 < bytesRead);
                 }
-
-                decompMs.Position = 0;
-
-                // Compare SHA256 Digest
-                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-                byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
-                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
+                else
+                {
+                    zs.CopyTo(decompMs);
+                }
             }
+
+            decompMs.Position = 0;
+
+            // Compare SHA256 Digest
+            byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+            byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+            Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
         }
         #endregion
     }

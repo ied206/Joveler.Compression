@@ -28,131 +28,248 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.XZ
 {
+    #region StreamOptions
+    public class XZCompressOptions
+    {
+        /// <summary>
+        /// Select a compression preset level. 
+        /// The default is 6. If multiple preset levels are specified, the last one takes effect. 
+        /// </summary>
+        public LzmaCompLevel Level { get; set; } = LzmaCompLevel.Default;
+        /// <summary>
+        /// Use a slower variant of the selected compression preset level (−0 ... −9) to hopefully
+        /// get a little bit better compression ratio, but with bad luck this can also make it worse.
+        /// Decompressor memory usage is not affected, but compressor memory usage increases a little at preset levels −0 ... −3.
+        /// </summary>
+        /// <remarks>
+        /// The differences between the presets are more significant than with gzip(1) and bzip2(1). 
+        /// The selected compression settings determine the memory requirements of the decompressor, 
+        /// thus using a too high preset level might make it painful to decompress the file on an old system with little RAM. 
+        /// Specifically, it’s not a good idea to blindly use −9 for everything like it often is with gzip(1) and bzip2(1).
+        /// </remarks>
+        public bool ExtremeFlag { get; set; } = false;
+        public uint Preset => ToPreset(Level, ExtremeFlag);
+
+        /// <summary>
+        /// Specify the type of the integrity check. 
+        /// The check is calculated from the uncompressed data and stored in the .xz file.
+        /// </summary>
+        public LzmaCheck Check { get; set; } = LzmaCheck.Crc64;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+
+        internal static uint ToPreset(LzmaCompLevel level, bool extremeFlag)
+        {
+            uint preset = (uint)level;
+            uint extreme = extremeFlag ? (1u << 31) : 0u;
+            return preset | extreme;
+        }
+
+        internal LzmaMt ToLzmaMt(XZThreadedCompressOptions threadOpts)
+        {
+            return new LzmaMt()
+            {
+                BlockSize = threadOpts.BlockSize,
+                Threads = XZThreadedCompressOptions.CheckThreadCount(threadOpts.Threads),
+                Preset = Preset,
+                Check = Check,
+            };
+        }
+    }
+
+    public class XZThreadedCompressOptions
+    {
+        /// <summary>
+        /// Maximum uncompressed size of a Block.
+        /// When compressing to the .xz format, split the input data into blocks of size bytes.
+        /// The blocks are compressed independently from each other, which helps with multithreading and makes limited random-access decompression possible.
+        /// </summary>
+        /// <remarks>
+        /// In multi-threaded mode about three times size bytes will be allocated in each thread for buffering input and output.
+        /// The default size is three times the LZMA2 dictionary size or 1 MiB, whichever is more.
+        /// Typically a good value is 2−4 times the size of the LZMA2 dictionary or at least 1 MiB.
+        /// Using size less than the LZMA2 dictionary size is waste of RAM because then the LZMA2 dictionary buffer will never get fully used. 
+        /// The sizes of the blocks are stored in the block headers, which a future version of xz will use for multi-threaded decompression.
+        /// </remarks>
+        public ulong BlockSize { get; set; } = 0;
+        /// <summary>
+        /// Number of worker threads to use.
+        /// </summary>
+        public int Threads { get; set; } = 1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint CheckThreadCount(int threads)
+        {
+            if (threads < 0)
+                throw new ArgumentOutOfRangeException(nameof(threads));
+            if (threads == 0) // Use system's thread number by default
+                threads = Environment.ProcessorCount;
+            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
+                threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
+            return (uint)threads;
+        }
+    }
+
+    public class XZDecompressOptions
+    {
+        public ulong MemLimit { get; set; } = ulong.MaxValue;
+        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlags;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the xz stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+    }
+    #endregion
+
+    #region XZStream
     // ReSharper disable once InconsistentNaming
     public class XZStream : Stream
     {
+        #region enum Mode
+        private enum Mode
+        {
+            Compress,
+            Decompress,
+        }
+        #endregion
+
         #region Fields and Properties
-        private readonly LzmaMode _mode;
+        private readonly Mode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
         private LzmaStream _lzmaStream;
         private GCHandle _lzmaStreamPin;
-        internal static int BufferSize = 64 * 1024;
 
-        private int _internalBufPos = 0;
-        private const int ReadDone = -1;
-        private readonly byte[] _internalBuf;
+        private readonly int _bufferSize = DefaultBufferSize;
+        private int _workBufPos = 0;
+        private readonly byte[] _workBuf;
 
         // Property
         public Stream BaseStream { get; private set; }
-
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
+        /// <summary>
+        /// Only valid in Compress mode
+        /// </summary>
+        public ulong MaxMemUsage { get; private set; } = ulong.MaxValue;
+
         // Const
-        public const uint MinimumPreset = 0;
-        public const uint DefaultPreset = 6;
-        public const uint MaximumPreset = 9;
-        public const uint ExtremeFlag = 1u << 31;
+        private const int ReadDone = -1;
+        internal const int DefaultBufferSize = 64 * 1024;
+        internal const LzmaDecodingFlag DefaultDecodingFlags = LzmaDecodingFlag.Concatenated;
+
+        // Readonly
+        internal static readonly uint MinPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level0, false);
+        internal static readonly uint MaxPreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level9, false);
+        internal static readonly uint MinExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level0, true);
+        internal static readonly uint MaxExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level9, true);
         #endregion
 
         #region Constructor
-        public XZStream(Stream stream, LzmaMode mode)
-            : this(stream, mode, DefaultPreset, 1, false) { }
-
-        public XZStream(Stream stream, LzmaMode mode, uint preset)
-            : this(stream, mode, preset, 1, false) { }
-
-        public XZStream(Stream stream, LzmaMode mode, uint preset, int threads)
-            : this(stream, mode, preset, threads, false) { }
-
-        public XZStream(Stream stream, LzmaMode mode, bool leaveOpen)
-            : this(stream, mode, 0, 1, leaveOpen) { }
-
-        public XZStream(Stream stream, LzmaMode mode, uint preset, bool leaveOpen)
-            : this(stream, mode, preset, 1, leaveOpen) { }
-
-        public unsafe XZStream(Stream stream, LzmaMode mode, uint preset, int threads, bool leaveOpen)
+        /// <summary>
+        /// Create single-threaded compressing XZStream.
+        /// </summary>
+        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts)
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgInitFirstError);
+            NativeMethods.EnsureLoaded();
 
-            if (9 < preset)
-                throw new ArgumentOutOfRangeException(nameof(preset));
-            if (threads < 0)
-                throw new ArgumentOutOfRangeException(nameof(threads));
-
-            if (threads == 0) // Use system's thread number by default
-                threads = Environment.ProcessorCount;
-            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
-                threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
-
-            BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
-            _mode = mode;
-            _leaveOpen = leaveOpen;
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Compress;
             _disposed = false;
 
+            // Check and set compress options
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _workBuf = new byte[_bufferSize];
+
+            // Prepare LzmaStream
             _lzmaStream = new LzmaStream();
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
-            _internalBuf = new byte[BufferSize];
 
-            switch (mode)
-            {
-                case LzmaMode.Compress:
-                    {
-                        _lzmaStream.NextIn = (byte*)0;
-                        _lzmaStream.AvailIn = 0;
-                        if (threads == 1)
-                        { // Reference : 01_compress_easy.c
-                            LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, preset, LzmaCheck.CHECK_CRC64);
-                            XZException.CheckReturnValue(ret);
-                        }
-                        else
-                        { // Reference : 04_compress_easy_mt.c
-                            LzmaMt mtOptions = new LzmaMt
-                            {
-                                // No flags are needed.
-                                Flags = 0,
-                                // Let liblzma determine a sane block size.
-                                BlockSize = 0,
-                                // Use no timeout for lzma_code() calls by setting timeout to zero.
-                                // That is, sometimes lzma_code() might block for a long time (from several seconds to even minutes).
-                                // If this is not OK, for example due to progress indicator needing updates, specify a timeout in milliseconds here.
-                                // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
-                                TimeOut = 0,
-                                // To use a preset, filters must be set to NULL.
-                                Filters = IntPtr.Zero,
-                                Preset = preset,
-                                // Use XZ default
-                                Check = LzmaCheck.CHECK_CRC64,
-                                // Set threads
-                                Threads = (uint)threads,
-                            };
+            // Check preset
+            uint preset = compOpts.Preset;
+            CheckPreset(preset);
 
-                            // Initialize the threaded encoder.
-                            LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mtOptions);
-                            XZException.CheckReturnValue(ret);
-                        }
-                        break;
-                    }
-                case LzmaMode.Decompress:
-                    { // Reference : 02_decompress.c
-#if !NETSTANDARD1_3
-                        if (1 < threads)
-                            Trace.TraceWarning("Threaded decompression is not supported");
-#endif
-                        LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, ulong.MaxValue, LzmaDecodingFlag.CONCATENATED);
-                        XZException.CheckReturnValue(ret);
-                        break;
-                    }
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(mode));
-            }
+            // Initialize the encoder
+            LzmaRet ret = NativeMethods.LzmaEasyEncoder(_lzmaStream, preset, compOpts.Check);
+            XZException.CheckReturnValue(ret);
+
+            // Set possible max memory usage.
+            MaxMemUsage = NativeMethods.LzmaEasyEncoderMemUsage(preset);
+        }
+
+        /// <summary>
+        /// Create multi-threaded compressing XZStream. Requires more memory than single-threaded mode.
+        /// </summary>
+        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Compress;
+            _disposed = false;
+
+            // Check and set XZStreamOptions
+            _leaveOpen = compOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _workBuf = new byte[_bufferSize];
+
+            // Prepare LzmaStream and buffers
+            _lzmaStream = new LzmaStream();
+            _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
+
+            // Check LzmaMt instance
+            LzmaMt mt = compOpts.ToLzmaMt(threadOpts);
+            CheckPreset(mt.Preset);
+
+            // Initialize the encoder
+            LzmaRet ret = NativeMethods.LzmaStreamEncoderMt(_lzmaStream, mt);
+            XZException.CheckReturnValue(ret);
+
+            // Set possible max memory usage.
+            MaxMemUsage = NativeMethods.LzmaStreamEncoderMtMemUsage(mt);
+        }
+
+        /// <summary>
+        /// Create decompressing XZStream
+        /// </summary>
+        public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts)
+        {
+            NativeMethods.EnsureLoaded();
+
+            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _mode = Mode.Decompress;
+            _disposed = false;
+
+            // Check and set decompress options
+            _leaveOpen = decompOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(decompOpts.BufferSize);
+            _workBuf = new byte[_bufferSize];
+
+            // Prepare LzmaStream and buffers
+            _lzmaStream = new LzmaStream();
+            _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
+
+            // Initialize the decoder
+            LzmaRet ret = NativeMethods.LzmaStreamDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+            XZException.CheckReturnValue(ret);
         }
         #endregion
 
@@ -160,7 +277,6 @@ namespace Joveler.Compression.XZ
         ~XZStream()
         {
             Dispose(false);
-            GC.SuppressFinalize(this);
         }
 
         protected override void Dispose(bool disposing)
@@ -169,14 +285,14 @@ namespace Joveler.Compression.XZ
             {
                 if (_lzmaStream != null)
                 {
-                    if (_mode == LzmaMode.Compress)
+                    if (_mode == Mode.Compress)
                     {
                         Flush();
                         FinishWrite();
                     }
                     else
                     {
-                        _internalBufPos = ReadDone;
+                        _workBufPos = ReadDone;
                     }
 
                     NativeMethods.LzmaEnd(_lzmaStream);
@@ -196,21 +312,13 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        #region Stream Methods
+        #region Stream Methods and Properties
         /// <inheritdoc />
-        /// <summary>
-        /// For Decompress
-        /// </summary>
         public override int Read(byte[] buffer, int offset, int count)
-        {
-            if (_mode != LzmaMode.Decompress)
+        { // For Decompress
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
 
@@ -218,24 +326,21 @@ namespace Joveler.Compression.XZ
             return Read(span);
         }
 
-        /// <summary>
-        /// For Decompress
-        /// </summary>
+        /// <inheritdoc />
         public unsafe int Read(Span<byte> span)
-        {
-            if (_mode != LzmaMode.Decompress)
+        { // For Decompress
+            if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-
-            if (_internalBufPos == ReadDone)
+            if (_workBufPos == ReadDone)
                 return 0;
 
             int readSize = 0;
-            LzmaAction action = LzmaAction.RUN;
+            LzmaAction action = LzmaAction.Run;
 
-            fixed (byte* readPtr = _internalBuf)
+            fixed (byte* readPtr = _workBuf)
             fixed (byte* writePtr = span)
             {
-                _lzmaStream.NextIn = readPtr + _internalBufPos;
+                _lzmaStream.NextIn = readPtr + _workBufPos;
                 _lzmaStream.NextOut = writePtr;
                 _lzmaStream.AvailOut = (uint)span.Length;
 
@@ -244,15 +349,15 @@ namespace Joveler.Compression.XZ
                     if (_lzmaStream.AvailIn == 0)
                     {
                         // Read from _baseStream
-                        int baseReadSize = BaseStream.Read(_internalBuf, 0, _internalBuf.Length);
+                        int baseReadSize = BaseStream.Read(_workBuf, 0, _workBuf.Length);
                         TotalIn += baseReadSize;
 
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextIn = readPtr;
                         _lzmaStream.AvailIn = (uint)baseReadSize;
 
                         if (baseReadSize == 0) // End of stream
-                            action = LzmaAction.FINISH;
+                            action = LzmaAction.Finish;
                     }
 
                     ulong bakAvailIn = _lzmaStream.AvailIn;
@@ -260,13 +365,13 @@ namespace Joveler.Compression.XZ
 
                     LzmaRet ret = NativeMethods.LzmaCode(_lzmaStream, action);
 
-                    _internalBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
+                    _workBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
                     readSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // Once everything has been decoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
-                    if (ret == LzmaRet.STREAM_END)
+                    if (ret == LzmaRet.StreamEnd)
                     {
-                        _internalBufPos = ReadDone;
+                        _workBufPos = ReadDone;
                         break;
                     }
 
@@ -280,19 +385,11 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-        /// <summary>
-        /// For Compress
-        /// </summary>
         public override void Write(byte[] buffer, int offset, int count)
-        {
-            if (_mode != LzmaMode.Compress)
+        { // For Compress
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0 || buffer.Length < offset + count)
-                throw new ArgumentOutOfRangeException(nameof(count));
+            CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 
@@ -300,41 +397,39 @@ namespace Joveler.Compression.XZ
             Write(span);
         }
 
-        /// <summary>
-        /// For Compress
-        /// </summary>
+        /// <inheritdoc />
         public unsafe void Write(ReadOnlySpan<byte> span)
-        {
-            if (_mode != LzmaMode.Compress)
+        { // For Compress
+            if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
 
             TotalIn += span.Length;
 
             fixed (byte* readPtr = span)
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = readPtr;
                 _lzmaStream.AvailIn = (uint)span.Length;
-                _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
                 // Return condition : _lzmaStream.AvailIn == 0
                 while (_lzmaStream.AvailIn != 0)
                 {
-                    LzmaRet ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.RUN);
-                    _internalBufPos = (int)((ulong)_internalBuf.Length - _lzmaStream.AvailOut);
+                    LzmaRet ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.Run);
+                    _workBufPos = (int)((ulong)_workBuf.Length - _lzmaStream.AvailOut);
 
                     // If the output buffer is full, write the data from the output bufffer to the output file.
                     if (_lzmaStream.AvailOut == 0)
                     {
                         // Write to _baseStream
-                        BaseStream.Write(_internalBuf, 0, _internalBuf.Length);
-                        TotalOut += _internalBuf.Length;
+                        BaseStream.Write(_workBuf, 0, _workBuf.Length);
+                        TotalOut += _workBuf.Length;
 
                         // Reset NextOut and AvailOut
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextOut = writePtr;
-                        _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                        _lzmaStream.AvailOut = (uint)_workBuf.Length;
                     }
 
                     // Normally the return value of lzma_code() will be LZMA_OK until everything has been encoded.
@@ -345,35 +440,35 @@ namespace Joveler.Compression.XZ
 
         private unsafe void FinishWrite()
         {
-            Debug.Assert(_mode == LzmaMode.Compress, "FinishWrite() must not be called in decompression");
+            Debug.Assert(_mode == Mode.Compress, "FinishWrite() must not be called in decompression");
 
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-               _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
-                LzmaRet ret = LzmaRet.OK;
-                while (ret != LzmaRet.STREAM_END)
+                LzmaRet ret = LzmaRet.Ok;
+                while (ret != LzmaRet.StreamEnd)
                 {
                     ulong bakAvailOut = _lzmaStream.AvailOut;
-                    ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.FINISH);
-                    _internalBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
+                    ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.Finish);
+                    _workBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // If the compression finished successfully,
                     // write the data from the output buffer to the output file.
-                    if (_lzmaStream.AvailOut == 0 || ret == LzmaRet.STREAM_END)
+                    if (_lzmaStream.AvailOut == 0 || ret == LzmaRet.StreamEnd)
                     { // Write to _baseStream
                         // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially
                         // full. Calculate how much new data there is to be written to the output file.
-                        BaseStream.Write(_internalBuf, 0, _internalBufPos);
-                        TotalOut += _internalBufPos;
+                        BaseStream.Write(_workBuf, 0, _workBufPos);
+                        TotalOut += _workBufPos;
 
                         // Reset NextOut and AvailOut
-                        _internalBufPos = 0;
+                        _workBufPos = 0;
                         _lzmaStream.NextOut = writePtr;
-                        _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                        _lzmaStream.AvailOut = (uint)_workBuf.Length;
                     }
                     else
                     { // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
@@ -383,43 +478,44 @@ namespace Joveler.Compression.XZ
             }
         }
 
+        /// <inheritdoc />
         public override unsafe void Flush()
         {
-            if (_mode == LzmaMode.Decompress)
+            if (_mode == Mode.Decompress)
             {
                 BaseStream.Flush();
                 return;
             }
 
-            fixed (byte* writePtr = _internalBuf)
+            fixed (byte* writePtr = _workBuf)
             {
                 _lzmaStream.NextIn = (byte*)0;
                 _lzmaStream.AvailIn = 0;
-                _lzmaStream.NextOut = writePtr + _internalBufPos;
-                _lzmaStream.AvailOut = (uint)(_internalBuf.Length - _internalBufPos);
+                _lzmaStream.NextOut = writePtr + _workBufPos;
+                _lzmaStream.AvailOut = (uint)(_workBuf.Length - _workBufPos);
 
-                LzmaRet ret = LzmaRet.OK;
-                while (ret != LzmaRet.STREAM_END)
+                LzmaRet ret = LzmaRet.Ok;
+                while (ret != LzmaRet.StreamEnd)
                 {
                     int writeSize = 0;
                     if (_lzmaStream.AvailOut != 0)
                     {
                         ulong bakAvailOut = _lzmaStream.AvailOut;
-                        ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.FULL_FLUSH);
+                        ret = NativeMethods.LzmaCode(_lzmaStream, LzmaAction.FullFlush);
                         writeSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
                     }
-                    _internalBufPos += writeSize;
+                    _workBufPos += writeSize;
 
-                    BaseStream.Write(_internalBuf, 0, _internalBufPos);
-                    TotalOut += _internalBufPos;
+                    BaseStream.Write(_workBuf, 0, _workBufPos);
+                    TotalOut += _workBufPos;
 
                     // Reset NextOut and AvailOut
-                    _internalBufPos = 0;
+                    _workBufPos = 0;
                     _lzmaStream.NextOut = writePtr;
-                    _lzmaStream.AvailOut = (uint)_internalBuf.Length;
+                    _lzmaStream.AvailOut = (uint)_workBuf.Length;
 
                     // Once everything has been encoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
-                    if (ret != LzmaRet.OK && ret != LzmaRet.STREAM_END)
+                    if (ret != LzmaRet.Ok && ret != LzmaRet.StreamEnd)
                         throw new XZException(ret);
                 }
             }
@@ -427,22 +523,26 @@ namespace Joveler.Compression.XZ
             BaseStream.Flush();
         }
 
-        public override bool CanRead => _mode == LzmaMode.Decompress && BaseStream.CanRead;
-        public override bool CanWrite => _mode == LzmaMode.Compress && BaseStream.CanWrite;
+        /// <inheritdoc />
+        public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        /// <inheritdoc />
+        public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
+        /// <inheritdoc />
         public override bool CanSeek => false;
 
+        /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException("Seek() not supported");
         }
-
+        /// <inheritdoc />
         public override void SetLength(long value)
         {
             throw new NotSupportedException("SetLength not supported");
         }
-
+        /// <inheritdoc />
         public override long Length => throw new NotSupportedException("Length not supported");
-
+        /// <inheritdoc />
         public override long Position
         {
             get => throw new NotSupportedException("Position not supported");
@@ -453,7 +553,7 @@ namespace Joveler.Compression.XZ
         {
             get
             {
-                if (_mode == LzmaMode.Compress)
+                if (_mode == Mode.Compress)
                 {
                     if (TotalIn == 0)
                         return 0;
@@ -468,5 +568,62 @@ namespace Joveler.Compression.XZ
             }
         }
         #endregion
+
+        #region GetProgress
+        /// <summary>
+        /// Get progress information
+        /// </summary>
+        /// <remarks>
+        /// In single-threaded mode, applications can get progress information from 
+        /// strm->total_in and strm->total_out.In multi-threaded mode this is less
+        /// useful because a significant amount of both input and output data gets
+        /// buffered internally by liblzma.This makes total_in and total_out give
+        /// misleading information and also makes the progress indicator updates
+        /// non-smooth.
+        /// 
+        /// This function gives realistic progress information also in multi-threaded
+        /// mode by taking into account the progress made by each thread. In
+        /// single-threaded mode *progress_in and *progress_out are set to
+        /// strm->total_in and strm->total_out, respectively.
+        /// </remarks>
+        public void GetProgress(out ulong progressIn, out ulong progressOut)
+        {
+            progressIn = 0;
+            progressOut = 0;
+            NativeMethods.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
+        }
+        #endregion
+
+        #region (internal, private) Check Arguments
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+            if (buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void CheckPreset(uint preset)
+        {
+            if (!(MinPreset <= preset && preset <= MaxPreset) &&
+                !(MinExtremePreset <= preset && preset <= MaxExtremePreset))
+                throw new ArgumentOutOfRangeException(nameof(preset));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int CheckBufferSize(int bufferSize)
+        {
+            if (bufferSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            return Math.Max(bufferSize, 4096);
+        }
+        #endregion
     }
+    #endregion
 }

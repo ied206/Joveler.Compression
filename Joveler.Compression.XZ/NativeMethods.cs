@@ -27,6 +27,9 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ArrangeTypeMemberModifiers
@@ -38,22 +41,50 @@ namespace Joveler.Compression.XZ
     internal static class NativeMethods
     {
         #region Const
-        public const string MsgInitFirstError = "Please call XZStream.GlobalInit() first!";
-        public const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
+        internal const string MsgInitFirstError = "Please call XZInit.GlobalInit() first!";
+        internal const string MsgAlreadyInit = "Joveler.Compression.XZ is already initialized.";
         #endregion
 
-        #region Fields
-        internal static IntPtr hModule;
-        public static bool Loaded => hModule != IntPtr.Zero;
+        #region Native Library Loading
+        internal static IntPtr hModule = IntPtr.Zero;
+        internal static readonly object LoadLock = new object();
+        private static bool Loaded => hModule != IntPtr.Zero;
+
+        public static bool IsLoaded()
+        {
+            lock (LoadLock)
+            {
+                return Loaded;
+            }
+        }
+
+        public static void EnsureLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+            }
+        }
+
+        public static void EnsureNotLoaded()
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+            }
+        }
         #endregion
 
         #region Windows kernel32 API
         internal static class Win32
         {
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPTStr)] string lpFileName);
+            internal static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+            [SuppressMessage("Globalization", "CA2101:Specify marshaling for P/Invoke string arguments")]
             internal static extern IntPtr GetProcAddress(IntPtr hModule, [MarshalAs(UnmanagedType.LPStr)] string procName);
 
             [DllImport("kernel32.dll")]
@@ -66,6 +97,7 @@ namespace Joveler.Compression.XZ
 
         #region Linux libdl API
 #pragma warning disable IDE1006 // 명명 스타일
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
         internal static class Linux
         {
             internal const int RTLD_NOW = 0x0002;
@@ -79,11 +111,116 @@ namespace Joveler.Compression.XZ
 
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern string dlerror();
-
             [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
 #pragma warning restore IDE1006 // 명명 스타일
+        #endregion
+
+        #region GlobalInit, GlobalCleanup
+        internal static void GlobalInit(string libPath)
+        {
+            lock (LoadLock)
+            {
+                if (Loaded)
+                    throw new InvalidOperationException(MsgAlreadyInit);
+
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    if (libPath == null)
+                        throw new ArgumentNullException(nameof(libPath));
+
+                    libPath = Path.GetFullPath(libPath);
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .dll file does not exist");
+
+                    // Set proper directory to search, unless LoadLibrary can fail when loading chained dll files.
+                    string libDir = Path.GetDirectoryName(libPath);
+                    if (libDir != null && !libDir.Equals(AppDomain.CurrentDomain.BaseDirectory))
+                        Win32.SetDllDirectory(libDir);
+                    // SetDllDictionary guard
+                    try
+                    {
+                        hModule = Win32.LoadLibrary(libPath);
+                        if (hModule == IntPtr.Zero)
+                            throw new ArgumentException($"Unable to load [{libPath}]", new Win32Exception());
+                    }
+                    finally
+                    {
+                        // Reset dll search directory to prevent dll hijacking
+                        Win32.SetDllDirectory(null);
+                    }
+
+                    // Check if dll is valid (liblzma.dll)
+                    if (Win32.GetProcAddress(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid lzma library");
+                    }
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    if (libPath == null)
+                        libPath = "/lib/x86_64-linux-gnu/liblzma.so.5"; // Try to call system-installed xz-utils
+                    if (!File.Exists(libPath))
+                        throw new ArgumentException("Specified .so file does not exist");
+
+                    hModule = Linux.dlopen(libPath, Linux.RTLD_NOW | Linux.RTLD_GLOBAL);
+                    if (hModule == IntPtr.Zero)
+                        throw new ArgumentException($"Unable to load [{libPath}], {Linux.dlerror()}");
+
+                    // Check if dll is valid (liblzma.dll)
+                    if (Linux.dlsym(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
+                    {
+                        GlobalCleanup();
+                        throw new ArgumentException($"[{libPath}] is not a valid lzma library");
+                    }
+                }
+#endif
+
+                // Load functions
+                try
+                {
+                    LoadFunctions();
+                }
+                catch (Exception)
+                {
+                    GlobalCleanup();
+                    throw;
+                }
+            }
+        }
+
+        internal static void GlobalCleanup()
+        {
+            lock (LoadLock)
+            {
+                if (!Loaded)
+                    throw new InvalidOperationException(MsgInitFirstError);
+
+                ResetFunctions();
+#if !NET451
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+#endif
+                {
+                    int ret = Win32.FreeLibrary(hModule);
+                    Debug.Assert(ret != 0);
+                }
+#if !NET451
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    int ret = Linux.dlclose(hModule);
+                    Debug.Assert(ret == 0);
+                }
+#endif
+
+                hModule = IntPtr.Zero;
+            }
+        }
         #endregion
 
         #region GetFuncPtr
@@ -119,24 +256,34 @@ namespace Joveler.Compression.XZ
         internal static void LoadFunctions()
         {
             #region Base - LzmaCode, LzmaEnd, LzmaGetProgress
-            LzmaCode = GetFuncPtr<lzma_code>("lzma_code");
-            LzmaEnd = GetFuncPtr<lzma_end>("lzma_end");
-            LzmaGetProgress = GetFuncPtr<lzma_get_progress>("lzma_get_progress");
+            LzmaCode = GetFuncPtr<lzma_code>(nameof(lzma_code));
+            LzmaEnd = GetFuncPtr<lzma_end>(nameof(lzma_end));
+            LzmaGetProgress = GetFuncPtr<lzma_get_progress>(nameof(lzma_get_progress));
             #endregion
 
             #region Container - Encoders and Decoders
-            LzmaEasyEncoder = GetFuncPtr<lzma_easy_encoder>("lzma_easy_encoder");
-            LzmaEasyBufferEncode = GetFuncPtr<lzma_easy_buffer_encode>("lzma_easy_buffer_encode");
-            LzmaStreamEncoder = GetFuncPtr<lzma_stream_encoder>("lzma_stream_encoder");
-            LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>("lzma_stream_encoder_mt");
-            LzmaStreamBufferEncode = GetFuncPtr<lzma_stream_buffer_encode>("lzma_stream_buffer_encode");
-            LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>("lzma_stream_decoder");
-            LzmaStreamBufferDecode = GetFuncPtr<lzma_stream_buffer_decode>("lzma_stream_buffer_decode");
+            LzmaEasyEncoderMemUsage = GetFuncPtr<lzma_easy_encoder_memusage>(nameof(lzma_easy_encoder_memusage));
+            LzmaEasyDecoderMemUsage = GetFuncPtr<lzma_easy_decoder_memusage>(nameof(lzma_easy_decoder_memusage));
+            LzmaEasyEncoder = GetFuncPtr<lzma_easy_encoder>(nameof(lzma_easy_encoder));
+            LzmaStreamEncoder = GetFuncPtr<lzma_stream_encoder>(nameof(lzma_stream_encoder));
+            LzmaStreamEncoderMtMemUsage = GetFuncPtr<lzma_stream_encoder_mt_memusage>(nameof(lzma_stream_encoder_mt_memusage));
+            LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>(nameof(lzma_stream_encoder_mt));
+            LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>(nameof(lzma_stream_decoder));
+            #endregion
+
+            #region Hardware - PhyMem & CPU Threads
+            LzmaPhysMem = GetFuncPtr<lzma_physmem>(nameof(lzma_physmem));
+            LzmaCpuThreads = GetFuncPtr<lzma_cputhreads>(nameof(lzma_cputhreads));
+            #endregion
+
+            #region Check - Crc32, Crc64
+            LzmaCrc32 = GetFuncPtr<lzma_crc32>(nameof(lzma_crc32));
+            LzmaCrc64 = GetFuncPtr<lzma_crc64>(nameof(lzma_crc64));
             #endregion
 
             #region Version - LzmaVersionNumber, LzmaVersionString
-            LzmaVersionNumber = GetFuncPtr<lzma_version_number>("lzma_version_number");
-            LzmaVersionString = GetFuncPtr<lzma_version_string>("lzma_version_string");
+            LzmaVersionNumber = GetFuncPtr<lzma_version_number>(nameof(lzma_version_number));
+            LzmaVersionString = GetFuncPtr<lzma_version_string>(nameof(lzma_version_string));
             #endregion
         }
 
@@ -150,12 +297,19 @@ namespace Joveler.Compression.XZ
 
             #region Container - Encoders and Decoders
             LzmaEasyEncoder = null;
-            LzmaEasyBufferEncode = null;
             LzmaStreamEncoder = null;
             LzmaStreamEncoderMt = null;
-            LzmaStreamBufferEncode = null;
             LzmaStreamDecoder = null;
-            LzmaStreamBufferDecode = null;
+            #endregion
+
+            #region Hardware - PhyMem & CPU Threads
+            LzmaPhysMem = null;
+            LzmaCpuThreads = null;
+            #endregion
+
+            #region Check - Crc32, Crc64
+            LzmaCrc32 = null;
+            LzmaCrc64 = null;
             #endregion
 
             #region Version - LzmaVersionNumber, LzmaVersionString
@@ -187,23 +341,19 @@ namespace Joveler.Compression.XZ
 
         #region Container - Encoders and Decoders
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_easy_encoder_memusage(uint preset);
+        internal static lzma_easy_encoder_memusage LzmaEasyEncoderMemUsage;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_easy_decoder_memusage(uint preset);
+        internal static lzma_easy_decoder_memusage LzmaEasyDecoderMemUsage;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_easy_encoder(
             LzmaStream strm,
             uint preset,
             LzmaCheck check);
         internal static lzma_easy_encoder LzmaEasyEncoder;
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_easy_buffer_encode(
-            uint preset,
-            LzmaCheck check,
-            IntPtr allocator,
-            IntPtr in_buf,
-            UIntPtr in_size, // size_t
-            IntPtr out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_easy_buffer_encode LzmaEasyBufferEncode;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder(
@@ -213,22 +363,14 @@ namespace Joveler.Compression.XZ
         internal static lzma_stream_encoder LzmaStreamEncoder;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_stream_encoder_mt_memusage(LzmaMt options);
+        internal static lzma_stream_encoder_mt_memusage LzmaStreamEncoderMtMemUsage;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder_mt(
             LzmaStream strm,
             LzmaMt options);
         internal static lzma_stream_encoder_mt LzmaStreamEncoderMt;
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_stream_buffer_encode(
-            [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters,
-            LzmaCheck check,
-            IntPtr allocator,
-            IntPtr in_buf,
-            UIntPtr in_size, // size_t
-            IntPtr out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_stream_buffer_encode LzmaStreamBufferEncode;
 
         /// <summary>
         /// Initialize .xz Stream decoder
@@ -253,75 +395,32 @@ namespace Joveler.Compression.XZ
             ulong memlimit,
             LzmaDecodingFlag flags);
         internal static lzma_stream_decoder LzmaStreamDecoder;
+        #endregion
 
-        /// <summary>
-        /// Single-call .xz Stream decoder
-        /// </summary>
-        /// <param name="memlimit">
-        /// Pointer to how much memory the decoder is allowed
-        /// to allocate. The value pointed by this pointer is
-        /// modified if and only if LZMA_MEMLIMIT_ERROR is
-        /// returned.
-        /// </param>
-        /// <param name="flags">
-        /// Bitwise-or of zero or more of the decoder flags:
-        /// LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
-        /// LZMA_CONCATENATED. Note that LZMA_TELL_ANY_CHECK
-        /// is not allowed and will return LZMA_PROG_ERROR.
-        /// </param>
-        /// <param name="allocator">
-        /// lzma_allocator for custom allocator functions.
-        /// Set to NULL to use malloc() and free().
-        /// </param>
-        /// <param name="in_buf">
-        /// Beginning of the input buffer
-        /// </param>
-        /// <param name="in_pos">
-        /// The next byte will be read from in[*in_pos].
-        /// *in_pos is updated only if decoding succeeds.
-        /// </param>
-        /// <param name="in_size">
-        /// Size of the input buffer; the first byte that
-        /// won't be read is in[in_size].
-        /// </param>
-        /// <param name="out_buf">
-        /// Beginning of the output buffer
-        /// </param>
-        /// <param name="out_pos">
-        /// The next byte will be written to out[*out_pos].
-        /// *out_pos is updated only if decoding succeeds.
-        /// </param>
-        /// <param name="out_size">
-        /// Size of the out buffer; the first byte into
-        /// which no data is written to is out[out_size].
-        /// </param>
-        /// <returns>
-        /// - LZMA_OK: Decoding was successful.
-        /// - LZMA_FORMAT_ERROR
-        /// - LZMA_OPTIONS_ERROR
-        /// - LZMA_DATA_ERROR
-        /// - LZMA_NO_CHECK: This can be returned only if using
-        ///   the LZMA_TELL_NO_CHECK flag.
-        /// - LZMA_UNSUPPORTED_CHECK: This can be returned only if using
-        ///   the LZMA_TELL_UNSUPPORTED_CHECK flag.
-        /// - LZMA_MEM_ERROR
-        /// - LZMA_MEMLIMIT_ERROR: Memory usage limit was reached.
-        ///   The minimum required memlimit value was stored to *memlimit.
-        /// - LZMA_BUF_ERROR: Output buffer was too small.
-        /// - LZMA_PROG_ERROR
-        /// </returns>
+        #region Hardware - PhyMem & CPU Threads
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate LzmaRet lzma_stream_buffer_decode(
-            uint memlimit,
-            LzmaDecodingFlag flags,
-            IntPtr allocator,
-            byte[] in_buf,
-            ref UIntPtr in_pos,
-            UIntPtr in_size, // size_t
-            byte[] out_buf,
-            ref UIntPtr out_pos, // size_t
-            UIntPtr out_size); // size_t
-        internal static lzma_stream_buffer_decode LzmaStreamBufferDecode;
+        internal delegate ulong lzma_physmem();
+        internal static lzma_physmem LzmaPhysMem;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate uint lzma_cputhreads();
+        internal static lzma_cputhreads LzmaCpuThreads;
+        #endregion
+
+        #region Check - Crc32, Crc64
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate uint lzma_crc32(
+            byte* buf,
+            UIntPtr size, // size_t
+            uint crc);
+        internal static lzma_crc32 LzmaCrc32;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate ulong lzma_crc64(
+            byte* buf,
+            UIntPtr size, // size_t
+            ulong crc);
+        internal static lzma_crc64 LzmaCrc64;
         #endregion
 
         #region Version - LzmaVersionNumber, LzmaVersionString
@@ -330,8 +429,7 @@ namespace Joveler.Compression.XZ
         internal static lzma_version_number LzmaVersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal delegate string lzma_version_string();
+        internal delegate IntPtr lzma_version_string();
         internal static lzma_version_string LzmaVersionString;
         #endregion
         #endregion

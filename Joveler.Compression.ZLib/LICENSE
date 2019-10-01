@@ -47,7 +47,9 @@ https://zlib.net
   jloup@gzip.org          madler@alumni.caltech.edu
 
 --------------------------------------------------------------------------------
-This library is based on zlibnet, work of @hardon:
+Joveler.Compression.ZLib's initial stream implementations are based on zlibnet, 
+work of @hardon:
+
 https://zlibnet.codeplex.com/
 https://www.codeplex.com/site/users/view/hardon
 

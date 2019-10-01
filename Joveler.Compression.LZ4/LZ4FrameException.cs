@@ -30,18 +30,19 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 
 namespace Joveler.Compression.LZ4
 {
+    [Serializable]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class LZ4FrameException : Exception
     {
-        public ulong Code;
+        public ulong ReturnCode { get; set; }
 
         private static string FrameGetErrorName(UIntPtr code)
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
+            NativeMethods.EnsureLoaded();
 
             IntPtr strPtr = NativeMethods.GetErrorName(code);
             return Marshal.PtrToStringAnsi(strPtr);
@@ -49,19 +50,30 @@ namespace Joveler.Compression.LZ4
 
         public LZ4FrameException(UIntPtr code) : base(FrameGetErrorName(code))
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
-
-            Code = code.ToUInt64();
+            ReturnCode = code.ToUInt64();
         }
 
         public static void CheckReturnValue(UIntPtr code)
         {
-            if (!NativeMethods.Loaded)
-                throw new InvalidOperationException(NativeMethods.MsgAlreadyInit);
+            NativeMethods.EnsureLoaded();
 
             if (NativeMethods.FrameIsError(code) != 0)
                 throw new LZ4FrameException(code);
         }
+
+        #region Serializable
+        protected LZ4FrameException(SerializationInfo info, StreamingContext ctx)
+        {
+            ReturnCode = info.GetUInt64(nameof(ReturnCode));
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException(nameof(info));
+            info.AddValue(nameof(ReturnCode), ReturnCode);
+            base.GetObjectData(info, context);
+        }
+        #endregion
     }
 }
