@@ -20,13 +20,14 @@ Supports Windows and Linux.</Description>
     <LangVersion>7.3</LangVersion>
     <PackageId />
     <Company>Joveler</Company>
-    <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
+    <PackageIcon>images\Logo.png</PackageIcon>
     <PackageLicenseExpression>Zlib</PackageLicenseExpression>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.ZLib.targets" />
   <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.5.3" />
+    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\"/>
   </ItemGroup>
 </Project>
   

@@ -13,7 +13,7 @@ Supports Windows and Linux.</Description>
     <PackageLicenseUrl></PackageLicenseUrl>
     <Copyright>Copyright (c) 2018-2019 Hajin Jang</Copyright>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/ied206/Joveler.Compression/master/Image/Logo.png</PackageIconUrl>
+    <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
     <PackageReleaseNotes>- Redesigned public API.
@@ -26,5 +26,6 @@ Supports Windows and Linux.</Description>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
   <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.5.3" />
+    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\"/>
   </ItemGroup>
 </Project>
