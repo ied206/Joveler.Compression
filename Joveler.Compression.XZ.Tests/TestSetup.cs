@@ -52,6 +52,7 @@ namespace Joveler.Compression.XZ.Tests
 
             const string dllName = "liblzma.dll";
             const string soName = "liblzma.so";
+            const string dylibName = "liblzma.dylib";
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -78,6 +79,15 @@ namespace Joveler.Compression.XZ.Tests
                         break;
                     case Architecture.Arm64:
                         libPath = Path.Combine(arm64, soName);
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine(x64, dylibName);
                         break;
                 }
             }
@@ -126,6 +136,15 @@ namespace Joveler.Compression.XZ.Tests
                         break;
                     case Architecture.Arm64:
                         binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.arm64.elf");
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.mach");
                         break;
                 }
             }

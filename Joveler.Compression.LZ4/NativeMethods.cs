@@ -97,24 +97,24 @@ namespace Joveler.Compression.LZ4
         }
         #endregion
 
-        #region Linux libdl API
+        #region Posix libdl API
 #pragma warning disable IDE1006 // 명명 스타일
 #pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
-        internal static class Linux
+        internal static class Posix
         {
             internal const int RTLD_NOW = 0x0002;
             internal const int RTLD_GLOBAL = 0x0100;
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlopen(string fileName, int flags);
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern int dlclose(IntPtr handle);
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern string dlerror();
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
 #pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
@@ -165,19 +165,19 @@ namespace Joveler.Compression.LZ4
                     }
                 }
 #if !NET451
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                else // if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     if (libPath == null)
                         libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4
                     if (!File.Exists(libPath))
                         throw new ArgumentException("Specified .so file does not exist");
 
-                    hModule = Linux.dlopen(libPath, Linux.RTLD_NOW | Linux.RTLD_GLOBAL);
+                    hModule = Posix.dlopen(libPath, Posix.RTLD_NOW | Posix.RTLD_GLOBAL);
                     if (hModule == IntPtr.Zero)
-                        throw new ArgumentException($"Unable to load [{libPath}], {Linux.dlerror()}");
+                        throw new ArgumentException($"Unable to load [{libPath}], {Posix.dlerror()}");
 
                     // Check if dll is valid libz.so
-                    if (Linux.dlsym(hModule, nameof(LZ4F_getVersion)) == IntPtr.Zero)
+                    if (Posix.dlsym(hModule, nameof(LZ4F_getVersion)) == IntPtr.Zero)
                     {
                         GlobalCleanup();
                         throw new ArgumentException($"[{libPath}] is not a valid LZ4 library");
@@ -218,7 +218,7 @@ namespace Joveler.Compression.LZ4
 
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
-                    int ret = Linux.dlclose(hModule);
+                    int ret = Posix.dlclose(hModule);
                     Debug.Assert(ret == 0);
                 }
 #endif
@@ -240,15 +240,11 @@ namespace Joveler.Compression.LZ4
                     throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
 #if !NET451
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            else // if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                funcPtr = Linux.dlsym(hModule, funcSymbol);
+                funcPtr = Posix.dlsym(hModule, funcSymbol);
                 if (funcPtr == IntPtr.Zero)
-                    throw new InvalidOperationException($"Cannot import [{funcSymbol}], {Linux.dlerror()}");
-            }
-            else
-            {
-                throw new PlatformNotSupportedException();
+                    throw new InvalidOperationException($"Cannot import [{funcSymbol}], {Posix.dlerror()}");
             }
 #endif
 

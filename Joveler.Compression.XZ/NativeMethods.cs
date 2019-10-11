@@ -98,20 +98,20 @@ namespace Joveler.Compression.XZ
         #region Linux libdl API
 #pragma warning disable IDE1006 // 명명 스타일
 #pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
-        internal static class Linux
+        internal static class Posix
         {
             internal const int RTLD_NOW = 0x0002;
             internal const int RTLD_GLOBAL = 0x0100;
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlopen(string fileName, int flags);
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern int dlclose(IntPtr handle);
 
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern string dlerror();
-            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
             internal static extern IntPtr dlsym(IntPtr handle, string symbol);
         }
 #pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
@@ -162,19 +162,19 @@ namespace Joveler.Compression.XZ
                     }
                 }
 #if !NET451
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                else
                 {
                     if (libPath == null)
                         libPath = "/lib/x86_64-linux-gnu/liblzma.so.5"; // Try to call system-installed xz-utils
                     if (!File.Exists(libPath))
                         throw new ArgumentException("Specified .so file does not exist");
 
-                    hModule = Linux.dlopen(libPath, Linux.RTLD_NOW | Linux.RTLD_GLOBAL);
+                    hModule = Posix.dlopen(libPath, Posix.RTLD_NOW | Posix.RTLD_GLOBAL);
                     if (hModule == IntPtr.Zero)
-                        throw new ArgumentException($"Unable to load [{libPath}], {Linux.dlerror()}");
+                        throw new ArgumentException($"Unable to load [{libPath}], {Posix.dlerror()}");
 
                     // Check if dll is valid (liblzma.dll)
-                    if (Linux.dlsym(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
+                    if (Posix.dlsym(hModule, nameof(lzma_version_number)) == IntPtr.Zero)
                     {
                         GlobalCleanup();
                         throw new ArgumentException($"[{libPath}] is not a valid lzma library");
@@ -211,9 +211,9 @@ namespace Joveler.Compression.XZ
                     Debug.Assert(ret != 0);
                 }
 #if !NET451
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                else
                 {
-                    int ret = Linux.dlclose(hModule);
+                    int ret = Posix.dlclose(hModule);
                     Debug.Assert(ret == 0);
                 }
 #endif
@@ -236,15 +236,11 @@ namespace Joveler.Compression.XZ
                     throw new InvalidOperationException($"Cannot import [{funcSymbol}]", new Win32Exception());
             }
 #if !NET451
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                funcPtr = Linux.dlsym(hModule, funcSymbol);
-                if (funcPtr == IntPtr.Zero)
-                    throw new InvalidOperationException($"Cannot import [{funcSymbol}], {Linux.dlerror()}");
-            }
             else
             {
-                throw new PlatformNotSupportedException();
+                funcPtr = Posix.dlsym(hModule, funcSymbol);
+                if (funcPtr == IntPtr.Zero)
+                    throw new InvalidOperationException($"Cannot import [{funcSymbol}], {Posix.dlerror()}");
             }
 #endif
 

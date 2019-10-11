@@ -56,6 +56,7 @@ namespace Joveler.Compression.LZ4.Tests
 
             const string dllName = "liblz4.dll";
             const string soName = "liblz4.so";
+            const string dylibName = "liblz4.dylib";
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -85,6 +86,16 @@ namespace Joveler.Compression.LZ4.Tests
                         break;
                 }
             }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        libPath = Path.Combine(x64, dylibName);
+                        break;
+                }
+            }
+            
 
             if (libPath == null)
                 throw new PlatformNotSupportedException();
@@ -146,6 +157,15 @@ namespace Joveler.Compression.LZ4.Tests
                         break;
                     case Architecture.Arm64:
                         binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.arm64.elf");
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.mach");
                         break;
                 }
             }
