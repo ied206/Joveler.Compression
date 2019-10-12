@@ -274,3 +274,6 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+
+# maCOS DS_Store guard
+.DS_Store
