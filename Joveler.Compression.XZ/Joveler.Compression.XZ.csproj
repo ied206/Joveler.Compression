@@ -9,23 +9,22 @@
     <Description>C# pinvoke library for liblzma (XZ Utils).
 The library provides the fast native implementation of XZStream.
 It also supports fast calculation of CRC32 and CRC64 checksum.
-Supports Windows and Linux.</Description>
+Supports Windows, Linux and macOS.</Description>
     <PackageLicenseUrl></PackageLicenseUrl>
     <Copyright>Copyright (c) 2018-2019 Hajin Jang</Copyright>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
-    <PackageIcon>images\Logo.png</PackageIcon>
+    <PackageIcon>Image\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
-    <PackageReleaseNotes>- Redesigned public API.
-- Expose CRC32 and CRC64 API of XZ-Utils.
-- Support advanced configuration of XZStream.</PackageReleaseNotes>
-    <Version>3.0.0</Version>
+    <PackageReleaseNotes>- Add macOS support</PackageReleaseNotes>
+    <Version>3.1.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
   <ItemGroup>
+    <PackageReference Include="Joveler.DynLoader" Version="1.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.3" />
-    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\"/>
+    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\" />
   </ItemGroup>
 </Project>

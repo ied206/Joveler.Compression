@@ -165,7 +165,7 @@ namespace Joveler.Compression.LZ4
                     }
                 }
 #if !NET451
-                else // if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                else
                 {
                     if (libPath == null)
                         libPath = "/usr/lib/x86_64-linux-gnu/liblz4.so.1"; // Try to call system-installed lz4

@@ -4,7 +4,7 @@
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Title>Joveler.Compression.ZLib</Title>
-    <Version>3.0.0</Version>
+    <Version>3.1.0</Version>
     <Copyright>Copyright (c) 2017-2019 Hajin Jang</Copyright>
     <Description>C# pinvoke library for zlib.
 The library provides the fast native implementation of DeflateStream, ZLibStream, GZipStream.
@@ -15,8 +15,7 @@ Supports Windows and Linux.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
-    <releaseNotes>- Redesigned public API.
-- Support advanced configuration of DeflateStream and its family.</releaseNotes>
+    <releaseNotes>- Add macOS support</releaseNotes>
     <LangVersion>7.3</LangVersion>
     <PackageId />
     <Company>Joveler</Company>
@@ -26,8 +25,9 @@ Supports Windows and Linux.</Description>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.ZLib.targets" />
   <ItemGroup>
+    <PackageReference Include="Joveler.DynLoader" Version="1.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.3" />
-    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\"/>
+    <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\" />
   </ItemGroup>
 </Project>
   

@@ -21,6 +21,7 @@ Supports Windows and Linux.</Description>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.LZ4.targets" />
   <ItemGroup>
+    <PackageReference Include="Joveler.DynLoader" Version="1.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.3" />
   </ItemGroup>
 </Project>

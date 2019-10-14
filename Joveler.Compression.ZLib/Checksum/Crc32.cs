@@ -28,7 +28,7 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region Crc32Checksum
-    public sealed class Crc32Checksum : BaseChecksum<uint>
+    public sealed class Crc32Checksum : ChecksumBase<uint>
     {
         #region Const
         public const uint Crc32Init = 0;

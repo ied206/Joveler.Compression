@@ -3,7 +3,7 @@
   <metadata>
     <id>Joveler.Compression.ZLib</id>
     <title>Joveler.Compression.ZLib</title>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
     <owners>ied206</owners>
     <authors>Jean-loup Gailly, Mark Adler, Hajin Jang</authors>
     <projectUrl>https://github.com/ied206/Joveler.Compression</projectUrl>
@@ -16,9 +16,8 @@
     <description>C# pinvoke library for zlib.
 The library provides the fast native implementation of DeflateStream, ZLibStream, GZipStream.
 It also supports fast calculation of CRC32 and Adler32 checksum.
-Supports Windows and Linux.</description>
-    <releaseNotes>- Redesigned public API.
-- Support advanced configuration of DeflateStream and its family.</releaseNotes>
+Supports Windows, Linux and macOS.</description>
+    <releaseNotes>- Add macOS support</releaseNotes>
     <dependencies>
       <group targetFramework="net451">
         <dependency id="System.Memory" version="4.5.3" />

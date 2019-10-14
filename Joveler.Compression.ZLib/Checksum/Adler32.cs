@@ -28,7 +28,7 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region Adler32Checksum
-    public sealed class Adler32Checksum : BaseChecksum<uint>
+    public sealed class Adler32Checksum : ChecksumBase<uint>
     {
         #region Const
         public const uint Adler32Init = 1;

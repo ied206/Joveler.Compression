@@ -96,7 +96,6 @@ namespace Joveler.Compression.LZ4.Tests
                 }
             }
             
-
             if (libPath == null)
                 throw new PlatformNotSupportedException();
 
