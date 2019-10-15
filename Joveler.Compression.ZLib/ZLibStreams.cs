@@ -136,7 +136,7 @@ namespace Joveler.Compression.ZLib
 
         protected DeflateStream(Stream baseStream, ZLibCompressOptions compOpts, Format format)
         {
-            NativeMethods.EnsureLoaded();
+            ZLibInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
@@ -150,23 +150,23 @@ namespace Joveler.Compression.ZLib
             CheckMemLevel(compOpts.MemLevel);
 
             // Prepare and init ZStream
-            switch (NativeMethods.LongBitType)
+            switch (ZLibInit.Lib.LongBitType)
             {
-                case NativeMethods.LongBits.Long32:
+                case ZLibLoader.LongBits.Long32:
                     {
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
 
-                        ZLibRet ret = NativeMethods.L32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
+                        ZLibRet ret = ZLibInit.Lib.L32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
-                case NativeMethods.LongBits.Long64:
+                case ZLibLoader.LongBits.Long64:
                     {
                         _zs64 = new ZStreamL64();
                         _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
 
-                        ZLibRet ret = NativeMethods.L64.DeflateInit(_zs64, compOpts.Level, formatWindowBits, compOpts.MemLevel);
+                        ZLibRet ret = ZLibInit.Lib.L64.DeflateInit(_zs64, compOpts.Level, formatWindowBits, compOpts.MemLevel);
                         ZLibException.CheckReturnValue(ret, _zs64);
                         break;
                     }
@@ -183,7 +183,7 @@ namespace Joveler.Compression.ZLib
 
         protected DeflateStream(Stream baseStream, ZLibDecompressOptions decompOpts, Format format)
         {
-            NativeMethods.EnsureLoaded();
+            ZLibInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
@@ -196,23 +196,23 @@ namespace Joveler.Compression.ZLib
             int windowBits = CheckFormatWindowBits(decompOpts.WindowBits, _mode, format);
 
             // Prepare and init ZStream
-            switch (NativeMethods.LongBitType)
+            switch (ZLibInit.Lib.LongBitType)
             {
-                case NativeMethods.LongBits.Long32:
+                case ZLibLoader.LongBits.Long32:
                     {
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
 
-                        ZLibRet ret = NativeMethods.L32.InflateInit(_zs32, windowBits);
+                        ZLibRet ret = ZLibInit.Lib.L32.InflateInit(_zs32, windowBits);
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
-                case NativeMethods.LongBits.Long64:
+                case ZLibLoader.LongBits.Long64:
                     {
                         _zs64 = new ZStreamL64();
                         _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
 
-                        ZLibRet ret = NativeMethods.L64.InflateInit(_zs64, windowBits);
+                        ZLibRet ret = ZLibInit.Lib.L64.InflateInit(_zs64, windowBits);
                         ZLibException.CheckReturnValue(ret, _zs64);
                         break;
                     }
@@ -241,29 +241,29 @@ namespace Joveler.Compression.ZLib
                     BaseStream = null;
                 }
 
-                switch (NativeMethods.LongBitType)
+                switch (ZLibInit.Lib.LongBitType)
                 {
-                    case NativeMethods.LongBits.Long32:
+                    case ZLibLoader.LongBits.Long32:
                         {
                             if (_zs32 != null)
                             {
                                 if (_mode == Mode.Compress)
-                                    NativeMethods.L32.DeflateEnd(_zs32);
+                                    ZLibInit.Lib.L32.DeflateEnd(_zs32);
                                 else
-                                    NativeMethods.L32.InflateEnd(_zs32);
+                                    ZLibInit.Lib.L32.InflateEnd(_zs32);
                                 _zsPin.Free();
                                 _zs32 = null;
                             }
                             break;
                         }
-                    case NativeMethods.LongBits.Long64:
+                    case ZLibLoader.LongBits.Long64:
                         {
                             if (_zs64 != null)
                             {
                                 if (_mode == Mode.Compress)
-                                    NativeMethods.L64.DeflateEnd(_zs64);
+                                    ZLibInit.Lib.L64.DeflateEnd(_zs64);
                                 else
-                                    NativeMethods.L64.InflateEnd(_zs64);
+                                    ZLibInit.Lib.L64.InflateEnd(_zs64);
                                 _zsPin.Free();
                                 _zs64 = null;
                             }
@@ -303,9 +303,9 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = _workBuf) // [In] Compressed
             fixed (byte* writePtr = span) // [Out] Will-be-decompressed
             {
-                switch (NativeMethods.LongBitType)
+                switch (ZLibInit.Lib.LongBitType)
                 {
-                    case NativeMethods.LongBits.Long32:
+                    case ZLibLoader.LongBits.Long32:
                         {
                             _zs32.NextIn = readPtr + _workBufPos;
                             _zs32.NextOut = writePtr;
@@ -327,7 +327,7 @@ namespace Joveler.Compression.ZLib
                                 uint outCount = _zs32.AvailOut;
 
                                 // flush method for inflate has no effect
-                                ZLibRet ret = NativeMethods.L32.Inflate(_zs32, ZLibFlush.NoFlush);
+                                ZLibRet ret = ZLibInit.Lib.L32.Inflate(_zs32, ZLibFlush.NoFlush);
 
                                 _workBufPos += (int)(inCount - _zs32.AvailIn);
                                 readSize += (int)(outCount - _zs32.AvailOut);
@@ -342,7 +342,7 @@ namespace Joveler.Compression.ZLib
                             }
                         }
                         break;
-                    case NativeMethods.LongBits.Long64:
+                    case ZLibLoader.LongBits.Long64:
                         {
                             _zs64.NextIn = readPtr + _workBufPos;
                             _zs64.NextOut = writePtr;
@@ -364,7 +364,7 @@ namespace Joveler.Compression.ZLib
                                 uint outCount = _zs64.AvailOut;
 
                                 // flush method for inflate has no effect
-                                ZLibRet ret = NativeMethods.L64.Inflate(_zs64, ZLibFlush.NoFlush);
+                                ZLibRet ret = ZLibInit.Lib.L64.Inflate(_zs64, ZLibFlush.NoFlush);
 
                                 _workBufPos += (int)(inCount - _zs64.AvailIn);
                                 readSize += (int)(outCount - _zs64.AvailOut);
@@ -410,9 +410,9 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = span) // [In] Compressed
             fixed (byte* writePtr = _workBuf) // [Out] Will-be-decompressed
             {
-                switch (NativeMethods.LongBitType)
+                switch (ZLibInit.Lib.LongBitType)
                 {
-                    case NativeMethods.LongBits.Long32:
+                    case ZLibLoader.LongBits.Long32:
                         {
                             _zs32.NextIn = readPtr;
                             _zs32.AvailIn = (uint)span.Length;
@@ -422,7 +422,7 @@ namespace Joveler.Compression.ZLib
                             while (_zs32.AvailIn != 0)
                             {
                                 uint outCount = _zs32.AvailOut;
-                                ZLibRet ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.NoFlush);
+                                ZLibRet ret = ZLibInit.Lib.L32.Deflate(_zs32, ZLibFlush.NoFlush);
                                 _workBufPos += (int)(outCount - _zs32.AvailOut);
 
                                 if (_zs32.AvailOut == 0)
@@ -439,7 +439,7 @@ namespace Joveler.Compression.ZLib
                             }
                             break;
                         }
-                    case NativeMethods.LongBits.Long64:
+                    case ZLibLoader.LongBits.Long64:
                         {
                             _zs64.NextIn = readPtr;
                             _zs64.AvailIn = (uint)span.Length;
@@ -449,7 +449,7 @@ namespace Joveler.Compression.ZLib
                             while (_zs64.AvailIn != 0)
                             {
                                 uint outCount = _zs64.AvailOut;
-                                ZLibRet ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.NoFlush);
+                                ZLibRet ret = ZLibInit.Lib.L64.Deflate(_zs64, ZLibFlush.NoFlush);
                                 _workBufPos += (int)(outCount - _zs64.AvailOut);
 
                                 if (_zs64.AvailOut == 0)
@@ -481,9 +481,9 @@ namespace Joveler.Compression.ZLib
 
             fixed (byte* writePtr = _workBuf)
             {
-                switch (NativeMethods.LongBitType)
+                switch (ZLibInit.Lib.LongBitType)
                 {
-                    case NativeMethods.LongBits.Long32:
+                    case ZLibLoader.LongBits.Long32:
                         {
                             _zs32.NextIn = (byte*)0;
                             _zs32.AvailIn = 0;
@@ -496,7 +496,7 @@ namespace Joveler.Compression.ZLib
                                 if (_zs32.AvailOut != 0)
                                 {
                                     uint outCount = _zs32.AvailOut;
-                                    ret = NativeMethods.L32.Deflate(_zs32, ZLibFlush.Finish);
+                                    ret = ZLibInit.Lib.L32.Deflate(_zs32, ZLibFlush.Finish);
 
                                     _workBufPos += (int)(outCount - _zs32.AvailOut);
 
@@ -514,7 +514,7 @@ namespace Joveler.Compression.ZLib
 
                             break;
                         }
-                    case NativeMethods.LongBits.Long64:
+                    case ZLibLoader.LongBits.Long64:
                         {
                             _zs64.NextIn = (byte*)0;
                             _zs64.AvailIn = 0;
@@ -527,7 +527,7 @@ namespace Joveler.Compression.ZLib
                                 if (_zs64.AvailOut != 0)
                                 {
                                     uint outCount = _zs64.AvailOut;
-                                    ret = NativeMethods.L64.Deflate(_zs64, ZLibFlush.Finish);
+                                    ret = ZLibInit.Lib.L64.Deflate(_zs64, ZLibFlush.Finish);
 
                                     _workBufPos += (int)(outCount - _zs64.AvailOut);
 

@@ -30,16 +30,15 @@ namespace Joveler.Compression.ZLib
     #region ZLibInit
     public static class ZLibInit
     {
-        #region GlobalInit, GlobalCleanup
-        public static void GlobalInit(string libPath)
-        {
-            NativeMethods.GlobalInit(libPath);
-        }
+        #region LoadManager
+        internal static ZLibLoadManager Manager = new ZLibLoadManager();
+        internal static ZLibLoader Lib => Manager.Lib;
+        #endregion
 
-        public static void GlobalCleanup()
-        {
-            NativeMethods.GlobalCleanup();
-        }
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit() => Manager.GlobalInit();
+        public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
+        public static void GlobalCleanup() => Manager.GlobalCleanup();
         #endregion
 
         #region Version - (Static)
@@ -51,9 +50,9 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public static string VersionString()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            IntPtr ptr = NativeMethods.ZLibVersion();
+            IntPtr ptr = Lib.ZLibVersion();
             return Marshal.PtrToStringAnsi(ptr);
         }
         #endregion

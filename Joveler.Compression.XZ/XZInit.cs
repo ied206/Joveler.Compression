@@ -34,7 +34,7 @@ namespace Joveler.Compression.XZ
 {
     public static class XZInit
     {
-        #region Lib, LoadLock
+        #region LoadManager
         internal static XZLoadManager Manager = new XZLoadManager();
         internal static XZLoader Lib => Manager.Lib;
         #endregion

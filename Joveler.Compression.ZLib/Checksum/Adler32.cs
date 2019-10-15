@@ -37,12 +37,12 @@ namespace Joveler.Compression.ZLib.Checksum
         #region Constructors
         public Adler32Checksum() : base(Adler32Init)
         {
-            NativeMethods.EnsureLoaded();
+            ZLibInit.Manager.EnsureLoaded();
         }
 
         public Adler32Checksum(int bufferSize) : base(Adler32Init, bufferSize)
         {
-            NativeMethods.EnsureLoaded();
+            ZLibInit.Manager.EnsureLoaded();
         }
         #endregion
 
@@ -64,7 +64,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                return NativeMethods.Adler32(checksum, bufPtr, (uint)count);
+                return ZLibInit.Lib.Adler32(checksum, bufPtr, (uint)count);
             }
         }
 
@@ -73,7 +73,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                return NativeMethods.Adler32(checksum, bufPtr, (uint)span.Length);
+                return ZLibInit.Lib.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
         #endregion
@@ -92,7 +92,7 @@ namespace Joveler.Compression.ZLib.Checksum
 
         public override void Initialize()
         {
-            NativeMethods.EnsureLoaded();
+            ZLibInit.Manager.EnsureLoaded();
 
             _adler32 = new Adler32Checksum();
         }
