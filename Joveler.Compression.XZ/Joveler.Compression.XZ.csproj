@@ -23,7 +23,7 @@ Supports Windows, Linux and macOS.</Description>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\Joveler.Compression.XZ.targets" />
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="1.0.0" />
+    <PackageReference Include="Joveler.DynLoader" Version="1.1.0" />
     <PackageReference Include="System.Memory" Version="4.5.3" />
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\" />
   </ItemGroup>

@@ -188,7 +188,7 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts)
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
@@ -220,7 +220,7 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
@@ -252,7 +252,7 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts)
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;

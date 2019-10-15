@@ -40,12 +40,12 @@ namespace Joveler.Compression.XZ.Checksum
         #region Constructors
         public Crc32Checksum() : base(Crc32Init)
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
         }
 
         public Crc32Checksum(int bufferSize) : base(Crc32Init, bufferSize)
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
         }
         #endregion
 
@@ -95,7 +95,7 @@ namespace Joveler.Compression.XZ.Checksum
 
         public override void Initialize()
         {
-            XZInit.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
 
             _crc32 = new Crc32Checksum();
         }

@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.XZ
 {
-    internal class XZNative : DynLoaderBase
+    internal class XZLoader : DynLoaderBase
     {
         #region Constructor
-        public XZNative() : base() { }
-        public XZNative(string libPath) : base(libPath) { }
+        public XZLoader() : base() { }
+        public XZLoader(string libPath) : base(libPath) { }
         #endregion
 
         #region (override) DefaultLibFileName

@@ -34,82 +34,21 @@ namespace Joveler.Compression.XZ
 {
     public static class XZInit
     {
-        #region Const
-        internal const string MsgErrorInitFirst = "Please call XZInit.GlobalInit() first!";
-        internal const string MsgErrorAlreadyInit = "Joveler.Compression.XZ is already initialized.";
-        #endregion
-
         #region Lib, LoadLock
-        internal static XZNative Lib;
-        internal static readonly object LoadLock = new object();
-        public static bool Loaded
-        {
-            get
-            {
-                lock (LoadLock)
-                {
-                    return Lib != null;
-                }
-            }
-        }
-
-        public static void EnsureLoaded()
-        {
-            lock (LoadLock)
-            {
-                if (Lib == null)
-                    throw new InvalidOperationException(MsgErrorInitFirst);
-            }
-        }
-
-        public static void EnsureNotLoaded()
-        {
-            lock (LoadLock)
-            {
-                if (Lib != null)
-                    throw new InvalidOperationException(MsgErrorAlreadyInit);
-            }
-        }
+        internal static XZLoadManager Manager = new XZLoadManager();
+        internal static XZLoader Lib => Manager.Lib;
         #endregion
 
         #region GlobalInit, GlobalCleanup
-        public static void GlobalInit(string libPath)
-        {
-            lock (LoadLock)
-            {
-                if (Lib == null)
-                {
-                    Lib = new XZNative(libPath);
-                }
-                else
-                {
-                    throw new InvalidOperationException(MsgErrorInitFirst);
-                }
-
-            }
-        }
-
-        public static void GlobalCleanup()
-        {
-            lock (LoadLock)
-            {
-                if (Lib != null)
-                {
-                    Lib.Dispose();
-                    Lib = null;
-                }
-                else
-                {
-                    throw new InvalidOperationException(MsgErrorAlreadyInit);
-                }
-            }
-        }
+        public static void GlobalInit() => Manager.GlobalInit();
+        public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
+        public static void GlobalCleanup() => Manager.GlobalCleanup();
         #endregion
 
         #region Version - (Static)
         public static Version Version()
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             /*
              * Note from "lzma\version.h"
@@ -136,7 +75,7 @@ namespace Joveler.Compression.XZ
 
         public static string VersionString()
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             IntPtr ptr = Lib.LzmaVersionString();
             return Marshal.PtrToStringAnsi(ptr);
@@ -146,14 +85,14 @@ namespace Joveler.Compression.XZ
         #region Hardware - PhysMem & CPU Threads
         public static ulong PhysMem()
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             return Lib.LzmaPhysMem();
         }
 
         public static uint CpuThreads()
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             return Lib.LzmaCpuThreads();
         }
@@ -169,7 +108,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
             return Lib.LzmaEasyEncoderMemUsage(preset);
@@ -184,7 +123,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMemUsage(XZCompressOptions compOpts)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             return Lib.LzmaEasyEncoderMemUsage(compOpts.Preset);
         }
@@ -198,7 +137,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMultiMemUsage(LzmaCompLevel level, bool extremeFlag, int threads)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
             LzmaMt mtOpts = LzmaMt.Create(preset, threads);
@@ -214,7 +153,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMultiMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
             return Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
@@ -229,7 +168,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong DecoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
             return Lib.LzmaEasyDecoderMemUsage(preset);
@@ -244,7 +183,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong DecoderMemUsage(XZCompressOptions compOpts)
         {
-            EnsureLoaded();
+            Manager.EnsureLoaded();
 
             return Lib.LzmaEasyDecoderMemUsage(compOpts.Preset);
         }
