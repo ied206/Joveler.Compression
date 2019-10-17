@@ -34,22 +34,21 @@ namespace Joveler.Compression.XZ
 {
     public static class XZInit
     {
-        #region GlobalInit, GlobalCleanup
-        public static void GlobalInit(string libPath)
-        {
-            NativeMethods.GlobalInit(libPath);
-        }
+        #region LoadManager
+        internal static XZLoadManager Manager = new XZLoadManager();
+        internal static XZLoader Lib => Manager.Lib;
+        #endregion
 
-        public static void GlobalCleanup()
-        {
-            NativeMethods.GlobalCleanup();
-        }
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit() => Manager.GlobalInit();
+        public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
+        public static void GlobalCleanup() => Manager.GlobalCleanup();
         #endregion
 
         #region Version - (Static)
         public static Version Version()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             /*
              * Note from "lzma\version.h"
@@ -65,7 +64,7 @@ namespace Joveler.Compression.XZ
              * or 5.1.0 stable.
              */
 
-            uint verInt = NativeMethods.LzmaVersionNumber();
+            uint verInt = Lib.LzmaVersionNumber();
             int major = (int)(verInt / 10000000u);
             int minor = (int)(verInt % 10000000u / 10000u);
             int revision = (int)(verInt % 10000u / 10u);
@@ -76,9 +75,9 @@ namespace Joveler.Compression.XZ
 
         public static string VersionString()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            IntPtr ptr = NativeMethods.LzmaVersionString();
+            IntPtr ptr = Lib.LzmaVersionString();
             return Marshal.PtrToStringAnsi(ptr);
         }
         #endregion
@@ -86,16 +85,16 @@ namespace Joveler.Compression.XZ
         #region Hardware - PhysMem & CPU Threads
         public static ulong PhysMem()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            return NativeMethods.LzmaPhysMem();
+            return Lib.LzmaPhysMem();
         }
 
         public static uint CpuThreads()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            return NativeMethods.LzmaCpuThreads();
+            return Lib.LzmaCpuThreads();
         }
         #endregion
 
@@ -109,10 +108,10 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return NativeMethods.LzmaEasyEncoderMemUsage(preset);
+            return Lib.LzmaEasyEncoderMemUsage(preset);
         }
 
         /// <summary>
@@ -124,9 +123,9 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMemUsage(XZCompressOptions compOpts)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            return NativeMethods.LzmaEasyEncoderMemUsage(compOpts.Preset);
+            return Lib.LzmaEasyEncoderMemUsage(compOpts.Preset);
         }
 
         /// <summary>
@@ -138,11 +137,11 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMultiMemUsage(LzmaCompLevel level, bool extremeFlag, int threads)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
             LzmaMt mtOpts = LzmaMt.Create(preset, threads);
-            return NativeMethods.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
         }
 
         /// <summary>
@@ -154,10 +153,10 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong EncoderMultiMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
-            return NativeMethods.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
         }
 
         /// <summary>
@@ -169,10 +168,10 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong DecoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return NativeMethods.LzmaEasyDecoderMemUsage(preset);
+            return Lib.LzmaEasyDecoderMemUsage(preset);
         }
 
         /// <summary>
@@ -184,9 +183,9 @@ namespace Joveler.Compression.XZ
         /// </returns>
         public static ulong DecoderMemUsage(XZCompressOptions compOpts)
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            return NativeMethods.LzmaEasyDecoderMemUsage(compOpts.Preset);
+            return Lib.LzmaEasyDecoderMemUsage(compOpts.Preset);
         }
         #endregion
     }

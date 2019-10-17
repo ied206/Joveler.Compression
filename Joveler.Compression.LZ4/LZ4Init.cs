@@ -36,22 +36,21 @@ namespace Joveler.Compression.LZ4
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class LZ4Init
     {
-        #region GlobalInit, GlobalCleanup
-        public static void GlobalInit(string libPath)
-        {
-            NativeMethods.GlobalInit(libPath);
-        }
+        #region LoadManager
+        internal static LZ4LoadManager Manager = new LZ4LoadManager();
+        internal static LZ4Loader Lib => Manager.Lib;
+        #endregion
 
-        public static void GlobalCleanup()
-        {
-            NativeMethods.GlobalCleanup();
-        }
+        #region GlobalInit, GlobalCleanup
+        public static void GlobalInit() => Manager.GlobalInit();
+        public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
+        public static void GlobalCleanup() => Manager.GlobalCleanup();
         #endregion
 
         #region Version - (Static)
         public static Version Version()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
             /*
                 Definition from "lz4.h"
@@ -65,7 +64,7 @@ namespace Joveler.Compression.LZ4
 #define LZ4_LIB_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
             */
 
-            int verInt = (int)NativeMethods.VersionNumber();
+            int verInt = (int)Lib.VersionNumber();
             int major = verInt / 10000;
             int minor = verInt % 10000 / 100;
             int revision = verInt % 100;
@@ -75,9 +74,9 @@ namespace Joveler.Compression.LZ4
 
         public static string VersionString()
         {
-            NativeMethods.EnsureLoaded();
+            Manager.EnsureLoaded();
 
-            IntPtr ptr = NativeMethods.VersionString();
+            IntPtr ptr = Lib.VersionString();
             return Marshal.PtrToStringAnsi(ptr);
         }
         #endregion

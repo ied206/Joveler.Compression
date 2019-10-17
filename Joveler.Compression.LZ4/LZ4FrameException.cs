@@ -42,9 +42,9 @@ namespace Joveler.Compression.LZ4
 
         private static string FrameGetErrorName(UIntPtr code)
         {
-            NativeMethods.EnsureLoaded();
+            LZ4Init.Manager.EnsureLoaded();
 
-            IntPtr strPtr = NativeMethods.GetErrorName(code);
+            IntPtr strPtr = LZ4Init.Lib.GetErrorName(code);
             return Marshal.PtrToStringAnsi(strPtr);
         }
 
@@ -55,9 +55,9 @@ namespace Joveler.Compression.LZ4
 
         public static void CheckReturnValue(UIntPtr code)
         {
-            NativeMethods.EnsureLoaded();
+            LZ4Init.Manager.EnsureLoaded();
 
-            if (NativeMethods.FrameIsError(code) != 0)
+            if (LZ4Init.Lib.FrameIsError(code) != 0)
                 throw new LZ4FrameException(code);
         }
 

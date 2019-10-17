@@ -28,7 +28,7 @@ using System.IO;
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region BaseChecksum
-    public abstract class BaseChecksum<T>
+    public abstract class ChecksumBase<T>
     {
         #region Fields and Properties
         protected readonly int _bufferSize = 64 * 1024;
@@ -38,13 +38,13 @@ namespace Joveler.Compression.ZLib.Checksum
         #endregion
 
         #region Constructor
-        protected BaseChecksum(T initChecksum)
+        protected ChecksumBase(T initChecksum)
         {
             InitChecksum = initChecksum;
             Reset();
         }
 
-        protected BaseChecksum(T initChecksum, int bufferSize)
+        protected ChecksumBase(T initChecksum, int bufferSize)
         {
             InitChecksum = initChecksum;
             _bufferSize = bufferSize;

@@ -11,44 +11,32 @@ Put this snippet in your application's init code:
 ```csharp
 public static void InitNativeLibrary()
 {
-    const string x64 = "x64";
-    const string x86 = "x86";
-    const string armhf = "armhf";
-    const string arm64 = "arm64";
-
-    const string dllName = "liblzma.dll";
-    const string soName = "liblzma.so";
+    string arch = null;
+    switch (RuntimeInformation.OSArchitecture)
+    {
+        case Architecture.X86:
+            arch = "x86";
+            break;
+        case Architecture.X64:
+            arch = "x64";
+            break;
+        case Architecture.Arm:
+            arch = "armhf";
+            break;
+        case Architecture.Arm64:
+            arch = "arm64";
+            break;
+    }
 
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    {
-        switch (RuntimeInformation.ProcessArchitecture)
-        {
-            case Architecture.X86:
-                libPath = Path.Combine(x86, dllName);
-                break;
-            case Architecture.X64:
-                libPath = Path.Combine(x64, dllName);
-                break;
-        }
-    }
+        libPath = Path.Combine(absPath, arch, "liblzma.dll");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-    {
-        switch (RuntimeInformation.ProcessArchitecture)
-        {
-            case Architecture.X64:
-                libPath = Path.Combine(x64, soName);
-                break;
-            case Architecture.Arm:
-                libPath = Path.Combine(armhf, soName);
-                break;
-            case Architecture.Arm64:
-                libPath = Path.Combine(arm64, soName);
-                break;
-        }
-    }
+        libPath = Path.Combine(absPath, arch, "liblzma.so");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        libPath = Path.Combine(absPath, arch, "liblzma.dylib");
 
-    if (libPath == null)
+    if (libPath == null || !File.Exists(libPath))
         throw new PlatformNotSupportedException();
 
     XZInit.GlobalInit(libPath);

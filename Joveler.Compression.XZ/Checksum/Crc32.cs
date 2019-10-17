@@ -40,12 +40,12 @@ namespace Joveler.Compression.XZ.Checksum
         #region Constructors
         public Crc32Checksum() : base(Crc32Init)
         {
-            NativeMethods.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
         }
 
         public Crc32Checksum(int bufferSize) : base(Crc32Init, bufferSize)
         {
-            NativeMethods.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
         }
         #endregion
 
@@ -67,7 +67,7 @@ namespace Joveler.Compression.XZ.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                return NativeMethods.LzmaCrc32(bufPtr, new UIntPtr((uint)count), checksum);
+                return XZInit.Lib.LzmaCrc32(bufPtr, new UIntPtr((uint)count), checksum);
             }
         }
 
@@ -76,7 +76,7 @@ namespace Joveler.Compression.XZ.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                return NativeMethods.LzmaCrc32(bufPtr, new UIntPtr((uint)span.Length), checksum);
+                return XZInit.Lib.LzmaCrc32(bufPtr, new UIntPtr((uint)span.Length), checksum);
             }
         }
         #endregion
@@ -95,7 +95,7 @@ namespace Joveler.Compression.XZ.Checksum
 
         public override void Initialize()
         {
-            NativeMethods.EnsureLoaded();
+            XZInit.Manager.EnsureLoaded();
 
             _crc32 = new Crc32Checksum();
         }

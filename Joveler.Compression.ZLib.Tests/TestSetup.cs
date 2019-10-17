@@ -43,47 +43,36 @@ namespace Joveler.Compression.ZLib.Tests
         [AssemblyInitialize]
         public static void Init(TestContext ctx)
         {
-            BaseDir = Path.GetFullPath(Path.Combine(TestHelper.GetProgramAbsolutePath(), "..", "..", ".."));
+            string absPath = TestHelper.GetProgramAbsolutePath();
+            BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            const string x64 = "x64";
-            const string x86 = "x86";
-            const string armhf = "armhf";
-            const string arm64 = "arm64";
-
-            const string dllName = "zlibwapi.dll";
-            const string soName = "libz.so";
+            string arch = null;
+            switch (RuntimeInformation.OSArchitecture)
+            {
+                case Architecture.X86:
+                    arch = "x86";
+                    break;
+                case Architecture.X64:
+                    arch = "x64";
+                    break;
+                case Architecture.Arm:
+                    arch = "armhf";
+                    break;
+                case Architecture.Arm64:
+                    arch = "arm64";
+                    break;
+            }
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                switch (RuntimeInformation.ProcessArchitecture)
-                {
-                    case Architecture.X86:
-                        libPath = Path.Combine(x86, dllName);
-                        break;
-                    case Architecture.X64:
-                        libPath = Path.Combine(x64, dllName);
-                        break;
-                }
-            }
+                libPath = Path.Combine(absPath, arch, "zlibwapi.dll");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                switch (RuntimeInformation.ProcessArchitecture)
-                {
-                    case Architecture.X64:
-                        libPath = Path.Combine(x64, soName);
-                        break;
-                    case Architecture.Arm:
-                        libPath = Path.Combine(armhf, soName);
-                        break;
-                    case Architecture.Arm64:
-                        libPath = Path.Combine(arm64, soName);
-                        break;
-                }
-            }
+                libPath = Path.Combine(absPath, arch, "libz.so");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                libPath = Path.Combine(absPath, arch, "libz.dylib");
 
-            if (libPath == null)
+            if (libPath == null || !File.Exists(libPath))
                 throw new PlatformNotSupportedException();
 
             ZLibInit.GlobalInit(libPath);
@@ -145,6 +134,15 @@ namespace Joveler.Compression.ZLib.Tests
                         break;
                     case Architecture.Arm64:
                         binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.arm64.elf");
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x64.mach");
                         break;
                 }
             }
