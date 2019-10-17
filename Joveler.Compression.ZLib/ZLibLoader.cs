@@ -43,12 +43,6 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region LP64 and LLP64
-        internal enum LongBits
-        {
-            Long64 = 0, // Windows, Linux 32bit (LLP64)
-            Long32 = 1, // Linux 64bit (LP64)
-        }
-        internal LongBits LongBitType;
         internal L32d L32 = new L32d();
         internal L64d L64 = new L64d();
         #endregion
@@ -72,58 +66,37 @@ namespace Joveler.Compression.ZLib
         #region LoadFunctions, ResetFunctions
         protected override void LoadFunctions()
         {
-#if !NET451
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-#endif
-            {
-                LongBitType = LongBits.Long32;
-            }
-#if !NET451
-            else
-            {
-                switch (RuntimeInformation.ProcessArchitecture)
-                {
-                    case Architecture.Arm:
-                    case Architecture.X86:
-                        LongBitType = LongBits.Long32;
-                        break;
-                    case Architecture.Arm64:
-                    case Architecture.X64:
-                        LongBitType = LongBits.Long64;
-                        break;
-                    default:
-                        throw new PlatformNotSupportedException();
-                }
-            }
-#endif
+            L32.Lib = this;
+            L64.Lib = this;
 
-            if (LongBitType == LongBits.Long32)
+            switch (PlatformLongSize)
             {
-                #region Deflate - DeflateInit2, Deflate, DeflateEnd
-                L32.DeflateInit2 = GetFuncPtr<L32d.deflateInit2_>(nameof(L32d.deflateInit2_));
-                L32.Deflate = GetFuncPtr<L32d.deflate>(nameof(L32d.deflate));
-                L32.DeflateEnd = GetFuncPtr<L32d.deflateEnd>(nameof(L32d.deflateEnd));
-                #endregion
+                case PlatformLongSize.Long32:
+                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                    L32.DeflateInit2 = GetFuncPtr<L32d.deflateInit2_>(nameof(L32d.deflateInit2_));
+                    L32.Deflate = GetFuncPtr<L32d.deflate>(nameof(L32d.deflate));
+                    L32.DeflateEnd = GetFuncPtr<L32d.deflateEnd>(nameof(L32d.deflateEnd));
+                    #endregion
 
-                #region Inflate - InflateInit2, Inflate, InflateEnd
-                L32.InflateInit2 = GetFuncPtr<L32d.inflateInit2_>(nameof(L32d.inflateInit2_));
-                L32.Inflate = GetFuncPtr<L32d.inflate>(nameof(L32d.inflate));
-                L32.InflateEnd = GetFuncPtr<L32d.inflateEnd>(nameof(L32d.inflateEnd));
-                #endregion
-            }
-            else
-            {
-                #region Deflate - DeflateInit2, Deflate, DeflateEnd
-                L64.DeflateInit2 = GetFuncPtr<L64d.deflateInit2_>(nameof(L64d.deflateInit2_));
-                L64.Deflate = GetFuncPtr<L64d.deflate>(nameof(L64d.deflate));
-                L64.DeflateEnd = GetFuncPtr<L64d.deflateEnd>(nameof(L64d.deflateEnd));
-                #endregion
+                    #region Inflate - InflateInit2, Inflate, InflateEnd
+                    L32.InflateInit2 = GetFuncPtr<L32d.inflateInit2_>(nameof(L32d.inflateInit2_));
+                    L32.Inflate = GetFuncPtr<L32d.inflate>(nameof(L32d.inflate));
+                    L32.InflateEnd = GetFuncPtr<L32d.inflateEnd>(nameof(L32d.inflateEnd));
+                    #endregion
+                    break;
+                case PlatformLongSize.Long64:
+                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                    L64.DeflateInit2 = GetFuncPtr<L64d.deflateInit2_>(nameof(L64d.deflateInit2_));
+                    L64.Deflate = GetFuncPtr<L64d.deflate>(nameof(L64d.deflate));
+                    L64.DeflateEnd = GetFuncPtr<L64d.deflateEnd>(nameof(L64d.deflateEnd));
+                    #endregion
 
-                #region Inflate - InflateInit2, Inflate, InflateEnd
-                L64.InflateInit2 = GetFuncPtr<L64d.inflateInit2_>(nameof(L64d.inflateInit2_));
-                L64.Inflate = GetFuncPtr<L64d.inflate>(nameof(L64d.inflate));
-                L64.InflateEnd = GetFuncPtr<L64d.inflateEnd>(nameof(L64d.inflateEnd));
-                #endregion
+                    #region Inflate - InflateInit2, Inflate, InflateEnd
+                    L64.InflateInit2 = GetFuncPtr<L64d.inflateInit2_>(nameof(L64d.inflateInit2_));
+                    L64.Inflate = GetFuncPtr<L64d.inflate>(nameof(L64d.inflate));
+                    L64.InflateEnd = GetFuncPtr<L64d.inflateEnd>(nameof(L64d.inflateEnd));
+                    #endregion
+                    break;
             }
 
             #region Checksum - Adler32, Crc32
@@ -132,7 +105,7 @@ namespace Joveler.Compression.ZLib
             #endregion
 
             #region Version - ZLibVersion
-            ZLibVersion = GetFuncPtr<zlibVersion>(nameof(zlibVersion));
+            ZLibVersionPtr = GetFuncPtr<zlibVersion>(nameof(zlibVersion));
             #endregion
         }
 
@@ -156,7 +129,7 @@ namespace Joveler.Compression.ZLib
             #endregion
 
             #region Version - ZLibVersion
-            ZLibVersion = null;
+            ZLibVersionPtr = null;
             #endregion
         }
         #endregion
@@ -164,6 +137,8 @@ namespace Joveler.Compression.ZLib
         #region zlib Function Pointers
         internal class L64d
         {
+            public ZLibLoader Lib { get; internal set; }
+
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
             internal delegate ZLibRet deflateInit2_(
@@ -179,7 +154,7 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet DeflateInit(ZStreamL64 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                string zlibVer = Marshal.PtrToStringAnsi(ZLibInit.Lib.ZLibVersion());
+                string zlibVer = Lib.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
                         ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL64>());
             }
@@ -207,7 +182,7 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet InflateInit(ZStreamL64 strm, int windowBits)
             {
-                string zlibVer = Marshal.PtrToStringAnsi(ZLibInit.Lib.ZLibVersion());
+                string zlibVer = Lib.ZLibVersion();
                 return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL64>());
             }
 
@@ -226,6 +201,8 @@ namespace Joveler.Compression.ZLib
 
         internal class L32d
         {
+            public ZLibLoader Lib { get; internal set; }
+
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Winapi)]
             internal delegate ZLibRet deflateInit2_(
@@ -241,7 +218,7 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet DeflateInit(ZStreamL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                string zlibVer = Marshal.PtrToStringAnsi(ZLibInit.Lib.ZLibVersion());
+                string zlibVer = Lib.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
                         ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
             }
@@ -269,7 +246,7 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet InflateInit(ZStreamL32 strm, int windowBits)
             {
-                string zlibVer = Marshal.PtrToStringAnsi(ZLibInit.Lib.ZLibVersion());
+                string zlibVer = Lib.ZLibVersion();
                 return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
             }
 
@@ -304,7 +281,8 @@ namespace Joveler.Compression.ZLib
         #region Version - ZLibVersion
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         internal delegate IntPtr zlibVersion();
-        internal zlibVersion ZLibVersion;
+        private zlibVersion ZLibVersionPtr;
+        internal string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
         #endregion
         #endregion
     }

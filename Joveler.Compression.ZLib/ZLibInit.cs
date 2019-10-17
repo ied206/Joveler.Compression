@@ -22,9 +22,6 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Runtime.InteropServices;
-
 namespace Joveler.Compression.ZLib
 {
     #region ZLibInit
@@ -52,8 +49,7 @@ namespace Joveler.Compression.ZLib
         {
             Manager.EnsureLoaded();
 
-            IntPtr ptr = Lib.ZLibVersion();
-            return Marshal.PtrToStringAnsi(ptr);
+            return Lib.ZLibVersion();
         }
         #endregion
     }

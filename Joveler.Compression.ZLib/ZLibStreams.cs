@@ -27,6 +27,7 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
+using Joveler.DynLoader;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -150,9 +151,9 @@ namespace Joveler.Compression.ZLib
             CheckMemLevel(compOpts.MemLevel);
 
             // Prepare and init ZStream
-            switch (ZLibInit.Lib.LongBitType)
+            switch (ZLibInit.Lib.PlatformLongSize)
             {
-                case ZLibLoader.LongBits.Long32:
+                case PlatformLongSize.Long32:
                     {
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
@@ -161,7 +162,7 @@ namespace Joveler.Compression.ZLib
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
-                case ZLibLoader.LongBits.Long64:
+                case PlatformLongSize.Long64:
                     {
                         _zs64 = new ZStreamL64();
                         _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
@@ -196,9 +197,9 @@ namespace Joveler.Compression.ZLib
             int windowBits = CheckFormatWindowBits(decompOpts.WindowBits, _mode, format);
 
             // Prepare and init ZStream
-            switch (ZLibInit.Lib.LongBitType)
+            switch (ZLibInit.Lib.PlatformLongSize)
             {
-                case ZLibLoader.LongBits.Long32:
+                case PlatformLongSize.Long32:
                     {
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
@@ -207,7 +208,7 @@ namespace Joveler.Compression.ZLib
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
-                case ZLibLoader.LongBits.Long64:
+                case PlatformLongSize.Long64:
                     {
                         _zs64 = new ZStreamL64();
                         _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
@@ -241,9 +242,9 @@ namespace Joveler.Compression.ZLib
                     BaseStream = null;
                 }
 
-                switch (ZLibInit.Lib.LongBitType)
+                switch (ZLibInit.Lib.PlatformLongSize)
                 {
-                    case ZLibLoader.LongBits.Long32:
+                    case PlatformLongSize.Long32:
                         {
                             if (_zs32 != null)
                             {
@@ -256,7 +257,7 @@ namespace Joveler.Compression.ZLib
                             }
                             break;
                         }
-                    case ZLibLoader.LongBits.Long64:
+                    case PlatformLongSize.Long64:
                         {
                             if (_zs64 != null)
                             {
@@ -303,9 +304,9 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = _workBuf) // [In] Compressed
             fixed (byte* writePtr = span) // [Out] Will-be-decompressed
             {
-                switch (ZLibInit.Lib.LongBitType)
+                switch (ZLibInit.Lib.PlatformLongSize)
                 {
-                    case ZLibLoader.LongBits.Long32:
+                    case PlatformLongSize.Long32:
                         {
                             _zs32.NextIn = readPtr + _workBufPos;
                             _zs32.NextOut = writePtr;
@@ -342,7 +343,7 @@ namespace Joveler.Compression.ZLib
                             }
                         }
                         break;
-                    case ZLibLoader.LongBits.Long64:
+                    case PlatformLongSize.Long64:
                         {
                             _zs64.NextIn = readPtr + _workBufPos;
                             _zs64.NextOut = writePtr;
@@ -410,9 +411,9 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = span) // [In] Compressed
             fixed (byte* writePtr = _workBuf) // [Out] Will-be-decompressed
             {
-                switch (ZLibInit.Lib.LongBitType)
+                switch (ZLibInit.Lib.PlatformLongSize)
                 {
-                    case ZLibLoader.LongBits.Long32:
+                    case PlatformLongSize.Long32:
                         {
                             _zs32.NextIn = readPtr;
                             _zs32.AvailIn = (uint)span.Length;
@@ -439,7 +440,7 @@ namespace Joveler.Compression.ZLib
                             }
                             break;
                         }
-                    case ZLibLoader.LongBits.Long64:
+                    case PlatformLongSize.Long64:
                         {
                             _zs64.NextIn = readPtr;
                             _zs64.AvailIn = (uint)span.Length;
@@ -481,9 +482,9 @@ namespace Joveler.Compression.ZLib
 
             fixed (byte* writePtr = _workBuf)
             {
-                switch (ZLibInit.Lib.LongBitType)
+                switch (ZLibInit.Lib.PlatformLongSize)
                 {
-                    case ZLibLoader.LongBits.Long32:
+                    case PlatformLongSize.Long32:
                         {
                             _zs32.NextIn = (byte*)0;
                             _zs32.AvailIn = 0;
@@ -514,7 +515,7 @@ namespace Joveler.Compression.ZLib
 
                             break;
                         }
-                    case ZLibLoader.LongBits.Long64:
+                    case PlatformLongSize.Long64:
                         {
                             _zs64.NextIn = (byte*)0;
                             _zs64.AvailIn = 0;
