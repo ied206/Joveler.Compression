@@ -1,8 +1,8 @@
 # Joveler.Compression.ZLib
 
-C# pinvoke library for [zlib](https://zlib.net/).
+[zlib](https://zlib.net/) pinvoke library for .Net.
 
-Targets .Net Standard 2.0, supports Windows and Linux.
+Targets .Net Standard 2.0, supports multiple platforms such as Windows, Linux and macOS.
 
 `DefalteStream` and its familiy is based on the code of [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
@@ -30,21 +30,22 @@ If you need .Net Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packag
 
 ### Supported OS platforms
 
-| Platform | Architecture  | Tested |
-|----------|---------------|--------|
-| Windows  | x86           | Yes    |
-|          | x64           | Yes    |
-| Linux    | x64           | Yes    |
-|          | armhf         | Yes    |
-|          | arm64         | Yes    |
+| Platform | Architecture | Tested |
+|----------|--------------|--------|
+| Windows  | x86          | Yes    |
+|          | x64          | Yes    |
+| Linux    | x64          | Yes    |
+|          | armhf        | Yes    |
+|          | arm64        | Yes    |
+| macOS    | x64          | Yes    |
 
 #### Tested linux distributions
 
 | Architecture  | Distribution | Note |
 |---------------|--------------|------|
-| x64           | Ubuntu 18.04 |      |
-| armhf         | Debian 9     | Emulated on QEMU's virt board |
-| arm64         | Debian 9     | Emulated on QEMU's virt board |
+| x64           | Ubuntu 18.04 | Tested on AppVeyor CI         |
+| armhf         | Debian 10    | Emulated on QEMU's virt board |
+| arm64         | Debian 10    | Emulated on QEMU's virt board |
 
 ### Supported zlib version
 

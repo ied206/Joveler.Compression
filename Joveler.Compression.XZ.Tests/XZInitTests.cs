@@ -16,11 +16,9 @@ namespace Joveler.Compression.XZ.Tests
             Version expectVerInst = new Version(5, 2, 4, 2);
             Version verInst = XZInit.Version();
             Console.WriteLine($"liblzma Version (Version) = {verInst}");
-            Assert.IsTrue(verInst.Equals(expectVerInst));
 
             string verStr = XZInit.VersionString();
             Console.WriteLine($"liblzma Version (String)  = {verStr}");
-            Assert.IsTrue(verStr.Equals("5.2.4", StringComparison.Ordinal));
         }
 
         [TestMethod]
