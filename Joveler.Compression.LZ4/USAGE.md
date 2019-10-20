@@ -50,13 +50,14 @@ public static void InitNativeLibrary()
 Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.2`.  
 They are copied into the build directory at build time.
 
-| Platform    | Binary                      | Note |
-|-------------|-----------------------------|------|
-| Windows x86 | `$(OutDir)\x86\liblz4.dll`  |      |
-| Windows x64 | `$(OutDir)\x64\liblz4.dll`  |      |
-| Linux x64   | `$(OutDir)\x64\liblz4.so`   | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\armhf\liblz4.so` | Compiled in Debian 9     |
-| Linux arm64 | `$(OutDir)\arm64\liblz4.so` | Compiled in Debian 9     |
+| Platform    | Binary                       | Note |
+|-------------|------------------------------|------|
+| Windows x86 | `$(OutDir)\x86\liblz4.dll`   |      |
+| Windows x64 | `$(OutDir)\x64\liblz4.dll`   |      |
+| Linux x64   | `$(OutDir)\x64\liblz4.so`    | Compiled in Ubuntu 18.04 |
+| Linux armhf | `$(OutDir)\armhf\liblz4.so`  | Compiled in Debian 10    |
+| Linux arm64 | `$(OutDir)\arm64\liblz4.so`  | Compiled in Debian 10    |
+| macOS 10.15 | `$(OutDir)\x64\liblz4.dylib` | Compiled in Catalina     |
 
 ### Custom binary
 
@@ -65,7 +66,8 @@ To use custom lz4 binary instead, call `LZ4Init.GlobalInit()` with a path to the
 #### NOTES
 
 - Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
-- Untested on arm64, because .Net Core 2.1 arm64 runtime has an [issue](https://github.com/dotnet/coreclr/issues/19578).
+- If you call `LZ4Init.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblz4.
+  - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `LZ4Init.GlobalInit()` to use system-installed liblz4.
 
 ### Cleanup
 

@@ -50,13 +50,14 @@ public static void InitNativeLibrary()
 Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.4`.  
 They are copied into the build directory at build time.
 
-| Platform    | Binary                       | Note |
-|-------------|------------------------------|------|
-| Windows x86 | `$(OutDir)\x86\liblzma.dll`  |      |
-| Windows x64 | `$(OutDir)\x64\liblzma.dll`  |      |
-| Linux x64   | `$(OutDir)\x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\armhf\liblzma.so` | Compiled in Debian 9     |
-| Linux arm64 | `$(OutDir)\arm64\liblzma.so` | Compiled in Debian 9     |
+| Platform    | Binary                        | Note |
+|-------------|-------------------------------|------|
+| Windows x86 | `$(OutDir)\x86\liblzma.dll`   |      |
+| Windows x64 | `$(OutDir)\x64\liblzma.dll`   |      |
+| Linux x64   | `$(OutDir)\x64\liblzma.so`    | Compiled in Ubuntu 18.04 |
+| Linux armhf | `$(OutDir)\armhf\liblzma.so`  | Compiled in Debian 10    |
+| Linux arm64 | `$(OutDir)\arm64\liblzma.so`  | Compiled in Debian 10    |
+| macOS 10.15 | `$(OutDir)\x64\liblzma.dylib` | Compiled in Catalina     |
 
 ### Custom binary
 
@@ -65,6 +66,8 @@ To use custom liblzma binary instead, call `XZInit.GlobalInit()` with a path to 
 #### NOTES
 
 - Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copy of the package-embedded binary.
+- If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
+  - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
 ### Cleanup
 

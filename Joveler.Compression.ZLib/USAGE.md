@@ -11,44 +11,32 @@ Put this snippet in your application's init code:
 ```csharp
 public static void InitNativeLibrary()
 {
-    const string x64 = "x64";
-    const string x86 = "x86";
-    const string armhf = "armhf";
-    const string arm64 = "arm64";
-
-    const string dllName = "zlibwapi.dll";
-    const string soName = "libz.so";
+    string arch = null;
+    switch (RuntimeInformation.OSArchitecture)
+    {
+        case Architecture.X86:
+            arch = "x86";
+            break;
+        case Architecture.X64:
+            arch = "x64";
+            break;
+        case Architecture.Arm:
+            arch = "armhf";
+            break;
+        case Architecture.Arm64:
+            arch = "arm64";
+            break;
+    }
 
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    {
-        switch (RuntimeInformation.ProcessArchitecture)
-        {
-            case Architecture.X86:
-                libPath = Path.Combine(x86, dllName);
-                break;
-            case Architecture.X64:
-                libPath = Path.Combine(x64, dllName);
-                break;
-        }
-    }
+        libPath = Path.Combine(absPath, arch, "zlibwapi.dll");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-    {
-        switch (RuntimeInformation.ProcessArchitecture)
-        {
-            case Architecture.X64:
-                libPath = Path.Combine(x64, soName);
-                break;
-            case Architecture.Arm:
-                libPath = Path.Combine(armhf, soName);
-                break;
-            case Architecture.Arm64:
-                libPath = Path.Combine(arm64, soName);
-                break;
-        }
-    }
+        libPath = Path.Combine(absPath, arch, "libz.so");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        libPath = Path.Combine(absPath, arch, "libz.dylib");
 
-    if (libPath == null)
+    if (libPath == null || !File.Exists(libPath))
         throw new PlatformNotSupportedException();
 
     ZLibInit.GlobalInit(libPath);
@@ -59,16 +47,16 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`.  
-They are copied into the build directory at build time.
+Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`. They are copied into the build directory at build time.
 
-| Platform    | Binary                      | Note |
-|-------------|-----------------------------|------|
-| Windows x86 | `$(OutDir)\x86\zlibwpi.dll` | Compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
-| Windows x64 | `$(OutDir)\x64\zlibwpi.dll` |      |
-| Linux x64   | `$(OutDir)\x64\libz.so`     | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\armhf\libz.so`   | Compiled in Debian 9     |
-| Linux arm64 | `$(OutDir)\arm64\libz.so`   | Compiled in Debian 9     |
+| Platform         | Binary                      | Note |
+|------------------|-----------------------------|------|
+| Windows x86      | `$(OutDir)\x86\zlibwpi.dll` | Compiled without assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
+| Windows x64      | `$(OutDir)\x64\zlibwpi.dll` | |
+| Ubuntu 18.04 x64 | `$(OutDir)\x64\libz.so`     | Compiled in Ubuntu 18.04 |
+| Debian 10 armhf  | `$(OutDir)\armhf\libz.so`   | Compiled in Debian 10    |
+| Debian 10 arm64  | `$(OutDir)\arm64\libz.so`   | Compiled in Debian 10    |
+| macOS 10.15      | `$(OutDir)\x64\libz.dylib`  | Compiled in Catalina     |
 
 ### Custom binary
 
@@ -78,6 +66,8 @@ To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to t
 
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Joveler.Compression.ZLib recognizes only `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)` on Windows.
+- If you call `ZLibInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed zlib.
+  - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `ZLibInit.GlobalInit()` to use system-installed zlib.
 
 ### Cleanup
 
