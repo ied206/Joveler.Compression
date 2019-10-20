@@ -17,7 +17,7 @@ Supports Windows, Linux and macOS.</Description>
     <Copyright>Copyright (c) 2018-2019 Hajin Jang</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
-    <PackageIcon>Image\Logo.png</PackageIcon>
+    <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageReleaseNotes>- Add macOS support
 - Apply improved native library loader (Joveler.DynLoader)</PackageReleaseNotes>
