@@ -66,11 +66,11 @@ namespace Joveler.Compression.ZLib.Tests
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(absPath, arch, "zlibwapi.dll");
+                libPath = Path.Combine(arch, "zlibwapi.dll");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(absPath, arch, "libz.so");
+                libPath = Path.Combine(arch, "libz.so");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(absPath, arch, "libz.dylib");
+                libPath = Path.Combine(arch, "libz.dylib");
 
             if (libPath == null || !File.Exists(libPath))
                 throw new PlatformNotSupportedException();

@@ -1,6 +1,6 @@
 # Joveler.Compression.LZ4
 
-C# pinvoke library for [LZ4](https://github.com/lz4/lz4).
+[LZ4](https://github.com/lz4/lz4) pinvoke library for .Net.
 
 Targets .Net Standard 2.0, supports multiple platforms such as Windows, Linux and macOS.
 
