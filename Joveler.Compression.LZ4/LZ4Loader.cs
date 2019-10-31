@@ -50,7 +50,7 @@ namespace Joveler.Compression.LZ4
             {
 #if !NET451
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    return "liblz4.so";
+                    return "liblz4.so.1";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     return "liblz4.dylib";
 #endif

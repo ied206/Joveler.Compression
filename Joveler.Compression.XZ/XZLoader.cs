@@ -45,7 +45,7 @@ namespace Joveler.Compression.XZ
             {
 #if !NET451
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    return "liblzma.so";
+                    return "liblzma.so.5";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     return "liblzma.dylib";
 #endif
