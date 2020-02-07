@@ -51,7 +51,7 @@ namespace Joveler.Compression.LZ4.Tests
             SampleDir = Path.Combine(BaseDir, "Samples");
 
             string arch = null;
-            switch (RuntimeInformation.OSArchitecture)
+            switch (RuntimeInformation.ProcessArchitecture)
             {
                 case Architecture.X86:
                     arch = "x86";
