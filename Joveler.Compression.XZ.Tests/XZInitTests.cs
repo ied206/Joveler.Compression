@@ -1,8 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
 
 namespace Joveler.Compression.XZ.Tests
 {
@@ -80,11 +77,11 @@ namespace Joveler.Compression.XZ.Tests
         #region DecoderMemUsage
         private void DecoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
         {
-            void PrintMemUsage(ulong usage)
+            void PrintMemUsage(ulong memUsage)
             {
                 char extremeChar = extreme ? 'e' : ' ';
                 uint purePreset = (uint)level;
-                Console.WriteLine($"Decoder Mem Usage (p{purePreset}{extremeChar}) = {usage / (1024 * 1024) + 1}MB ({usage}B)");
+                Console.WriteLine($"Decoder Mem Usage (p{purePreset}{extremeChar}) = {memUsage / (1024 * 1024) + 1}MB ({memUsage}B)");
             }
 
             ulong usage = XZInit.DecoderMemUsage(level, extreme);

@@ -121,7 +121,7 @@ namespace Joveler.Compression.ZLib
         Bits12 = 12,
         Bits13 = 13,
         Bits14 = 14,
-        Bits15 = 15,  
+        Bits15 = 15,
     }
 
     public enum ZLibMemLevel : int

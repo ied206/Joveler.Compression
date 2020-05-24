@@ -105,7 +105,7 @@ namespace Joveler.Compression.LZ4
         /// <remarks>
         /// v1.8.2+
         /// </remarks>
-        public uint FavorDecSpeed; 
+        public uint FavorDecSpeed;
         /// <summary>
         /// must be zero for forward compatibility
         /// </summary>

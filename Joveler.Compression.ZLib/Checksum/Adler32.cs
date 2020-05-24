@@ -102,12 +102,12 @@ namespace Joveler.Compression.ZLib.Checksum
             _adler32.Append(array, ibStart, cbSize);
         }
 
-#pragma warning disable CS0628 // For .Net Standard build
-        protected void HashCore(ReadOnlySpan<byte> source)
-#pragma warning restore CS0628
+#if NETSTANDARD2_1
+        protected override void HashCore(ReadOnlySpan<byte> source)
         {
             _adler32.Append(source);
         }
+#endif
 
         protected override byte[] HashFinal()
         {

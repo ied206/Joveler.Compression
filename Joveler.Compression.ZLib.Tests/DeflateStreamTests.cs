@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -38,42 +38,47 @@ namespace Joveler.Compression.ZLib.Tests
                 LeaveOpen = true,
             };
 
-            using FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using MemoryStream compMs = new MemoryStream();
-            using MemoryStream decompMs = new MemoryStream();
-            using (DeflateStream zs = new DeflateStream(compMs, compOpts))
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (MemoryStream compMs = new MemoryStream())
+            using (MemoryStream decompMs = new MemoryStream())
             {
-                if (useSpan)
+                using (DeflateStream zs = new DeflateStream(compMs, compOpts))
                 {
-                    byte[] buffer = new byte[64 * 1024];
-                    int bytesRead;
-                    do
+#if !NETFRAMEWORK
+                    if (useSpan)
                     {
-                        bytesRead = fs.Read(buffer.AsSpan());
-                        zs.Write(buffer.AsSpan(0, bytesRead));
-                    } while (0 < bytesRead);
+                        byte[] buffer = new byte[64 * 1024];
+                        int bytesRead;
+                        do
+                        {
+
+                            bytesRead = fs.Read(buffer.AsSpan());
+                            zs.Write(buffer.AsSpan(0, bytesRead));
+                        } while (0 < bytesRead);
+                    }
+                    else
+#endif
+                    {
+                        fs.CopyTo(zs);
+                    }
                 }
-                else
+
+                fs.Position = 0;
+                compMs.Position = 0;
+
+                // Decompress compMs with BCL DeflateStream
+                using (System.IO.Compression.DeflateStream zs = new System.IO.Compression.DeflateStream(compMs, CompressionMode.Decompress, true))
                 {
-                    fs.CopyTo(zs);
+                    zs.CopyTo(decompMs);
                 }
+
+                decompMs.Position = 0;
+
+                // Compare SHA256 Digest
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] fileDigest = TestHelper.SHA256Digest(fs);
+                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
             }
-
-            fs.Position = 0;
-            compMs.Position = 0;
-
-            // Decompress compMs with BCL DeflateStream
-            using (System.IO.Compression.DeflateStream zs = new System.IO.Compression.DeflateStream(compMs, CompressionMode.Decompress, true))
-            {
-                zs.CopyTo(decompMs);
-            }
-
-            decompMs.Position = 0;
-
-            // Compare SHA256 Digest
-            byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-            byte[] fileDigest = TestHelper.SHA256Digest(fs);
-            Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
         }
         #endregion
 
@@ -103,33 +108,37 @@ namespace Joveler.Compression.ZLib.Tests
 
             ZLibDecompressOptions decompOpts = new ZLibDecompressOptions();
 
-            using MemoryStream decompMs = new MemoryStream();
-            using FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using (DeflateStream zs = new DeflateStream(compFs, decompOpts))
+            using (MemoryStream decompMs = new MemoryStream())
+            using (FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                if (useSpan)
+                using (DeflateStream zs = new DeflateStream(compFs, decompOpts))
                 {
-                    byte[] buffer = new byte[64 * 1024];
-                    int bytesRead;
-                    do
+#if !NETFRAMEWORK
+                    if (useSpan)
                     {
-                        bytesRead = zs.Read(buffer.AsSpan());
-                        decompMs.Write(buffer.AsSpan(0, bytesRead));
-                    } while (0 < bytesRead);
+                        byte[] buffer = new byte[64 * 1024];
+                        int bytesRead;
+                        do
+                        {
+                            bytesRead = zs.Read(buffer.AsSpan());
+                            decompMs.Write(buffer.AsSpan(0, bytesRead));
+                        } while (0 < bytesRead);
+                    }
+                    else
+#endif
+                    {
+                        zs.CopyTo(decompMs);
+                    }
                 }
-                else
-                {
-                    zs.CopyTo(decompMs);
-                }
+
+                decompMs.Position = 0;
+
+                // Compare SHA256 Digest
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
             }
-
-            decompMs.Position = 0;
-
-            // Compare SHA256 Digest
-            byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-            byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
-            Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
         }
         #endregion
     }

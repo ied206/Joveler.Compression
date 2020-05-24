@@ -310,7 +310,11 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
+#if NETSTANDARD2_1
+        public override unsafe int Read(Span<byte> span)
+#else
         public unsafe int Read(Span<byte> span)
+#endif
         {
             if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
@@ -411,7 +415,11 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
+#if NETSTANDARD2_1
+        public override unsafe void Write(ReadOnlySpan<byte> span)
+#else
         public unsafe void Write(ReadOnlySpan<byte> span)
+#endif
         {
             if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");

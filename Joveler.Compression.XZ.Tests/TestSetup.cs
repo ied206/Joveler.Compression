@@ -28,13 +28,14 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.XZ.Tests
 {
     [TestClass]
-    public class TestSetup
+    public static class TestSetup
     {
         public static string BaseDir { get; private set; }
         public static string SampleDir { get; private set; }
@@ -42,38 +43,13 @@ namespace Joveler.Compression.XZ.Tests
         [AssemblyInitialize]
         public static void Init(TestContext context)
         {
+            _ = context;
+
             string absPath = TestHelper.GetProgramAbsolutePath();
             BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            string arch = null;
-            switch (RuntimeInformation.ProcessArchitecture)
-            {
-                case Architecture.X86:
-                    arch = "x86";
-                    break;
-                case Architecture.X64:
-                    arch = "x64";
-                    break;
-                case Architecture.Arm:
-                    arch = "armhf";
-                    break;
-                case Architecture.Arm64:
-                    arch = "arm64";
-                    break;
-            }
-
-            string libPath = null;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(absPath, arch, "liblzma.dll");
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(absPath, arch, "liblzma.so");
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(absPath, arch, "liblzma.dylib");
-
-            if (libPath == null || !File.Exists(libPath))
-                throw new PlatformNotSupportedException();
-
+            string libPath = GetNativeLibPath();
             XZInit.GlobalInit(libPath);
         }
 
@@ -82,9 +58,59 @@ namespace Joveler.Compression.XZ.Tests
         {
             XZInit.GlobalCleanup();
         }
+
+        private static string GetNativeLibPath()
+        {
+            string libDir = string.Empty;
+
+#if !NETFRAMEWORK
+            libDir = "runtimes";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                libDir = Path.Combine(libDir, "win-");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                libDir = Path.Combine(libDir, "linux-");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                libDir = Path.Combine(libDir, "osx-");
+#endif
+
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86:
+                    libDir += "x86";
+                    break;
+                case Architecture.X64:
+                    libDir += "x64";
+                    break;
+                case Architecture.Arm:
+                    libDir += "arm";
+                    break;
+                case Architecture.Arm64:
+                    libDir += "arm64";
+                    break;
+            }
+
+#if !NETFRAMEWORK
+            libDir = Path.Combine(libDir, "native");
+#endif
+
+            string libPath = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                libPath = Path.Combine(libDir, "liblzma.dll");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                libPath = Path.Combine(libDir, "liblzma.so");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                libPath = Path.Combine(libDir, "liblzma.dylib");
+
+            if (libPath == null)
+                throw new PlatformNotSupportedException($"Unable to find native library.");
+            if (!File.Exists(libPath))
+                throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+
+            return libPath;
+        }
     }
 
-    public class TestHelper
+    public static class TestHelper
     {
         public static string GetProgramAbsolutePath()
         {
@@ -93,7 +119,7 @@ namespace Joveler.Compression.XZ.Tests
                 path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return path;
         }
-        
+
         public static int RunXZ(string tempArchiveFile)
         {
             const string binDir = "RefBin";
@@ -129,7 +155,7 @@ namespace Joveler.Compression.XZ.Tests
             }
 
             if (binary == null)
-                throw new PlatformNotSupportedException();       
+                throw new PlatformNotSupportedException();
 
             Process proc = new Process
             {
