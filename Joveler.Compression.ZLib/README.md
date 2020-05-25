@@ -1,8 +1,6 @@
 # Joveler.Compression.ZLib
 
-[zlib](https://zlib.net/) pinvoke library for .Net.
-
-Targets .Net Standard 2.0, supports multiple platforms such as Windows, Linux and macOS.
+[zlib](https://zlib.net/) pinvoke library for .NET.
 
 `DefalteStream` and its familiy is based on the code of [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
@@ -20,10 +18,11 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 
 ## Support
 
-### Targeted .Net platforms
+### Targeted .NET platforms
 
-- .Net Framework 4.5.1
-- .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
+- .NET Standard 2.1 (.NET Core 3.0+)
+- .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
+- .NET Framework 4.5.1
 
 If you need .Net Framework 4.5 support, use [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) instead.  
 If you need .Net Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) instead.
@@ -57,4 +56,4 @@ See [USAGE.md](./USAGE.md).
 
 ## License
 
-zlib license
+`Joveler.Compression.ZLib` is licensed under [zlib license](./LICENSE).

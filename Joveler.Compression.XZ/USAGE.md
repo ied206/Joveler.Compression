@@ -4,11 +4,11 @@
 
 Joveler.Compression.XZ requires explicit loading of the liblzma library.
 
-You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ.
+You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ. Please put this code snippet in your application init code:
 
-Put this snippet in your application's init code:
+#### For .NET Framework 4.5.1+
 
-```csharp
+```cs
 public static void InitNativeLibrary()
 {
     string arch = null;
@@ -27,19 +27,59 @@ public static void InitNativeLibrary()
             arch = "arm64";
             break;
     }
+    string libPath = Path.Combine(arch, "liblzma.dll");
+
+    if (!File.Exists(libPath))
+        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+
+    Magic.GlobalInit(libPath);
+}
+```
+
+#### For .NET Standard 2.0+:
+
+```cs
+public static void InitNativeLibrary()
+{
+    string libDir = "runtimes";
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        libDir = Path.Combine(libDir, "win-");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        libDir = Path.Combine(libDir, "linux-");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        libDir = Path.Combine(libDir, "osx-");
+
+    switch (RuntimeInformation.ProcessArchitecture)
+    {
+        case Architecture.X86:
+            libDir += "x86";
+            break;
+        case Architecture.X64:
+            libDir += "x64";
+            break;
+        case Architecture.Arm:
+            libDir += "arm";
+            break;
+        case Architecture.Arm64:
+            libDir += "arm64";
+            break;
+    }
+    libDir = Path.Combine(libDir, "native");
 
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        libPath = Path.Combine(absPath, arch, "liblzma.dll");
+        libPath = Path.Combine(libDir, "liblzma.dll");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        libPath = Path.Combine(absPath, arch, "liblzma.so");
+        libPath = Path.Combine(libDir, "liblzma.so");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        libPath = Path.Combine(absPath, arch, "liblzma.dylib");
+        libPath = Path.Combine(libDir, "liblzma.dylib");
 
-    if (libPath == null || !File.Exists(libPath))
-        throw new PlatformNotSupportedException();
+    if (libPath == null)
+        throw new PlatformNotSupportedException($"Unable to find native library.");
+    if (!File.Exists(libPath))
+        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 
-    XZInit.GlobalInit(libPath);
+    Magic.GlobalInit(libPath);
 }
 ```
 
@@ -47,27 +87,34 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.4`.  
-They are copied into the build directory at build time.
+Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.5`. They will be copied into the build directory at build time.
 
-| Platform    | Binary                        | Note |
-|-------------|-------------------------------|------|
-| Windows x86 | `$(OutDir)\x86\liblzma.dll`   |      |
-| Windows x64 | `$(OutDir)\x64\liblzma.dll`   |      |
-| Linux x64   | `$(OutDir)\x64\liblzma.so`    | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\armhf\liblzma.so`  | Compiled in Debian 10    |
-| Linux arm64 | `$(OutDir)\arm64\liblzma.so`  | Compiled in Debian 10    |
-| macOS 10.15 | `$(OutDir)\x64\liblzma.dylib` | Compiled in Catalina     |
+#### For .NET Framework 4.5.1+
+
+| Platform         | Binary                      | Note            |
+|------------------|-----------------------------|-----------------|
+| Windows x86      | `$(OutDir)\x86\liblzma.dll` | Official binary |
+| Windows x64      | `$(OutDir)\x64\liblzma.dll` | Official binary |
+
+- Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copy of the package-embedded binary.
+
+#### For .NET Standard 2.0+
+
+| Platform         | Binary                                      | Note                     |
+|------------------|---------------------------------------------|--------------------------|
+| Windows x86      | `$(OutDir)\runtimes\win-x86\liblzma.dll`    | Official binary          |
+| Windows x64      | `$(OutDir)\runtimes\win-x64\liblzma.dll`    | Official binary          |
+| Ubuntu 18.04 x64 | `$(OutDir)\runtimes\linux-x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
+| Debian 9 armhf   | `$(OutDir)\runtimes\linux-arm\liblzma.so`   | Compiled in Debian 10    |
+| Debian 9 arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
+| macOS 10.15      | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`  | Compiled in Catalina     |
+
+- If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
+- Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
 ### Custom binary
 
 To use custom liblzma binary instead, call `XZInit.GlobalInit()` with a path to the custom binary.
-
-#### NOTES
-
-- Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copy of the package-embedded binary.
-- If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
-  - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
 ### Cleanup
 
