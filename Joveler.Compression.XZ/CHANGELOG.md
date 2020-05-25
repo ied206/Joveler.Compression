@@ -1,5 +1,14 @@
 # ChangeLog
 
+## v4.x
+
+### v4.0.0
+
+Released in 2020-05-26
+
+- (BREAKING CHANGE) Native libraries are now placed following [NuGet convention-based working directory](https://docs.microsoft.com/en-US/nuget/create-packages/creating-a-package#create-the-nuspec-file) on .NET Standard build.
+- Updated liblzma to 5.2.5.
+
 ## v3.x
 
 **NOTE**: The major version was bumped to v3.x from v1.x to match with Joveler.Compression.ZLib.
@@ -21,7 +30,7 @@ Released in 2019-10-20
 
 Released in 2019-10-02
 
-- (BREAKING CHANGES) Redesigned public APIs.
+- (BREAKING CHANGE) Redesigned public APIs.
 - Exposes CRC32 and CRC64 API of XZ-Utils.
 - Supports advanced configuration of XZStream
 

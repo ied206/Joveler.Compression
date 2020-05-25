@@ -30,8 +30,8 @@
   <ItemGroup Condition="'$(ExcludeInteropLib)' != 'true' And 
                         '$(MSBuildThisFileDirectory)' != '' And
                         HasTrailingSlash('$(MSBuildThisFileDirectory)')">
-    <InteropLibFiles_x86 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x86\liblzma.dll"/>
-    <InteropLibFiles_x64 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\liblzma.dll"/>
+    <InteropLibFiles_x86 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x86\native\liblzma.dll"/>
+    <InteropLibFiles_x64 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\liblzma.dll"/>
   </ItemGroup>
 
   <!--

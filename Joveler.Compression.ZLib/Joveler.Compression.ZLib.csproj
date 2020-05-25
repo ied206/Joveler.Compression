@@ -19,7 +19,7 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Improve RHEL/CentOS compatibility</PackageReleaseNotes>    
+    <PackageReleaseNotes>- Native libraries are now placed following NuGet convention-based working directory on .NET Standard build.</PackageReleaseNotes>    
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
   </PropertyGroup>
   <!-- PackageReference -->

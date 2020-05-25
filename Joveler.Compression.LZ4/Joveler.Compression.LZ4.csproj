@@ -18,7 +18,7 @@ Supports Windows, Linux and macOS.</Description>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
-    <PackageReleaseNotes>- Fix MSBuild script issue</PackageReleaseNotes>
+    <PackageReleaseNotes>- Native libraries are now placed following NuGet convention-based working directory on .NET Standard build.</PackageReleaseNotes>
     <PackageTags>lz4 lz4-hc lz4hc lz4-frame compress compression decompress decompression archive native pinvoke interop</PackageTags>
   </PropertyGroup>
   <!-- PackageReference -->

@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v4.x
+
+### v4.0.0
+
+Released in 2020-05-26
+
+- (BREAKING CHANGE) Native libraries are now placed following [NuGet convention-based working directory](https://docs.microsoft.com/en-US/nuget/create-packages/creating-a-package#create-the-nuspec-file) on .NET Standard build.
+
 ## v3.x
 
 ### v3.1.1

@@ -30,8 +30,8 @@
   <ItemGroup Condition="'$(ExcludeInteropLib)' != 'true' And 
                         '$(MSBuildThisFileDirectory)' != '' And
                         HasTrailingSlash('$(MSBuildThisFileDirectory)')">
-    <InteropLibFiles_x86 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x86\zlibwapi.dll"/>
-    <InteropLibFiles_x64 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\zlibwapi.dll"/>
+    <InteropLibFiles_x86 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x86\native\zlibwapi.dll"/>
+    <InteropLibFiles_x64 Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\zlibwapi.dll"/>
   </ItemGroup>
 
   <!--
