@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     MIT License
 
@@ -108,14 +108,14 @@ namespace Joveler.Compression.XZ.Tests.Checksum
 
             if (checksum.Length == 8)
             {
-                ulong actual = BitConverter.ToUInt64(checksum);
+                ulong actual = BitConverter.ToUInt64(checksum, 0);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
                 Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
                 Assert.AreEqual(expected, actual);
             }
             else if (checksum.Length == 4)
             {
-                uint actual = BitConverter.ToUInt32(checksum);
+                uint actual = BitConverter.ToUInt32(checksum, 0);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
                 Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
                 Assert.AreEqual(expected, actual);
@@ -185,8 +185,10 @@ namespace Joveler.Compression.XZ.Tests.Checksum
                     CheckTemplate(crc, fileName, kind, checksum);
                 }
 
-                using Crc32Algorithm hash = new Crc32Algorithm();
-                HashAlgorithmTemplate(hash, fileName, checksum);
+                using (Crc32Algorithm hash = new Crc32Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
             }
 
             ResetTemplate(crc, samples[0].FileName, samples[1].FileName);
@@ -210,8 +212,10 @@ namespace Joveler.Compression.XZ.Tests.Checksum
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                     CheckTemplate(crc, fileName, kind, checksum);
 
-                using Crc64Algorithm hash = new Crc64Algorithm();
-                HashAlgorithmTemplate(hash, fileName, checksum);
+                using (Crc64Algorithm hash = new Crc64Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
             }
 
             ResetTemplate(crc, samples[0].FileName, samples[1].FileName);

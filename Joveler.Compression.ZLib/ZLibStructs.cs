@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2019 Hajin Jang
+    Copyright (C) 2017-2020 Hajin Jang
 
     zlib license
 
@@ -121,7 +121,7 @@ namespace Joveler.Compression.ZLib
         Bits12 = 12,
         Bits13 = 13,
         Bits14 = 14,
-        Bits15 = 15,  
+        Bits15 = 15,
     }
 
     public enum ZLibMemLevel : int

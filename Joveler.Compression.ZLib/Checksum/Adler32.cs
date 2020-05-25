@@ -1,7 +1,7 @@
 ﻿/*
    Derived from zlib header files (zlib license)
    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-   Copyright (C) 2017-2019 Hajin Jang
+   Copyright (C) 2017-2020 Hajin Jang
 
    zlib license
 
@@ -102,12 +102,12 @@ namespace Joveler.Compression.ZLib.Checksum
             _adler32.Append(array, ibStart, cbSize);
         }
 
-#pragma warning disable CS0628 // For .Net Standard build
-        protected void HashCore(ReadOnlySpan<byte> source)
-#pragma warning restore CS0628
+#if NETSTANDARD2_1
+        protected override void HashCore(ReadOnlySpan<byte> source)
         {
             _adler32.Append(source);
         }
+#endif
 
         protected override byte[] HashFinal()
         {

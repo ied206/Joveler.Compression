@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -310,7 +310,11 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
+#if NETSTANDARD2_1
+        public override unsafe int Read(Span<byte> span)
+#else
         public unsafe int Read(Span<byte> span)
+#endif
         {
             if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
@@ -411,7 +415,11 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
+#if NETSTANDARD2_1
+        public override unsafe void Write(ReadOnlySpan<byte> span)
+#else
         public unsafe void Write(ReadOnlySpan<byte> span)
+#endif
         {
             if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");

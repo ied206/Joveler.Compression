@@ -4,7 +4,7 @@
     <img src="./Image/Logo.svg" height="128">
 </div>
 
-Home repository of compression pinvoke libraries for .Net.
+Home repository of compression pinvoke libraries for .NET.
 
 | CI Server       | Branch  | Build Status   |
 |-----------------|---------|----------------|

@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -38,7 +38,7 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
-    public class TestSetup
+    public static class TestSetup
     {
         public static string BaseDir;
         public static string SampleDir;
@@ -46,38 +46,13 @@ namespace Joveler.Compression.LZ4.Tests
         [AssemblyInitialize]
         public static void Init(TestContext context)
         {
+            _ = context;
+
             string absPath = TestHelper.GetProgramAbsolutePath();
             BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            string arch = null;
-            switch (RuntimeInformation.ProcessArchitecture)
-            {
-                case Architecture.X86:
-                    arch = "x86";
-                    break;
-                case Architecture.X64:
-                    arch = "x64";
-                    break;
-                case Architecture.Arm:
-                    arch = "armhf";
-                    break;
-                case Architecture.Arm64:
-                    arch = "arm64";
-                    break;
-            }
-
-            string libPath = null;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(absPath, arch, "liblz4.dll");
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(absPath, arch, "liblz4.so");
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(absPath, arch, "liblz4.dylib");
-
-            if (libPath == null || !File.Exists(libPath))
-                throw new PlatformNotSupportedException();
-
+            string libPath = GetNativeLibPath();
             LZ4Init.GlobalInit(libPath);
         }
 
@@ -86,9 +61,59 @@ namespace Joveler.Compression.LZ4.Tests
         {
             LZ4Init.GlobalCleanup();
         }
+
+        private static string GetNativeLibPath()
+        {
+            string libDir = string.Empty;
+
+#if !NETFRAMEWORK
+            libDir = "runtimes";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                libDir = Path.Combine(libDir, "win-");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                libDir = Path.Combine(libDir, "linux-");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                libDir = Path.Combine(libDir, "osx-");
+#endif
+
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86:
+                    libDir += "x86";
+                    break;
+                case Architecture.X64:
+                    libDir += "x64";
+                    break;
+                case Architecture.Arm:
+                    libDir += "arm";
+                    break;
+                case Architecture.Arm64:
+                    libDir += "arm64";
+                    break;
+            }
+
+#if !NETFRAMEWORK
+            libDir = Path.Combine(libDir, "native");
+#endif
+
+            string libPath = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                libPath = Path.Combine(libDir, "liblz4.dll");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                libPath = Path.Combine(libDir, "liblz4.so");
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                libPath = Path.Combine(libDir, "liblz4.dylib");
+
+            if (libPath == null)
+                throw new PlatformNotSupportedException($"Unable to find native library.");
+            if (!File.Exists(libPath))
+                throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+
+            return libPath;
+        }
     }
 
-    public class TestHelper
+    public static class TestHelper
     {
         public static string GetProgramAbsolutePath()
         {
@@ -147,7 +172,7 @@ namespace Joveler.Compression.LZ4.Tests
                         break;
                 }
             }
-                
+
             if (binary == null)
                 throw new PlatformNotSupportedException();
 

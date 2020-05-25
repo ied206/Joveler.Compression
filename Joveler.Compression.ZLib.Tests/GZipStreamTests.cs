@@ -1,8 +1,30 @@
-﻿using System;
+﻿/*
+    C# tests by Hajin Jang
+    Copyright (C) 2017-2020 Hajin Jang
+
+    zlib license
+
+    This software is provided 'as-is', without any express or implied
+    warranty.  In no event will the authors be held liable for any damages
+    arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+       claim that you wrote the original software. If you use this software
+       in a product, an acknowledgment in the product documentation would be
+       appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+       misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+*/
+
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -44,6 +66,7 @@ namespace Joveler.Compression.ZLib.Tests
                 using (FileStream archiveFs = new FileStream(tempArchiveFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (GZipStream zs = new GZipStream(archiveFs, compOpts))
                 {
+#if !NETFRAMEWORK
                     if (useSpan)
                     {
                         byte[] buffer = new byte[64 * 1024];
@@ -55,6 +78,7 @@ namespace Joveler.Compression.ZLib.Tests
                         } while (0 < bytesRead);
                     }
                     else
+#endif
                     {
                         sampleFs.CopyTo(zs);
                     }
@@ -118,33 +142,37 @@ namespace Joveler.Compression.ZLib.Tests
 
             ZLibDecompressOptions decompOpts = new ZLibDecompressOptions();
 
-            using MemoryStream decompMs = new MemoryStream();
-            using FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using (GZipStream zs = new GZipStream(compFs, decompOpts))
+            using (MemoryStream decompMs = new MemoryStream())
+            using (FileStream decompFs = new FileStream(decompPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream compFs = new FileStream(compPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                if (useSpan)
+                using (GZipStream zs = new GZipStream(compFs, decompOpts))
                 {
-                    byte[] buffer = new byte[64 * 1024];
-                    int bytesRead;
-                    do
+#if !NETFRAMEWORK
+                    if (useSpan)
                     {
-                        bytesRead = zs.Read(buffer.AsSpan());
-                        decompMs.Write(buffer.AsSpan(0, bytesRead));
-                    } while (0 < bytesRead);
+                        byte[] buffer = new byte[64 * 1024];
+                        int bytesRead;
+                        do
+                        {
+                            bytesRead = zs.Read(buffer.AsSpan());
+                            decompMs.Write(buffer.AsSpan(0, bytesRead));
+                        } while (0 < bytesRead);
+                    }
+                    else
+#endif
+                    {
+                        zs.CopyTo(decompMs);
+                    }
                 }
-                else
-                {
-                    zs.CopyTo(decompMs);
-                }
+
+                decompMs.Position = 0;
+
+                // Compare SHA256 Digest
+                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
+                byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
+                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
             }
-
-            decompMs.Position = 0;
-
-            // Compare SHA256 Digest
-            byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-            byte[] fileDigest = TestHelper.SHA256Digest(decompFs);
-            Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
         }
         #endregion
     }

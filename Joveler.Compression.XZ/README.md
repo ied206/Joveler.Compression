@@ -1,8 +1,6 @@
 # Joveler.Compression.XZ
 
-[XZ Utils](https://tukaani.org/xz/) (liblzma) pinvoke library for .Net.
-
-Targets .Net Standard 2.0, supports multiple platforms such as Windows, Linux and macOS.
+[XZ Utils](https://tukaani.org/xz/) (liblzma) pinvoke library for .NET.
 
 ## Install
 
@@ -16,12 +14,13 @@ Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packag
 
 ## Support
 
-### Targeted .Net platforms
+### Targeted .NET platforms
 
-- .Net Framework 4.5.1
-- .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
+- .NET Standard 2.1 (.NET Core 3.0+)
+- .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
+- .NET Framework 4.5.1
 
-If you need .Net Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packages/Joveler.Compression.XZ/1.1.2) instead.
+If you need .NET Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packages/Joveler.Compression.XZ/1.1.2) instead.
 
 ### Supported OS platforms
 
@@ -46,12 +45,17 @@ If you need .Net Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packag
 
 - 5.2.2
 - 5.2.3
-- 5.2.4 (Included)
+- 5.2.4
+- 5.2.5 (Included)
 
 ## Usage
 
 See [USAGE.md](./USAGE.md).
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
+
 ## License
 
-MIT license
+`Joveler.Compression.XZ` is licensed under [MIT license](./LICENSE).

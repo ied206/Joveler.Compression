@@ -4,11 +4,11 @@
 
 Joveler.Compression.LZ4 requires explicit loading of the lz4 library.
 
-You must call `LZ4Init.GlobalInit()` before using Joveler.Compression.LZ4.
+You must call `LZ4Init.GlobalInit()` before using Joveler.Compression.LZ4. Please put this code snippet in your application init code:
 
-Put this snippet in your application's init code:
+#### For .NET Framework 4.5.1+
 
-```csharp
+```cs
 public static void InitNativeLibrary()
 {
     string arch = null;
@@ -27,19 +27,59 @@ public static void InitNativeLibrary()
             arch = "arm64";
             break;
     }
+    string libPath = Path.Combine(arch, "liblz4.dll");
+
+    if (!File.Exists(libPath))
+        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+
+    Magic.GlobalInit(libPath);
+}
+```
+
+#### For .NET Standard 2.0+:
+
+```cs
+public static void InitNativeLibrary()
+{
+    string libDir = "runtimes";
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        libDir = Path.Combine(libDir, "win-");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        libDir = Path.Combine(libDir, "linux-");
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        libDir = Path.Combine(libDir, "osx-");
+
+    switch (RuntimeInformation.ProcessArchitecture)
+    {
+        case Architecture.X86:
+            libDir += "x86";
+            break;
+        case Architecture.X64:
+            libDir += "x64";
+            break;
+        case Architecture.Arm:
+            libDir += "arm";
+            break;
+        case Architecture.Arm64:
+            libDir += "arm64";
+            break;
+    }
+    libDir = Path.Combine(libDir, "native");
 
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        libPath = Path.Combine(absPath, arch, "liblz4.dll");
+        libPath = Path.Combine(libDir, "liblz4.dll");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        libPath = Path.Combine(absPath, arch, "liblz4.so");
+        libPath = Path.Combine(libDir, "liblz4.so");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        libPath = Path.Combine(absPath, arch, "liblz4.dylib");
+        libPath = Path.Combine(libDir, "liblz4.dylib");
 
-    if (libPath == null || !File.Exists(libPath))
-        throw new PlatformNotSupportedException();
+    if (libPath == null)
+        throw new PlatformNotSupportedException($"Unable to find native library.");
+    if (!File.Exists(libPath))
+        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 
-    LZ4Init.GlobalInit(libPath);
+    Magic.GlobalInit(libPath);
 }
 ```
 
@@ -47,27 +87,34 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.2`.  
-They are copied into the build directory at build time.
+Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.2`. They are copied into the build directory at build time.
 
-| Platform    | Binary                       | Note |
-|-------------|------------------------------|------|
-| Windows x86 | `$(OutDir)\x86\liblz4.dll`   |      |
-| Windows x64 | `$(OutDir)\x64\liblz4.dll`   |      |
-| Linux x64   | `$(OutDir)\x64\liblz4.so`    | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\armhf\liblz4.so`  | Compiled in Debian 10    |
-| Linux arm64 | `$(OutDir)\arm64\liblz4.so`  | Compiled in Debian 10    |
-| macOS 10.15 | `$(OutDir)\x64\liblz4.dylib` | Compiled in Catalina     |
+#### For .NET Framework 4.5.1+
+
+| Platform    | Binary                       | Note            |
+|-------------|------------------------------|-----------------|
+| Windows x86 | `$(OutDir)\x86\liblz4.dll`   | Official binary |
+| Windows x64 | `$(OutDir)\x64\liblz4.dll`   | Official binary |
+
+- Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
+
+#### For .NET Standard 2.0+
+
+| Platform    | Binary                                     | Note                     |
+|-------------|--------------------------------------------|--------------------------|
+| Windows x86 | `$(OutDir)\runtimes\win-x86\liblz4.dll`    | Official binary          |
+| Windows x64 | `$(OutDir)\runtimes\win-x64\liblz4.dll`    | Official binary          |
+| Linux x64   | `$(OutDir)\runtimes\linux-x64\liblz4.so`   | Compiled in Ubuntu 18.04 |
+| Linux armhf | `$(OutDir)\runtimes\linux-armhf\liblz4.so` | Compiled in Debian 10    |
+| Linux arm64 | `$(OutDir)\runtimes\linux-arm64\liblz4.so` | Compiled in Debian 10    |
+| macOS 10.15 | `$(OutDir)\runtimes\osx-x64\liblz4.dylib`  | Compiled in Catalina     |
+
+- If you call `LZ4Init.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblz4.
+- Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `LZ4Init.GlobalInit()` to use system-installed liblz4.
 
 ### Custom binary
 
 To use custom lz4 binary instead, call `LZ4Init.GlobalInit()` with a path to the custom binary.
-
-#### NOTES
-
-- Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
-- If you call `LZ4Init.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblz4.
-  - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `LZ4Init.GlobalInit()` to use system-installed liblz4.
 
 ### Cleanup
 

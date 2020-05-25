@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -85,6 +85,7 @@ namespace Joveler.Compression.LZ4.Tests
                     using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
                     using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, compOpts))
                     {
+#if !NETFRAMEWORK
                         if (useSpan)
                         {
                             byte[] buffer = new byte[64 * 1024];
@@ -97,6 +98,7 @@ namespace Joveler.Compression.LZ4.Tests
                             } while (0 < bytesRead);
                         }
                         else
+#endif
                         {
                             sampleFs.CopyTo(lzs);
                         }
@@ -107,7 +109,7 @@ namespace Joveler.Compression.LZ4.Tests
                         Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
                     }
                 }
-                
+
 
                 Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
 
@@ -164,6 +166,7 @@ namespace Joveler.Compression.LZ4.Tests
                 using (FileStream compFs = new FileStream(lz4File, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, decompOpts))
                 {
+#if !NETFRAMEWORK
                     if (useSpan)
                     {
                         byte[] buffer = new byte[64 * 1024];
@@ -176,6 +179,7 @@ namespace Joveler.Compression.LZ4.Tests
                         } while (0 < bytesRead);
                     }
                     else
+#endif
                     {
                         lzs.CopyTo(decompMs);
                     }

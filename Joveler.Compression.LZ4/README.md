@@ -1,8 +1,6 @@
 # Joveler.Compression.LZ4
 
-[LZ4](https://github.com/lz4/lz4) pinvoke library for .Net.
-
-Targets .Net Standard 2.0, supports multiple platforms such as Windows, Linux and macOS.
+[LZ4](https://github.com/lz4/lz4) pinvoke library for .NET.
 
 ## Install
 
@@ -22,10 +20,11 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 
 ## Support
 
-### Targeted .Net platforms
+### Targeted .NET platforms
 
-- .Net Framework 4.5.1
-- .Net Standard 2.0 (.Net Framework 4.6.1+, .Net Core 2.0+)
+- .NET Standard 2.1 (.NET Core 3.0+)
+- .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
+- .NET Framework 4.5.1
 
 ### Supported OS platforms
 
@@ -48,9 +47,6 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 
 ### Supported LZ4 version
 
-- 1.8.1.2
-- 1.8.2
-- 1.8.3
 - 1.9.1
 - 1.9.2 (Included)
 
@@ -58,6 +54,11 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 
 See [USAGE.md](./USAGE.md).
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
+
 ## License
 
-BSD 2-Clause license
+`Joveler.Compression.LZ4` is licensed under [BSD 2-Clause license](./LICENSE).
+

@@ -1,7 +1,7 @@
 ﻿/*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-    Copyright (C) 2017-2019 Hajin Jang
+    Copyright (C) 2017-2020 Hajin Jang
 
     zlib license
 
@@ -107,14 +107,14 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
 
             if (checksum.Length == 8)
             {
-                ulong actual = BitConverter.ToUInt64(checksum);
+                ulong actual = BitConverter.ToUInt64(checksum, 0);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
                 Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
                 Assert.AreEqual(expected, actual);
             }
             else if (checksum.Length == 4)
             {
-                uint actual = BitConverter.ToUInt32(checksum);
+                uint actual = BitConverter.ToUInt32(checksum, 0);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
                 Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
                 Assert.AreEqual(expected, actual);
@@ -184,8 +184,10 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                     CheckTemplate(crc32, fileName, kind, checksum);
                 }
 
-                using Crc32Algorithm hash = new Crc32Algorithm();
-                HashAlgorithmTemplate(hash, fileName, checksum);
+                using (Crc32Algorithm hash = new Crc32Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
             }
 
             ResetTemplate(crc32, samples[0].FileName, samples[1].FileName);
@@ -211,8 +213,10 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                     CheckTemplate(adler32, fileName, kind, checksum);
                 }
 
-                using Adler32Algorithm hash = new Adler32Algorithm();
-                HashAlgorithmTemplate(hash, fileName, checksum);
+                using (Adler32Algorithm hash = new Adler32Algorithm())
+                {
+                    HashAlgorithmTemplate(hash, fileName, checksum);
+                }
             }
 
             ResetTemplate(adler32, samples[0].FileName, samples[1].FileName);

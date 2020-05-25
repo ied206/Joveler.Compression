@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     MIT License
 
@@ -91,6 +91,7 @@ namespace Joveler.Compression.XZ.Tests
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (XZStream xzs = new XZStream(xzCompFs, compOpts, threadOpts))
                 {
+#if !NETFRAMEWORK
                     if (useSpan)
                     {
                         byte[] buffer = new byte[64 * 1024];
@@ -103,6 +104,7 @@ namespace Joveler.Compression.XZ.Tests
                         } while (0 < bytesRead);
                     }
                     else
+#endif
                     {
                         sampleFs.CopyTo(xzs);
                     }
@@ -122,14 +124,18 @@ namespace Joveler.Compression.XZ.Tests
                 byte[] originDigest;
                 using (FileStream fs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    using HashAlgorithm hash = SHA256.Create();
-                    originDigest = hash.ComputeHash(fs);
+                    using (HashAlgorithm hash = SHA256.Create())
+                    {
+                        originDigest = hash.ComputeHash(fs);
+                    }
                 }
 
                 using (FileStream fs = new FileStream(tempDecompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    using HashAlgorithm hash = SHA256.Create();
-                    decompDigest = hash.ComputeHash(fs);
+                    using (HashAlgorithm hash = SHA256.Create())
+                    {
+                        decompDigest = hash.ComputeHash(fs);
+                    }
                 }
 
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
@@ -182,6 +188,7 @@ namespace Joveler.Compression.XZ.Tests
                 using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (XZStream xz = new XZStream(compFs, decompOpts))
                 {
+#if !NETFRAMEWORK
                     if (useSpan)
                     {
                         byte[] buffer = new byte[64 * 1024];
@@ -194,6 +201,7 @@ namespace Joveler.Compression.XZ.Tests
                         } while (0 < bytesRead);
                     }
                     else
+#endif
                     {
                         xz.CopyTo(decompMs);
                     }
@@ -208,14 +216,18 @@ namespace Joveler.Compression.XZ.Tests
                 }
                 decompMs.Position = 0;
 
-                using HashAlgorithm hash = SHA256.Create();
-                decompDigest = hash.ComputeHash(decompMs);
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    decompDigest = hash.ComputeHash(decompMs);
+                }
             }
 
             using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                using HashAlgorithm hash = SHA256.Create();
-                originDigest = hash.ComputeHash(originFs);
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    originDigest = hash.ComputeHash(originFs);
+                }
             }
 
             Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
