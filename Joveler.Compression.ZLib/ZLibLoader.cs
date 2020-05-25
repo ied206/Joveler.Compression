@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2019 Hajin Jang
+    Copyright (C) 2017-2020 Hajin Jang
 
     zlib license
 

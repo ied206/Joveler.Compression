@@ -3,7 +3,7 @@
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
     C# tests by Hajin Jang
-    Copyright (C) 2017-2019 Hajin Jang
+    Copyright (C) 2017-2020 Hajin Jang
 
     zlib license
 
@@ -27,7 +27,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;

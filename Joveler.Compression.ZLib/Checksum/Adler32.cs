@@ -1,7 +1,7 @@
 ﻿/*
    Derived from zlib header files (zlib license)
    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-   Copyright (C) 2017-2019 Hajin Jang
+   Copyright (C) 2017-2020 Hajin Jang
 
    zlib license
 

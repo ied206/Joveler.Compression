@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2019 Hajin Jang
+    Copyright (C) 2018-2020 Hajin Jang
 
     MIT License
 
@@ -28,7 +28,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 
