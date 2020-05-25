@@ -20,7 +20,7 @@ Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packag
 - .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
 - .NET Framework 4.5.1
 
-If you need .Net Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packages/Joveler.Compression.XZ/1.1.2) instead.
+If you need .NET Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packages/Joveler.Compression.XZ/1.1.2) instead.
 
 ### Supported OS platforms
 
@@ -51,6 +51,10 @@ If you need .Net Standard 1.3 support, use [v1.1.2](https://www.nuget.org/packag
 ## Usage
 
 See [USAGE.md](./USAGE.md).
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 

@@ -24,8 +24,8 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 - .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
 - .NET Framework 4.5.1
 
-If you need .Net Framework 4.5 support, use [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) instead.  
-If you need .Net Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) instead.
+If you need .NET Framework 4.5 support, use [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) instead.  
+If you need .NET Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) instead.
 
 ### Supported OS platforms
 
@@ -49,6 +49,10 @@ If you need .Net Standard 1.3 support, use [v2.1.2](https://www.nuget.org/packag
 ### Supported zlib version
 
 - 1.2.11 (Included)
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Usage
 

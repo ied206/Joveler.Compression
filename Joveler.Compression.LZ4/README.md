@@ -54,6 +54,10 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 
 See [USAGE.md](./USAGE.md).
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
+
 ## License
 
 `Joveler.Compression.LZ4` is licensed under [BSD 2-Clause license](./LICENSE).
