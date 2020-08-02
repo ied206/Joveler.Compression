@@ -43,7 +43,7 @@ namespace Joveler.Compression.Zstd
 {
     #region StreamOptions
     /// <summary>
-    /// Compress options for LZ4FrameStream
+    /// Compress options for ZstdStream
     /// </summary>
     /// <remarks>
     /// Default value is based on default value of lz4 cli
@@ -51,65 +51,26 @@ namespace Joveler.Compression.Zstd
     public class ZstdCompressOptions
     {
         /// <summary>
-        /// 0: default (fast mode); values > LZ4CompLevel.Level12 count as LZ4CompLevel.Level12; values < 0 trigger "fast acceleration"
-        /// </summary>
-        public LZ4CompLevel Level { get; set; } = LZ4CompLevel.Default;
-        /// <summary>
-        /// max64KB, max256KB, max1MB, max4MB
-        /// </summary>
-        public FrameBlockSizeId BlockSizeId { get; set; } = FrameBlockSizeId.Max4MB;
-        /// <summary>
-        /// LZ4F_blockLinked, LZ4F_blockIndependent
-        /// </summary>
-        public FrameBlockMode BlockMode { get; set; } = FrameBlockMode.BlockLinked;
-        /// <summary>
-        /// if enabled, frame is terminated with a 32-bits checksum of decompressed data
-        /// </summary>
-        public FrameContentChecksum ContentChecksumFlag { get; set; } = FrameContentChecksum.ContentChecksumEnabled;
-        /// <summary>
-        /// read-only field : LZ4F_frame or LZ4F_skippableFrame
-        /// </summary>
-        public FrameType FrameType { get; set; } = FrameType.Frame;
-        /// <summary>
-        /// if enabled, each block is followed by a checksum of block's compressed data
-        /// </summary>
-        public FrameBlockChecksum BlockChecksumFlag { get; set; } = FrameBlockChecksum.NoBlockChecksum;
-        /// <summary>
-        /// Size of uncompressed content ; 0 == unknown
-        /// </summary>
-        public ulong ContentSize { get; set; } = 0;
-        /// <summary>
-        /// 1 == always flush, to reduce usage of internal buffers
-        /// </summary>
-        public bool AutoFlush { get; set; } = false;
-        /// <summary>
-        /// 1 == parser favors decompression speed vs compression ratio. Only works for high compression modes (>= LZ4CompLevel.Level10)
-        /// </summary>
-        /// <remarks>
-        /// v1.8.2+ 
-        /// </remarks>
-        public bool FavorDecSpeed { get; set; } = false;
-        /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
         /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
+        /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
 
     /// <summary>
-    /// Decompress options for LZ4FrameStream
+    /// Decompress options for ZstdStream
     /// </summary>
-    public class LZ4FrameDecompressOptions
+    public class ZstdDecompressOptions
     {
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
         /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
+        /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
@@ -117,7 +78,7 @@ namespace Joveler.Compression.Zstd
 
     #region ZstdStream
     // ReSharper disable once InconsistentNaming
-    public class ZstdStream : Stream
+    public unsafe class ZstdStream : Stream
     {
         #region enum Mode
         private enum Mode
@@ -164,9 +125,10 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// Create compressing LZ4FrameStream.
         /// </summary>
-        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameCompressOptions compOpts)
+        public unsafe ZstdStream(Stream baseStream, ZstdCompressOptions compOpts)
         {
-            LZ4Init.Manager.EnsureLoaded();
+            /*
+            ZstdInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
@@ -177,8 +139,8 @@ namespace Joveler.Compression.Zstd
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
 
             // Prepare cctx
-            UIntPtr ret = LZ4Init.Lib.CreateFrameCompressContext(ref _cctx, FrameVersion);
-            LZ4FrameException.CheckReturnValue(ret);
+            UIntPtr ret = ZstdInit.Lib.CreateFrameCompressContext(ref _cctx, FrameVersion);
+            ZstdException.CheckReturnValue(ret);
 
             // Prepare FramePreferences
             FramePreferences prefs = new FramePreferences
@@ -203,10 +165,10 @@ namespace Joveler.Compression.Zstd
             UIntPtr frameSizeVal = LZ4Init.Lib.FrameCompressBound((UIntPtr)_bufferSize, prefs);
             Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
             uint frameSize = frameSizeVal.ToUInt32();
-            /*
-            if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            */
+            
+            //if (_bufferSize < frameSize)
+            //    _destBufSize = frameSize;
+            
             _destBufSize = (uint)_bufferSize;
             if (_bufferSize < frameSize)
                 _destBufSize = frameSize;
@@ -224,14 +186,16 @@ namespace Joveler.Compression.Zstd
             int headerSize = (int)headerSizeVal.ToUInt32();
             BaseStream.Write(_workBuf, 0, headerSize);
             TotalOut += headerSize;
+            */
         }
 
         /// <summary>
         /// Create decompressing LZ4FrameStream.
         /// </summary>
-        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions compOpts)
+        public unsafe ZstdStream(Stream baseStream, ZstdDecompressOptions compOpts)
         {
-            LZ4Init.Manager.EnsureLoaded();
+            /*
+            ZstdInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
@@ -255,11 +219,12 @@ namespace Joveler.Compression.Zstd
 
             // Prepare a work buffer
             _workBuf = new byte[_bufferSize];
+            */
         }
         #endregion
 
         #region Disposable Pattern
-        ~LZ4FrameStream()
+        ~ZstdStream()
         {
             Dispose(false);
         }
@@ -268,6 +233,7 @@ namespace Joveler.Compression.Zstd
         {
             if (disposing && !_disposed)
             {
+                /*
                 if (_cctx != IntPtr.Zero)
                 { // Compress
                     FinishWrite();
@@ -296,6 +262,7 @@ namespace Joveler.Compression.Zstd
                 }
 
                 _disposed = true;
+                */
             }
         }
         #endregion
@@ -332,6 +299,7 @@ namespace Joveler.Compression.Zstd
             int destSize = span.Length;
             int destLeftBytes = span.Length;
 
+            /*
             if (_firstRead)
             {
                 // Write FrameMagicNumber into LZ4F_decompress
@@ -402,7 +370,7 @@ namespace Joveler.Compression.Zstd
                 TotalOut += destWritten;
                 readSize += destWritten;
             }
-
+            */
             return readSize;
         }
 
@@ -421,7 +389,7 @@ namespace Joveler.Compression.Zstd
 
         /// <inheritdoc />
 #if NETSTANDARD2_1
-    public override unsafe void Write(ReadOnlySpan<byte> span)
+        public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
@@ -431,6 +399,7 @@ namespace Joveler.Compression.Zstd
 
             int inputSize = span.Length;
 
+            /*
             while (0 < span.Length)
             {
                 int srcWorkSize = _bufferSize < span.Length ? _bufferSize : span.Length;
@@ -452,12 +421,13 @@ namespace Joveler.Compression.Zstd
 
                 span = span.Slice(srcWorkSize);
             }
-
+            */
             TotalIn += inputSize;
         }
 
         private unsafe void FinishWrite()
         {
+            /*
             Debug.Assert(_mode == Mode.Compress, "FinishWrite() cannot be called in decompression");
 
             UIntPtr outSizeVal;
@@ -472,6 +442,7 @@ namespace Joveler.Compression.Zstd
 
             BaseStream.Write(_workBuf, 0, outSize);
             TotalOut += outSize;
+            */
         }
 
         /// <inheritdoc />
@@ -521,7 +492,7 @@ namespace Joveler.Compression.Zstd
                             return 0;
                         return 100 - TotalIn * 100.0 / TotalOut;
                     default:
-                        throw new InvalidOperationException($"Internal Logic Error at {nameof(LZ4FrameStream)}.{nameof(CompressionRatio)}");
+                        throw new InvalidOperationException($"Internal Logic Error at {nameof(ZstdStream)}.{nameof(CompressionRatio)}");
                 }
             }
         }

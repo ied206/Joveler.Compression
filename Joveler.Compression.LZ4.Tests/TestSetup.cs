@@ -38,7 +38,7 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
-    public static class TestSetup
+    public class TestSetup
     {
         public static string BaseDir;
         public static string SampleDir;
@@ -110,6 +110,38 @@ namespace Joveler.Compression.LZ4.Tests
                 throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 
             return libPath;
+        }
+
+        [TestMethod]
+        public void LogRuntimeInfo()
+        {
+            string platform = "unknown";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                platform = "win";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                platform = "linux";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                platform = "osx";
+
+            string arch = "unknown";
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86:
+                    arch = "x86";
+                    break;
+                case Architecture.X64:
+                    arch = "x64";
+                    break;
+                case Architecture.Arm:
+                    arch = "arm";
+                    break;
+                case Architecture.Arm64:
+                    arch = "arm64";
+                    break;
+            }
+
+            Console.WriteLine($"Platform = {platform}");
+            Console.WriteLine($"Arch     = {arch}");
         }
     }
 

@@ -39,7 +39,4 @@ using System.Threading.Tasks;
 
 namespace Joveler.Compression.Zstd
 {
-    public class 
-    {
-    }
 }

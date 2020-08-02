@@ -34,6 +34,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -46,10 +48,11 @@ namespace Joveler.Compression.Zstd
 
         private static string FrameGetErrorName(UIntPtr code)
         {
-            LZ4Init.Manager.EnsureLoaded();
+            ZstdInit.Manager.EnsureLoaded();
 
-            IntPtr strPtr = LZ4Init.Lib.GetErrorName(code);
-            return Marshal.PtrToStringAnsi(strPtr);
+            // IntPtr strPtr = ZstdInit.Lib.GetErrorName(code);
+            // return Marshal.PtrToStringAnsi(strPtr);
+            return string.Empty;
         }
 
         public ZstdException(UIntPtr code) : base(FrameGetErrorName(code))
@@ -59,14 +62,14 @@ namespace Joveler.Compression.Zstd
 
         public static void CheckReturnValue(UIntPtr code)
         {
-            LZ4Init.Manager.EnsureLoaded();
+            ZstdInit.Manager.EnsureLoaded();
 
-            if (LZ4Init.Lib.FrameIsError(code) != 0)
-                throw new LZ4FrameException(code);
+            //if (ZstdInit.Lib.FrameIsError(code) != 0)
+            //    throw new ZstdException(code);
         }
 
         #region Serializable
-        protected LZ4FrameException(SerializationInfo info, StreamingContext ctx)
+        protected ZstdException(SerializationInfo info, StreamingContext ctx)
         {
             ReturnCode = info.GetUInt64(nameof(ReturnCode));
         }
