@@ -31,6 +31,7 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using Joveler.DynLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,7 +40,12 @@ using System.Threading.Tasks;
 
 namespace Joveler.Compression.Zstd
 {
-    class ZstdLoadManager
+    internal class ZstdLoadManager : LoadManagerBase<ZstdLoader>
     {
+        protected override string ErrorMsgInitFirst => "Please call ZstdInit.GlobalInit() first!";
+        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.ZStd is already initialized.";
+
+        protected override ZstdLoader CreateLoader() => new ZstdLoader();
+        protected override ZstdLoader CreateLoader(string libPath) => new ZstdLoader(libPath);
     }
 }
