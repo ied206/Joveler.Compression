@@ -7,14 +7,14 @@
     <Platforms>AnyCPU</Platforms>
     <PackageId>Joveler.Compression.XZ</PackageId>
     <Title>Joveler.Compression.XZ</Title>
-    <Version>4.0.0</Version>
+    <Version>4.1.0</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>XZ Utils (liblzma) pinvoke library for .NET.
 The library provides the fast native implementation of XZStream.
 It also supports fast calculation of CRC32 and CRC64 checksum.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (c) 2018-2020 Hajin Jang</Copyright>
+    <Copyright>Copyright (c) 2018-2021 Hajin Jang</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -49,6 +49,10 @@ Supports Windows, Linux and macOS.</Description>
       <Link>runtimes\win-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="runtimes\win-arm64\*.dll">
+      <Link>runtimes\win-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="runtimes\linux-x64\*.so">
       <Link>runtimes\linux-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -75,6 +79,7 @@ Supports Windows, Linux and macOS.</Description>
     <!-- Native Library -->
     <None Include="runtimes\win-x86\*.dll"    Pack="true" PackagePath="runtimes\win-x86\native"/>
     <None Include="runtimes\win-x64\*.dll"    Pack="true" PackagePath="runtimes\win-x64\native"/>
+    <None Include="runtimes\win-arm64\*.dll"  Pack="true" PackagePath="runtimes\win-arm64\native"/>
     <None Include="runtimes\linux-x64\*.so"   Pack="true" PackagePath="runtimes\linux-x64\native"/>
     <None Include="runtimes\linux-arm\*.so"   Pack="true" PackagePath="runtimes\linux-arm\native"/>
     <None Include="runtimes\linux-arm64\*.so" Pack="true" PackagePath="runtimes\linux-arm64\native"/>

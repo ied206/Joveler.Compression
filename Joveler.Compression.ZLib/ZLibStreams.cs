@@ -125,7 +125,21 @@ namespace Joveler.Compression.ZLib
 
         // Const
         private const int ReadDone = -1;
-        internal const int DefaultBufferSize = 64 * 1024;
+
+
+        // Default Buffer Size
+        /* Benchmark - 256K is the fatest.
+        AMD Ryzen 5 3600 / .NET Core 3.1.13 / Windows 10.0.19042 x64 / zlib 1.2.11
+        | Method | BufferSize |        Mean |     Error |    StdDev |
+        |------- |----------- |------------:|----------:|----------:|
+        |   ZLib |       4096 |  3,215.4 us |   5.49 us |   4.87 us |
+        |   ZLib |      16384 |  3,214.9 us |  15.69 us |  14.68 us |
+        |   ZLib |      65536 |  3,219.9 us |   8.46 us |   7.91 us |
+        |   ZLib |     262144 |  3,161.8 us |   8.99 us |   7.51 us |
+        |   ZLib |    1048576 |  3,376.9 us |  13.43 us |  11.90 us |
+        |   ZLib |    4194304 |  3,532.8 us |  10.05 us |   8.91 us |
+         */
+        internal const int DefaultBufferSize = 256 * 1024;
         #endregion
 
         #region Constructor

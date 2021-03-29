@@ -48,7 +48,8 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 ### Supported LZ4 version
 
 - 1.9.1
-- 1.9.2 (Included)
+- 1.9.2
+- 1.9.3 (Included)
 
 ## Usage
 
