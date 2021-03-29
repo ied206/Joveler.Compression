@@ -1,8 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+	<!-- Windowws x86 & x64 -->
     <TargetFrameworks>net48;netcoreapp2.1;netcoreapp3.1</TargetFrameworks>
+	<!-- Windowws ARM64 -->
+	<TargetFrameworks Condition="'$(OS)' == 'Windows_NT' and '$(PROCESSOR_ARCHITECTURE)' == 'ARM64'">net5.0</TargetFrameworks>
+	<!-- POSIX -->
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netcoreapp2.1;netcoreapp3.1</TargetFrameworks>
+	
     <IsPackable>false</IsPackable>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
