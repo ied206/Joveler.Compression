@@ -11,8 +11,21 @@ using System.Runtime.InteropServices;
 namespace Benchmark
 {
     #region Parameter
+    [Flags]
+    public enum AlgorithmFlags
+    {
+        None = 0x0,
+        ZLib = 0x1,
+        XZ = 0x2,
+        LZ4 = 0x4,
+        All = ZLib | XZ | LZ4,
+    }
+
     public abstract class ParamOptions
     {
+        [Option("algo", Default = AlgorithmFlags.All, HelpText = "Choose algorithms to benchmark | zlib,xz,lz4,all")]
+        public AlgorithmFlags Algorithms { get; set; }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Cast<T>() where T : ParamOptions
         {
@@ -146,10 +159,13 @@ namespace Benchmark
         }
         #endregion
 
+        #region Commnad Line Options
+        public static ParamOptions Opts { get; private set; }
+        #endregion
+
         #region Main
         public static void Main(string[] args)
         {
-            ParamOptions opts = null;
             Parser argParser = new Parser(conf =>
             {
                 conf.HelpWriter = Console.Out;
@@ -159,15 +175,15 @@ namespace Benchmark
 
             argParser.ParseArguments<AllBenchOptions,
                 CompBenchOptions, DecompBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
-                .WithParsed<AllBenchOptions>(x => opts = x)
-                .WithParsed<CompBenchOptions>(x => opts = x)
-                .WithParsed<DecompBenchOptions>(x => opts = x)
-                .WithParsed<HashBenchOptions>(x => opts = x)
-                .WithParsed<BufferSizeBenchOptions>(x => opts = x)
+                .WithParsed<AllBenchOptions>(x => Opts = x)
+                .WithParsed<CompBenchOptions>(x => Opts = x)
+                .WithParsed<DecompBenchOptions>(x => Opts = x)
+                .WithParsed<HashBenchOptions>(x => Opts = x)
+                .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
-            Debug.Assert(opts != null, $"{nameof(opts)} != null");
+            Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
-            switch (opts)
+            switch (Opts)
             {
                 case AllBenchOptions _:
                     BenchmarkRunner.Run<CompBench>();

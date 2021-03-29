@@ -181,19 +181,22 @@ namespace Joveler.Compression.XZ
         internal static readonly uint MaxExtremePreset = XZCompressOptions.ToPreset(LzmaCompLevel.Level9, true);
 
         // Default Buffer Size
-        /* Benchmark - 256K is the fatest, but the performance is within error range.
+        /* Benchmark - Performance of each buffer size is within error range.
            LZMA2 is a slow algorithm, so pinvoke overhead impact is minimal.
         AMD Ryzen 5 3600 / .NET Core 3.1.13 / Windows 10.0.19042 x64 / xz-utils 5.2.5
-        | Method | BufferSize |        Mean |     Error |    StdDev |
-        |------- |----------- |------------:|----------:|----------:|
-        |     XZ |       4096 | 35,983.4 us |  86.34 us |  76.54 us |
-        |     XZ |      16384 | 35,925.6 us | 112.21 us | 104.96 us |
-        |     XZ |      65536 | 36,023.0 us | 169.78 us | 158.81 us |
-        |     XZ |     262144 | 35,923.5 us |  78.95 us |  73.85 us |
-        |     XZ |    1048576 | 36,148.8 us | 142.89 us | 133.66 us |
-        |     XZ |    4194304 | 36,515.1 us | 119.07 us | 111.38 us |
+        | Method | BufferSize |     Mean |    Error |   StdDev |
+        |------- |----------- |---------:|---------:|---------:|
+        |     XZ |      16384 | 37.06 ms | 0.499 ms | 0.467 ms |
+        |     XZ |      32768 | 36.79 ms | 0.152 ms | 0.127 ms |
+        |     XZ |      65536 | 36.85 ms | 0.497 ms | 0.464 ms |
+        |     XZ |     131072 | 37.03 ms | 0.393 ms | 0.349 ms |
+        |     XZ |     262144 | 37.23 ms | 0.486 ms | 0.454 ms |
+        |     XZ |     524288 | 37.67 ms | 0.531 ms | 0.497 ms |
+        |     XZ |    1048576 | 36.87 ms | 0.268 ms | 0.251 ms |
+        |     XZ |    2097152 | 37.14 ms | 0.246 ms | 0.218 ms |
+        |     XZ |    4194304 | 37.29 ms | 0.354 ms | 0.331 ms |
          */
-        internal const int DefaultBufferSize = 256 * 1024;
+        internal const int DefaultBufferSize = 1024 * 1024;
         #endregion
 
         #region Constructor

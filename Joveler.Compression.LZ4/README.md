@@ -32,6 +32,7 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 |----------|--------------|--------|
 | Windows  | x86          | Yes    |
 |          | x64          | Yes    |
+|          | arm64        | Yes    |
 | Linux    | x64          | Yes    |
 |          | armhf        | Yes    |
 |          | arm64        | Yes    |
