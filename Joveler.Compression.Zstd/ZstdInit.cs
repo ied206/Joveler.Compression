@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2020 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -48,21 +48,20 @@ namespace Joveler.Compression.Zstd
         #endregion
 
         #region Version - (Static)
+        /*
+            Definition from "zstd.h"
+
+            #define ZSTD_VERSION_MAJOR    1
+            #define ZSTD_VERSION_MINOR    4
+            #define ZSTD_VERSION_RELEASE  5
+
+            #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
+
+            #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
+        */
         public static Version Version()
         {
             Manager.EnsureLoaded();
-
-            /*
-                Definition from "lz4.h"
-
-#define LZ4_VERSION_MAJOR    1 
-#define LZ4_VERSION_MINOR    8 
-#define LZ4_VERSION_RELEASE  3
-
-#define LZ4_VERSION_NUMBER (LZ4_VERSION_MAJOR *100*100 + LZ4_VERSION_MINOR *100 + LZ4_VERSION_RELEASE)
-
-#define LZ4_LIB_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
-            */
 
             int verInt = (int)Lib.VersionNumber();
             int major = verInt / 10000;

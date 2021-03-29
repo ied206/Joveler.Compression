@@ -36,6 +36,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -53,11 +54,39 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdFrameStream.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
+        /// <summary>
+        /// largest match distance : larger == more compression, more memory needed during decompression
+        /// </summary>
+        public uint WindowLog;
+        /// <summary>
+        /// fully searched segment : larger == more compression, slower, more memory (useless for fast)
+        /// </summary>
+        public uint ChainLog;
+        /// <summary>
+        /// dispatch table : larger == faster, more memory
+        /// </summary>
+        public uint HashLog;
+        /// <summary>
+        /// nb of searches : larger == more compression, slower
+        /// </summary>
+        public uint SearchLog;
+        /// <summary>
+        /// match length searched : larger == faster decompression, sometimes less compression
+        /// </summary>
+        public uint MinMatch;
+        /// <summary>
+        /// acceptable match size for optimal parser (only) : larger == more compression, slower
+        /// </summary>
+        public uint TargetLength;
+        /// <summary>
+        /// see ZSTD_strategy definition above
+        /// </summary>
+        public Strategy Strategy;
     }
 
     /// <summary>
@@ -68,7 +97,7 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdFrameStream.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
@@ -78,7 +107,7 @@ namespace Joveler.Compression.Zstd
 
     #region ZstdStream
     // ReSharper disable once InconsistentNaming
-    public unsafe class ZstdStream : Stream
+    public unsafe class ZstdFrameStream : Stream
     {
         #region enum Mode
         private enum Mode
@@ -98,10 +127,12 @@ namespace Joveler.Compression.Zstd
         private IntPtr _dctx = IntPtr.Zero;
 
         private readonly int _bufferSize = DefaultBufferSize;
-        private readonly byte[] _workBuf;
+        private readonly uint _srcBufSize;
+        private readonly byte[] _srcBuf;
+        private readonly uint _destBufSize;
+        private readonly byte[] _destBuf;
 
         // Compression
-        private readonly uint _destBufSize;
 
         // Decompression
         private bool _firstRead = true;
@@ -115,19 +146,23 @@ namespace Joveler.Compression.Zstd
 
         // Const
         private const int DecompressComplete = -1;
-        // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
-        internal const uint FrameVersion = 100;
-        internal const int DefaultBufferSize = 16 * 1024;
-        private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
+        //internal const uint FrameVersion = 100;
+        internal const int DefaultBufferSize = 1024 * 1024;
+        private const uint CLevelDefault = 3;
+        private const uint BlocksizeMax = 1 << 17;
+        private static readonly byte[] FrameMagicNumber = { 0x28, 0xB5, 0x2F, 0xFD }; // 0xFD2FB528 (LE), valid since v0.8.0
+        private static readonly byte[] MagicDictionary = { 0x37, 0xA4, 0x30, 0xEC }; // 0xEC30A437 (LE), valid since v0.7.0
+        private static readonly byte[] MagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE), all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame
+        private static readonly byte[] MagicSkippableMask = { 0xF0, 0xFF, 0xFF, 0xFF };
         #endregion
 
         #region Constructor
         /// <summary>
-        /// Create compressing LZ4FrameStream.
+        /// Create compressing ZstdFrameStream.
         /// </summary>
-        public unsafe ZstdStream(Stream baseStream, ZstdCompressOptions compOpts)
+        public unsafe ZstdFrameStream(Stream baseStream, ZstdCompressOptions compOpts)
         {
-            /*
+            // Based on FIO_createCResources(), FIO_compressZstdFrame()
             ZstdInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
@@ -139,10 +174,31 @@ namespace Joveler.Compression.Zstd
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
 
             // Prepare cctx
-            UIntPtr ret = ZstdInit.Lib.CreateFrameCompressContext(ref _cctx, FrameVersion);
-            ZstdException.CheckReturnValue(ret);
+            IntPtr cStream = ZstdInit.Lib.CreateCStream();
+            if (cStream == IntPtr.Zero)
+            {
+                // Unable to create cctx
+                throw new InvalidOperationException("allocation error: can't create ZSTD_CCtx");
+            }
+
+            // TODO: Use ZSTD_CCtx_setPledgedSrcSize?
+
+            UIntPtr srcBufSize = ZstdInit.Lib.CStreamInSize();
+            if (uint.MaxValue < srcBufSize.ToUInt64())
+                _srcBufSize = uint.MaxValue;
+            else
+                _srcBufSize = srcBufSize.ToUInt32();
+            _srcBuf = new byte[_srcBufSize];
+
+            UIntPtr destBufSize = ZstdInit.Lib.CStreamOutSize();
+            if (uint.MaxValue < destBufSize.ToUInt64())
+                _destBufSize = uint.MaxValue;
+            else
+                _destBufSize = destBufSize.ToUInt32();
+            _destBuf = new byte[_destBufSize];
 
             // Prepare FramePreferences
+            /*
             FramePreferences prefs = new FramePreferences
             {
                 FrameInfo = new FrameInfo
@@ -159,26 +215,41 @@ namespace Joveler.Compression.Zstd
                 AutoFlush = compOpts.AutoFlush ? 1u : 0u,
                 FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
             };
+            */
+
+            // Prepare CompressionParameters
+            CompressionParameters cParams = new CompressionParameters
+            {
+
+            };
 
             // Query the minimum required size of compress buffer
             // _bufferSize is the source size, frameSize is the (required) dest size
+            /*
             UIntPtr frameSizeVal = LZ4Init.Lib.FrameCompressBound((UIntPtr)_bufferSize, prefs);
             Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
             uint frameSize = frameSizeVal.ToUInt32();
-            
+            */
             //if (_bufferSize < frameSize)
             //    _destBufSize = frameSize;
-            
+
+
+
+            /*
             _destBufSize = (uint)_bufferSize;
             if (_bufferSize < frameSize)
                 _destBufSize = frameSize;
+            _workBuf = new byte[_destBufSize];
+            */
+
+            _destBufSize = 1024 * 1024;
             _workBuf = new byte[_destBufSize];
 
             // Write the frame header into _workBuf
             UIntPtr headerSizeVal;
             fixed (byte* dest = _workBuf)
             {
-                headerSizeVal = LZ4Init.Lib.FrameCompressBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
+                headerSizeVal = .Lib.FrameCompressBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
             }
             LZ4FrameException.CheckReturnValue(headerSizeVal);
             Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
@@ -186,13 +257,12 @@ namespace Joveler.Compression.Zstd
             int headerSize = (int)headerSizeVal.ToUInt32();
             BaseStream.Write(_workBuf, 0, headerSize);
             TotalOut += headerSize;
-            */
         }
 
         /// <summary>
         /// Create decompressing LZ4FrameStream.
         /// </summary>
-        public unsafe ZstdStream(Stream baseStream, ZstdDecompressOptions compOpts)
+        public unsafe ZstdFrameStream(Stream baseStream, ZstdDecompressOptions compOpts)
         {
             /*
             ZstdInit.Manager.EnsureLoaded();
@@ -224,7 +294,7 @@ namespace Joveler.Compression.Zstd
         #endregion
 
         #region Disposable Pattern
-        ~ZstdStream()
+        ~ZstdFrameStream()
         {
             Dispose(false);
         }
@@ -492,7 +562,7 @@ namespace Joveler.Compression.Zstd
                             return 0;
                         return 100 - TotalIn * 100.0 / TotalOut;
                     default:
-                        throw new InvalidOperationException($"Internal Logic Error at {nameof(ZstdStream)}.{nameof(CompressionRatio)}");
+                        throw new InvalidOperationException($"Internal Logic Error at {nameof(ZstdFrameStream)}.{nameof(CompressionRatio)}");
                 }
             }
         }
