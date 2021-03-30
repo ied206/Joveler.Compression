@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Target .NET Framework 4.8 & .NET 5 | .NET Core 3.x or lower has stability issues on ARM/ARM64 (virtual) machines -->
 	<!-- Windowws x86 & x64 -->
-    <TargetFrameworks>net48;netcoreapp2.1;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net48;net5.0</TargetFrameworks>
 	<!-- Windowws ARM64 -->
 	<TargetFrameworks Condition="'$(OS)' == 'Windows_NT' and '$(PROCESSOR_ARCHITECTURE)' == 'ARM64'">net5.0</TargetFrameworks>
 	<!-- POSIX -->
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netcoreapp2.1;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">net5.0</TargetFrameworks>
 	
     <IsPackable>false</IsPackable>
     <Platforms>AnyCPU</Platforms>
