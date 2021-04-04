@@ -104,6 +104,7 @@ Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.5`. Th
 |------------------|---------------------------------------------|--------------------------|
 | Windows x86      | `$(OutDir)\runtimes\win-x86\liblzma.dll`    | Official binary          |
 | Windows x64      | `$(OutDir)\runtimes\win-x64\liblzma.dll`    | Official binary          |
+| Windows arm64    | `$(OutDir)\runtimes\win-arm64\liblzma.dll`  | Compiled with MSVC 2019  |
 | Ubuntu 18.04 x64 | `$(OutDir)\runtimes\linux-x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
 | Debian 9 armhf   | `$(OutDir)\runtimes\linux-arm\liblzma.so`   | Compiled in Debian 10    |
 | Debian 9 arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
