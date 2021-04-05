@@ -151,8 +151,30 @@ namespace Joveler.Compression.LZ4
         private const int DecompressComplete = -1;
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal const uint FrameVersion = 100;
-        internal const int DefaultBufferSize = 16 * 1024;
         private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
+        /*
+        private const int FrameSizeToKnowHeaderLength = 5;
+        /// <summary>
+        /// LZ4 Frame header size can vary, depending on selected paramaters
+        /// </summary>
+        private const int FrameHeaderSizeMin = 7;
+        private const int FrameHeaderSizeMax = 19;
+        */
+
+        // Default Buffer Size
+        /* Benchmark - 1MB is the fastest, due to less pinvoke overhead
+           LZ4 is a fast algorithm, so pinvoke overhead impact is critical.
+        AMD Ryzen 5 3600 / .NET Core 3.1.13 / Windows 10.0.19042 x64 / lz4 1.9.2
+        | Method | BufferSize |        Mean |     Error |    StdDev |
+        |------- |----------- |------------:|----------:|----------:|
+        |    LZ4 |       4096 |  1,016.2 us |  19.22 us |  19.74 us |
+        |    LZ4 |      16384 |    970.4 us |  19.28 us |  36.69 us |
+        |    LZ4 |      65536 |    911.6 us |   7.72 us |  12.46 us |
+        |    LZ4 |     262144 |    946.9 us |   4.01 us |   3.35 us |
+        |    LZ4 |    1048576 |    637.4 us |  12.55 us |  22.95 us |
+        |    LZ4 |    4194304 |    904.2 us |   4.15 us |   3.88 us |
+         */
+        internal const int DefaultBufferSize = 1024 * 1024;
         #endregion
 
         #region Constructor

@@ -6,6 +6,7 @@ using System.IO;
 namespace Benchmark
 {
     #region DecompBench
+    [Config(typeof(BenchConfig))]
     public class DecompBench
     {
         private string _sampleDir;
@@ -71,6 +72,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public long LZ4_Native()
         {
             Joveler.Compression.LZ4.LZ4FrameDecompressOptions decompOpts = new Joveler.Compression.LZ4.LZ4FrameDecompressOptions();
@@ -88,6 +90,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public long LZ4_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
@@ -103,6 +106,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public long ZLib_Native()
         {
             Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
@@ -120,6 +124,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public long ZLib_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
@@ -135,6 +140,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public long XZ_Native()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
@@ -151,6 +157,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public long XZ_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];

@@ -93,22 +93,23 @@ Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`. Th
 
 | Platform         | Binary                      | Note               |
 |------------------|-----------------------------|--------------------|
-| Windows x86      | `$(OutDir)\x86\zlibwpi.dll` | Compiled w/ VS2017 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274)|
-| Windows x64      | `$(OutDir)\x64\zlibwpi.dll` | Compiled w/ VS2017 |
+| Windows x86      | `$(OutDir)\x86\zlibwpi.dll` | Compiled w/ VS2019 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274)|
+| Windows x64      | `$(OutDir)\x64\zlibwpi.dll` | Compiled w/ VS2019 |
 
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Joveler.Compression.ZLib recognizes only `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)` on Windows.
 
 #### For .NET Standard 2.0+
 
-| Platform         | Binary                                   | Note                     |
-|------------------|------------------------------------------|--------------------------|
-| Windows x86      | `$(OutDir)\runtimes\win-x86\zlibwpi.dll` | Compiled w/ VS2017 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
-| Windows x64      | `$(OutDir)\runtimes\win-x64\zlibwpi.dll` | Compiled w/ VS2017       |
-| Ubuntu 18.04 x64 | `$(OutDir)\runtimes\linux-x64\libz.so`   | Compiled in Ubuntu 18.04 |
-| Debian 9 armhf   | `$(OutDir)\runtimes\linux-arm\libz.so`   | Compiled in Debian 10    |
-| Debian 9 arm64   | `$(OutDir)\runtimes\linux-arm64\libz.so` | Compiled in Debian 10    |
-| macOS 10.15      | `$(OutDir)\runtimes\osx-x64\libz.dylib`  | Compiled in Catalina     |
+| Platform      | Binary                                   | Note                     |
+|---------------|------------------------------------------|--------------------------|
+| Windows x86   | `$(OutDir)\runtimes\win-x86\zlibwpi.dll` | Compiled w/ VS2019 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
+| Windows x64   | `$(OutDir)\runtimes\win-x64\zlibwpi.dll` | Compiled w/ VS2019       |
+| Windows arm64 | `$(OutDir)\runtimes\win-x64\zlibwpi.dll` | Compiled w/ VS2019       |
+| Linux x64     | `$(OutDir)\runtimes\linux-x64\libz.so`   | Compiled in Ubuntu 18.04 |
+| Linux armhf   | `$(OutDir)\runtimes\linux-arm\libz.so`   | Compiled in Debian 10    |
+| Linux arm64   | `$(OutDir)\runtimes\linux-arm64\libz.so` | Compiled in Debian 10    |
+| macOS x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`  | Compiled in Catalina     |
 
 - Joveler.Compression.ZLib recognizes only `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)` on Windows.
 - If you call `ZLibInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed zlib.

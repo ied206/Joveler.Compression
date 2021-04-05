@@ -35,7 +35,6 @@ namespace Joveler.Compression.XZ
     {
         #region Constructor
         public XZLoader() : base() { }
-        public XZLoader(string libPath) : base(libPath) { }
         #endregion
 
         #region (override) DefaultLibFileName

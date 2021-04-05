@@ -6,6 +6,7 @@ using System.IO;
 namespace Benchmark
 {
     #region CompBench
+    [Config(typeof(BenchConfig))]
     public class CompBench
     {
         private string _sampleDir;
@@ -106,6 +107,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public double LZ4_Native()
         {
             Joveler.Compression.LZ4.LZ4FrameCompressOptions compOpts = new Joveler.Compression.LZ4.LZ4FrameCompressOptions()
@@ -134,6 +136,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public double LZ4_Managed()
         {
             long compLen;
@@ -155,6 +158,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public double ZLib_Native()
         {
             long compLen;
@@ -182,6 +186,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public double ZLib_Managed()
         {
             long compLen;
@@ -201,6 +206,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public double XZ_Native()
         {
             long compLen;
