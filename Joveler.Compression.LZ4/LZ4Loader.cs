@@ -40,7 +40,6 @@ namespace Joveler.Compression.LZ4
     {
         #region Constructor
         public LZ4Loader() : base() { }
-        public LZ4Loader(string libPath) : base(libPath) { }
         #endregion
 
         #region (override) DefaultLibFileName

@@ -33,6 +33,5 @@ namespace Joveler.Compression.LZ4
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.LZ4 is already initialized.";
 
         protected override LZ4Loader CreateLoader() => new LZ4Loader();
-        protected override LZ4Loader CreateLoader(string libPath) => new LZ4Loader(libPath);
     }
 }

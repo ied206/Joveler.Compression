@@ -39,7 +39,6 @@ namespace Joveler.Compression.ZLib
     {
         #region Constructor
         public ZLibLoader() : base() { }
-        public ZLibLoader(string libPath) : base(libPath) { }
         #endregion
 
         #region LP64 and LLP64

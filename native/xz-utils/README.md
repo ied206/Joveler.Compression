@@ -1,4 +1,4 @@
-# XZ Native Library Compile
+# Native Library Compile
 
 This document explains how the embedded native binaries are compiled.
 
