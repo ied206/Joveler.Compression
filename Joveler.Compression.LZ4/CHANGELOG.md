@@ -5,7 +5,7 @@
 
 ### v4.1.0
 
-Released in 2021-04-??
+Released in 2021-04-05
 
 - Official support for Windows ARM64.
 - Upgrade lz4 binaries to 1.9.3.

@@ -19,8 +19,7 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Native libraries are now placed following NuGet convention-based working directory on .NET Standard build.
-- Updated liblzma to 5.2.5.</PackageReleaseNotes>
+    <PackageReleaseNotes>- Official support for Windows ARM64.</PackageReleaseNotes>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
   </PropertyGroup>
   <!-- PackageReference -->

@@ -4,9 +4,10 @@
 
 ### v4.1.0
 
-Released in 2021-04-??
+Released in 2021-04-05
 
 - Official support for Windows ARM64.
+- Fix a bug of `ResetFunctions()` not clearing deflate/inflate delegates on Windows.
 
 ### v4.0.0
 

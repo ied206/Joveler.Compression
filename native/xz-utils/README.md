@@ -11,7 +11,7 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 | Arch  | Obtain Method |
 |-------|---------------|
 | x86   | From official release, `xz-(ver)-windows\bin_i686-sse2\liblzma.dll` |
-| x64   | From official release, `xz-(ver)-windows\bin_i686-sse2\liblzma.dll` |
+| x64   | From official release, `xz-(ver)-windows\bin_x86-64\liblzma.dll` |
 | arm64 | Manual compile with MSVC 2019 |
 
 ### Manual Compile ARM64 DLL
