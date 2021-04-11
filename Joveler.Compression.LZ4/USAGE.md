@@ -141,7 +141,7 @@ You can tune lz4 frame format compress options with this class.
 | Property | Summary |
 |----------|---------|
 | Level | Compression level. The Default is `LZ4CompLevel.Fast`. Use `LZ4CompLevel.High` to turn on LZ4-HC mode. |
-| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
 
 It also contains more advanced options.
@@ -152,7 +152,7 @@ You can tune lz4 frame format decompress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
 
 ### Examples

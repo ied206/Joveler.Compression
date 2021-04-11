@@ -143,7 +143,7 @@ You can tune zlib compress options with this class.
 | Property | Summary |
 |----------|---------|
 | Level | Compression level. The Default is `ZLibCompLevel.Default`. |
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 256KB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the zlib stream object. |
 
 It also contains more advanced options.
@@ -154,7 +154,7 @@ You can tune zlib decompress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 256KB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the zlib stream object. |
 
 ### Examples

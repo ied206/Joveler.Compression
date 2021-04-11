@@ -144,7 +144,7 @@ You can tune xz compress options with this class.
 |----------|---------|
 | Level | Compression level. The Default is `ZLibCompLevel.Default` (6). |
 | ExtremeFlag | Use a slower variant to get a little bit better compression ratio hopefully. |
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
 
 It also contains more advanced options.
@@ -186,7 +186,7 @@ You can tune xz decompress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
 
 It also contains more advanced options. 
