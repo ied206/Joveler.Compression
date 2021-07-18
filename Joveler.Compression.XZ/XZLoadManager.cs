@@ -32,7 +32,5 @@ namespace Joveler.Compression.XZ
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.XZ is already initialized.";
 
         protected override XZLoader CreateLoader() => new XZLoader();
-
-        protected override XZLoader CreateLoader(string libPath) => new XZLoader(libPath);
     }
 }

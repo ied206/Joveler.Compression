@@ -17,14 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Joveler.Compression.XZ.Test
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{716274C2-B545-47DD-A7C0-6CFD856E1B69}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{83C65AA7-6D9A-46DE-B902-142C35231C32}"
-	ProjectSection(SolutionItems) = preProject
-		.editorconfig = .editorconfig
-	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Joveler.Compression.Zstd", "Joveler.Compression.Zstd\Joveler.Compression.Zstd.csproj", "{A17381AA-BED4-4503-8A9D-1C4510B942CC}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Joveler.Compression.Zstd.Tests", "Joveler.Compression.Zstd.Tests\Joveler.Compression.Zstd.Tests.csproj", "{EBFE6052-980F-48F5-B1F9-43AEF37BE309}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Joveler.Compression.Zstd", "Joveler.Compression.Zstd\Joveler.Compression.Zstd.csproj", "{C11924CD-C055-4B08-AB24-F7A72C4B1AC9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -60,14 +53,10 @@ Global
 		{716274C2-B545-47DD-A7C0-6CFD856E1B69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{716274C2-B545-47DD-A7C0-6CFD856E1B69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{716274C2-B545-47DD-A7C0-6CFD856E1B69}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A17381AA-BED4-4503-8A9D-1C4510B942CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A17381AA-BED4-4503-8A9D-1C4510B942CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A17381AA-BED4-4503-8A9D-1C4510B942CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A17381AA-BED4-4503-8A9D-1C4510B942CC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EBFE6052-980F-48F5-B1F9-43AEF37BE309}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EBFE6052-980F-48F5-B1F9-43AEF37BE309}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EBFE6052-980F-48F5-B1F9-43AEF37BE309}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EBFE6052-980F-48F5-B1F9-43AEF37BE309}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C11924CD-C055-4B08-AB24-F7A72C4B1AC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C11924CD-C055-4B08-AB24-F7A72C4B1AC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C11924CD-C055-4B08-AB24-F7A72C4B1AC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C11924CD-C055-4B08-AB24-F7A72C4B1AC9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

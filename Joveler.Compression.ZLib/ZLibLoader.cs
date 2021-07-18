@@ -39,7 +39,6 @@ namespace Joveler.Compression.ZLib
     {
         #region Constructor
         public ZLibLoader() : base() { }
-        public ZLibLoader(string libPath) : base(libPath) { }
         #endregion
 
         #region LP64 and LLP64
@@ -111,17 +110,35 @@ namespace Joveler.Compression.ZLib
 
         protected override void ResetFunctions()
         {
-            #region Deflate - DeflateInit2, Deflate, DeflateEnd
-            L64.DeflateInit2 = null;
-            L64.Deflate = null;
-            L64.DeflateEnd = null;
-            #endregion
+            switch (PlatformLongSize)
+            {
+                case PlatformLongSize.Long32:
+                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                    L32.DeflateInit2 = null;
+                    L32.Deflate = null;
+                    L32.DeflateEnd = null;
+                    #endregion
 
-            #region Inflate - InflateInit2, Inflate, InflateEnd
-            L64.InflateInit2 = null;
-            L64.Inflate = null;
-            L64.InflateEnd = null;
-            #endregion
+                    #region Inflate - InflateInit2, Inflate, InflateEnd
+                    L32.InflateInit2 = null;
+                    L32.Inflate = null;
+                    L32.InflateEnd = null;
+                    #endregion
+                    break;
+                case PlatformLongSize.Long64:
+                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                    L64.DeflateInit2 = null;
+                    L64.Deflate = null;
+                    L64.DeflateEnd = null;
+                    #endregion
+
+                    #region Inflate - InflateInit2, Inflate, InflateEnd
+                    L64.InflateInit2 = null;
+                    L64.Inflate = null;
+                    L64.InflateEnd = null;
+                    #endregion
+                    break;
+            }
 
             #region Checksum - Adler32, Crc32
             Adler32 = null;

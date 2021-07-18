@@ -32,23 +32,27 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 |----------|--------------|--------|
 | Windows  | x86          | Yes    |
 |          | x64          | Yes    |
+|          | arm64        | Yes    |
 | Linux    | x64          | Yes    |
 |          | armhf        | Yes    |
 |          | arm64        | Yes    |
 | macOS    | x64          | Yes    |
 
+macOS arm64 should be supported on theory, but I do not have access to an Apple Sillicon device to test. Please contribute if you have an ARM64 macOS machine.
+
 #### Tested linux distributions
 
 | Architecture  | Distribution | Note |
 |---------------|--------------|------|
-| x64           | Ubuntu 18.04 | Tested on AppVeyor CI         |
-| armhf         | Debian 10    | Emulated on QEMU's virt board |
-| arm64         | Debian 10    | Emulated on QEMU's virt board |
+| x64           | Ubuntu 18.04 | Tested on AppVeyor CI |
+| armhf         | Debian 10    | Emulated on QEMU      |
+| arm64         | Debian 10    | Emulated on QEMU      |
 
 ### Supported LZ4 version
 
 - 1.9.1
-- 1.9.2 (Included)
+- 1.9.2
+- 1.9.3 (Included)
 
 ## Usage
 

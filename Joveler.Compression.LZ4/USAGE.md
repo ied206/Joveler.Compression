@@ -87,27 +87,28 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.2`. They are copied into the build directory at build time.
+Joveler.Compression.LZ4 comes with sets of static binaries of `lz4 1.9.3`. They are copied into the build directory at build time.
 
 #### For .NET Framework 4.5.1+
 
-| Platform    | Binary                       | Note            |
-|-------------|------------------------------|-----------------|
-| Windows x86 | `$(OutDir)\x86\liblz4.dll`   | Official binary |
-| Windows x64 | `$(OutDir)\x64\liblz4.dll`   | Official binary |
+| Platform    | Binary                       | Note                    |
+|-------------|------------------------------|-------------------------|
+| Windows x86 | `$(OutDir)\x86\liblz4.dll`   | Compiled with MSVC 2019 |
+| Windows x64 | `$(OutDir)\x64\liblz4.dll`   | Compiled with MSVC 2019 |
 
 - Create an empty file named `Joveler.Compression.LZ4.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 
 #### For .NET Standard 2.0+
 
-| Platform    | Binary                                     | Note                     |
-|-------------|--------------------------------------------|--------------------------|
-| Windows x86 | `$(OutDir)\runtimes\win-x86\liblz4.dll`    | Official binary          |
-| Windows x64 | `$(OutDir)\runtimes\win-x64\liblz4.dll`    | Official binary          |
-| Linux x64   | `$(OutDir)\runtimes\linux-x64\liblz4.so`   | Compiled in Ubuntu 18.04 |
-| Linux armhf | `$(OutDir)\runtimes\linux-armhf\liblz4.so` | Compiled in Debian 10    |
-| Linux arm64 | `$(OutDir)\runtimes\linux-arm64\liblz4.so` | Compiled in Debian 10    |
-| macOS 10.15 | `$(OutDir)\runtimes\osx-x64\liblz4.dylib`  | Compiled in Catalina     |
+| Platform      | Binary                                     | Note                     |
+|---------------|--------------------------------------------|--------------------------|
+| Windows x86   | `$(OutDir)\runtimes\win-x86\liblz4.dll`    | Compiled with MSVC 2019  |
+| Windows x64   | `$(OutDir)\runtimes\win-x64\liblz4.dll`    | Compiled with MSVC 2019  |
+| Windows arm64 | `$(OutDir)\runtimes\win-arm64\liblz4.dll`  | Compiled with MSVC 2019  |
+| Linux x64     | `$(OutDir)\runtimes\linux-x64\liblz4.so`   | Compiled in Ubuntu 18.04 |
+| Linux armhf   | `$(OutDir)\runtimes\linux-armhf\liblz4.so` | Compiled in Debian 10    |
+| Linux arm64   | `$(OutDir)\runtimes\linux-arm64\liblz4.so` | Compiled in Debian 10    |
+| macOS x64     | `$(OutDir)\runtimes\osx-x64\liblz4.dylib`  | Compiled in Catalina     |
 
 - If you call `LZ4Init.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblz4.
 - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `LZ4Init.GlobalInit()` to use system-installed liblz4.
@@ -140,7 +141,7 @@ You can tune lz4 frame format compress options with this class.
 | Property | Summary |
 |----------|---------|
 | Level | Compression level. The Default is `LZ4CompLevel.Fast`. Use `LZ4CompLevel.High` to turn on LZ4-HC mode. |
-| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
 
 It also contains more advanced options.
@@ -151,7 +152,7 @@ You can tune lz4 frame format decompress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| BufferSize | Size of the internal buffer. The default is 16KB as lz4 library recommends. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the lz4 stream object. |
 
 ### Examples

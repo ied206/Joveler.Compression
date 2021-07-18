@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020 Hajin Jang
+    Copyright (C) 2020-2021 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -32,20 +32,14 @@
 */
 
 using Joveler.DynLoader;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Joveler.Compression.Zstd
 {
     internal class ZstdLoadManager : LoadManagerBase<ZstdLoader>
     {
         protected override string ErrorMsgInitFirst => "Please call ZstdInit.GlobalInit() first!";
-        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.ZStd is already initialized.";
+        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.Zstd is already initialized.";
 
         protected override ZstdLoader CreateLoader() => new ZstdLoader();
-        protected override ZstdLoader CreateLoader(string libPath) => new ZstdLoader(libPath);
     }
 }

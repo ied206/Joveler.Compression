@@ -5,6 +5,7 @@ using System.IO;
 
 namespace Benchmark
 {
+    [Config(typeof(BenchConfig))]
     public class HashBench
     {
         #region Fields and Properties
@@ -60,6 +61,7 @@ namespace Benchmark
         #region xxHash32
 #pragma warning disable IDE1006 // 명명 스타일
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public uint xxHash32_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -73,6 +75,7 @@ namespace Benchmark
         #region xxHash64
 #pragma warning disable IDE1006 // 명명 스타일
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public ulong xxHash64_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -85,6 +88,7 @@ namespace Benchmark
 
         #region Adler32
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public uint Adler32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -95,6 +99,7 @@ namespace Benchmark
 
         #region CRC32
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public uint CRC32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -103,6 +108,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public uint CRC32_XZNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -111,6 +117,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory("ZLib", "XZ")]
         public byte[] CRC32_ForceManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -119,6 +126,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory("ZLib", "XZ")]
         public uint CRC32_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -128,6 +136,7 @@ namespace Benchmark
         }
 
         [Benchmark]
+        [BenchmarkCategory("ZLib", "XZ")]
         public ulong CRC32_TomatoManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -139,6 +148,7 @@ namespace Benchmark
 
         #region CRC64
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public ulong CRC64_XZbNative()
         {
             byte[] compData = SrcFiles[SrcFileName];

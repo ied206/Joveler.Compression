@@ -5,6 +5,7 @@ using System.IO;
 
 namespace Benchmark
 {
+    [Config(typeof(BenchConfig))]
     public class BufferSizeBench
     {
         #region Fields and Properties
@@ -13,11 +14,14 @@ namespace Benchmark
         public int BufferSize { get; set; }
         public IReadOnlyList<int> BufferSizes { get; set; } = new int[]
         {
-            4 * 1024,
             16 * 1024,
+            32 * 1024,
             64 * 1024,
+            128 * 1024,
             256 * 1024,
+            512 * 1024,
             1024 * 1024,
+            2 * 1024 * 1024,
             4 * 1024 * 1024,
         };
 
@@ -83,6 +87,7 @@ namespace Benchmark
 
         #region LZ4
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.LZ4)]
         public void LZ4()
         {
             Joveler.Compression.LZ4.LZ4FrameCompressOptions compOpts = new Joveler.Compression.LZ4.LZ4FrameCompressOptions()
@@ -119,6 +124,7 @@ namespace Benchmark
 
         #region XZ
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
         public void XZ()
         {
             Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions()
@@ -155,6 +161,7 @@ namespace Benchmark
 
         #region ZLib
         [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public void ZLib()
         {
             Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions()

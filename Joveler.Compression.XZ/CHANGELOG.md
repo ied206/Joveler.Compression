@@ -2,7 +2,11 @@
 
 ## v4.x
 
-### v4.0.0
+### v4.1.0
+
+Released in 2021-04-05
+
+- Official support for Windows ARM64.
 
 Released in 2020-05-26
 

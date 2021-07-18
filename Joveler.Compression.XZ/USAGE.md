@@ -100,14 +100,15 @@ Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.5`. Th
 
 #### For .NET Standard 2.0+
 
-| Platform         | Binary                                      | Note                     |
-|------------------|---------------------------------------------|--------------------------|
-| Windows x86      | `$(OutDir)\runtimes\win-x86\liblzma.dll`    | Official binary          |
-| Windows x64      | `$(OutDir)\runtimes\win-x64\liblzma.dll`    | Official binary          |
-| Ubuntu 18.04 x64 | `$(OutDir)\runtimes\linux-x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
-| Debian 9 armhf   | `$(OutDir)\runtimes\linux-arm\liblzma.so`   | Compiled in Debian 10    |
-| Debian 9 arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
-| macOS 10.15      | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`  | Compiled in Catalina     |
+| Platform      | Binary                                      | Note                     |
+|---------------|---------------------------------------------|--------------------------|
+| Windows x86   | `$(OutDir)\runtimes\win-x86\liblzma.dll`    | Official binary          |
+| Windows x64   | `$(OutDir)\runtimes\win-x64\liblzma.dll`    | Official binary          |
+| Windows arm64 | `$(OutDir)\runtimes\win-arm64\liblzma.dll`  | Compiled with MSVC 2019  |
+| Linux x64     | `$(OutDir)\runtimes\linux-x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
+| Linux armhf   | `$(OutDir)\runtimes\linux-arm\liblzma.so`   | Compiled in Debian 10    |
+| Linux arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
+| macOS x64     | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`  | Compiled in Catalina     |
 
 - If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
 - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
@@ -143,7 +144,7 @@ You can tune xz compress options with this class.
 |----------|---------|
 | Level | Compression level. The Default is `ZLibCompLevel.Default` (6). |
 | ExtremeFlag | Use a slower variant to get a little bit better compression ratio hopefully. |
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
 
 It also contains more advanced options.
@@ -185,7 +186,7 @@ You can tune xz decompress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| BufferSize | Size of the internal buffer. The default is 64KB. |
+| BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
 
 It also contains more advanced options. 

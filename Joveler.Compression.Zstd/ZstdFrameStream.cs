@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020 Hajin Jang
+    Copyright (C) 2020-2021 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -40,9 +40,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
+#if DISABLE_CODE
 namespace Joveler.Compression.Zstd
 {
-    #region StreamOptions
+#region StreamOptions
     /// <summary>
     /// Compress options for ZstdStream
     /// </summary>
@@ -103,21 +104,21 @@ namespace Joveler.Compression.Zstd
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
-    #endregion
+#endregion
 
-    #region ZstdStream
+#region ZstdStream
     // ReSharper disable once InconsistentNaming
     public unsafe class ZstdFrameStream : Stream
     {
-        #region enum Mode
+#region enum Mode
         private enum Mode
         {
             Compress,
             Decompress,
         }
-        #endregion
+#endregion
 
-        #region Fields and Properties
+#region Fields and Properties
         // Field
         private readonly Mode _mode;
         private readonly bool _leaveOpen;
@@ -154,9 +155,9 @@ namespace Joveler.Compression.Zstd
         private static readonly byte[] MagicDictionary = { 0x37, 0xA4, 0x30, 0xEC }; // 0xEC30A437 (LE), valid since v0.7.0
         private static readonly byte[] MagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE), all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame
         private static readonly byte[] MagicSkippableMask = { 0xF0, 0xFF, 0xFF, 0xFF };
-        #endregion
+#endregion
 
-        #region Constructor
+#region Constructor
         /// <summary>
         /// Create compressing ZstdFrameStream.
         /// </summary>
@@ -241,7 +242,7 @@ namespace Joveler.Compression.Zstd
                 _destBufSize = frameSize;
             _workBuf = new byte[_destBufSize];
             */
-
+            
             _destBufSize = 1024 * 1024;
             _workBuf = new byte[_destBufSize];
 
@@ -249,7 +250,7 @@ namespace Joveler.Compression.Zstd
             UIntPtr headerSizeVal;
             fixed (byte* dest = _workBuf)
             {
-                headerSizeVal = .Lib.FrameCompressBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
+                headerSizeVal = ZstdLoader.Lib.FrameCompressBegin(_cctx, dest, (UIntPtr)_bufferSize, prefs);
             }
             LZ4FrameException.CheckReturnValue(headerSizeVal);
             Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
@@ -291,9 +292,9 @@ namespace Joveler.Compression.Zstd
             _workBuf = new byte[_bufferSize];
             */
         }
-        #endregion
+#endregion
 
-        #region Disposable Pattern
+#region Disposable Pattern
         ~ZstdFrameStream()
         {
             Dispose(false);
@@ -335,9 +336,9 @@ namespace Joveler.Compression.Zstd
                 */
             }
         }
-        #endregion
+#endregion
 
-        #region Stream Methods
+#region Stream Methods
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -566,9 +567,9 @@ namespace Joveler.Compression.Zstd
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region (internal, private) Check Arguments
+#region (internal, private) Check Arguments
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
         {
@@ -589,7 +590,8 @@ namespace Joveler.Compression.Zstd
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
             return Math.Max(bufferSize, 4096);
         }
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }
+#endif
