@@ -32,11 +32,7 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Joveler.Compression.Zstd
 {
@@ -228,8 +224,8 @@ namespace Joveler.Compression.Zstd
         // multi-threading parameters
         // These parameters are only useful if multi-threading is enabled (compiled with build macro ZSTD_MULTITHREAD).
         // They return an error otherwise.
-                              /// <summary>
-                              /// Select how many threads will be spawned to compress in parallel.
+        /// <summary>
+        /// Select how many threads will be spawned to compress in parallel.
         /// When nbWorkers >= 1, triggers asynchronous mode when used with ZSTD_compressStream* () :
         /// ZSTD_compressStream* () consumes input and flush output if possible, but immediately gives back control to caller,
         /// while compression work is performed in parallel, within worker threads.
@@ -300,6 +296,45 @@ namespace Joveler.Compression.Zstd
     }
     #endregion
 
+    // Streaming
+    #region (internal) InBuffer
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe class InBuffer
+    {
+        /// <summary>
+        /// start of input buffer
+        /// </summary>
+        public byte* Src;
+        /// <summary>
+        /// size of input buffer
+        /// </summary>
+        public UIntPtr Size;
+        /// <summary>
+        /// position where reading stopped. Will be updated. Necessarily 0 <= pos <= size
+        /// </summary>
+        public UIntPtr Pos;
+    }
+    #endregion
+
+    #region (internal) OutBuffer
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe class OutBuffer
+    {
+        /// <summary>
+        /// start of output buffer
+        /// </summary>
+        public byte* Dst;
+        /// <summary>
+        /// size of output buffer
+        /// </summary>
+        public UIntPtr Size;
+        /// <summary>
+        /// position where writing stopped. Will be updated. Necessarily 0 <= pos <= size
+        /// </summary>
+        public UIntPtr Pos;
+    }
+    #endregion
+
     // Compression Stream enum/struct
     #region (internal) EndDirective
     internal enum EndDirective
@@ -327,6 +362,7 @@ namespace Joveler.Compression.Zstd
     #endregion
 
     #region (internal) class Sequence
+    // ZSTD_Sequence
     [StructLayout(LayoutKind.Sequential)]
     internal class Sequence
     {
@@ -360,6 +396,7 @@ namespace Joveler.Compression.Zstd
     #endregion
 
     #region (internal) class CompressionParameters
+    // ZSTD_compressionParameters
     [StructLayout(LayoutKind.Sequential)]
     internal class CompressionParameters
     {
@@ -395,6 +432,7 @@ namespace Joveler.Compression.Zstd
     #endregion
 
     #region (internal) class FrameParameters
+    // ZSTD_frameParameters
     [StructLayout(LayoutKind.Sequential)]
     internal class FrameParameters
     {
@@ -412,15 +450,4 @@ namespace Joveler.Compression.Zstd
         public int noDictIDFlag;
     }
     #endregion
-
-    /*
-    #region (internal) class Parameters
-    [StructLayout(LayoutKind.Sequential)]
-    internal class Parameters
-    {
-        public CompressionParameters CParams;
-        public FrameParameters FParams;
-    }
-    #endregion
-    */
 }

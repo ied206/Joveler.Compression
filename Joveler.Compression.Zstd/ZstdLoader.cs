@@ -74,6 +74,15 @@ namespace Joveler.Compression.Zstd
             #endregion
             */
 
+            #region Helper Functions
+            CompressBound = GetFuncPtr<ZSTD_compressBound>();
+            IsError = GetFuncPtr<ZSTD_isError>();
+            GetErrorName = GetFuncPtr<ZSTD_getErrorName>();
+            MinCLevel = GetFuncPtr<ZSTD_minCLevel>();
+            MaxCLevel = GetFuncPtr<ZSTD_maxCLevel>();
+            DefaultCLevel = GetFuncPtr<ZSTD_defaultCLevel>();
+            #endregion
+
             #region Compression Streaming
             CreateCStream = GetFuncPtr<ZSTD_createCStream>();
             FreeCStream = GetFuncPtr<ZSTD_freeCStream>();
@@ -83,6 +92,8 @@ namespace Joveler.Compression.Zstd
             GetCParams = GetFuncPtr<ZSTD_getCParams>();
             CheckCParams = GetFuncPtr<ZSTD_checkCParams>();
             AdjustCParams = GetFuncPtr<ZSTD_adjustCParams>();
+            CParamGetBounds = GetFuncPtr<ZSTD_cParam_getBounds>();
+            CCtxSetParameter = GetFuncPtr<ZSTD_CCtx_setParameter>();
             #endregion
 
             #region Decompression Streaming
@@ -91,6 +102,10 @@ namespace Joveler.Compression.Zstd
             DecompressionStream = GetFuncPtr<ZSTD_decompressStream>();
             DStreamInSize = GetFuncPtr<ZSTD_DStreamInSize>();
             DStreamOutSize = GetFuncPtr<ZSTD_DStreamOutSize>();
+            #endregion
+
+            #region Streaming Common
+            ToFlushNow = GetFuncPtr<ZSTD_toFlushNow>();
             #endregion
 
             #region Memory Management
@@ -110,6 +125,15 @@ namespace Joveler.Compression.Zstd
             VersionString = null;
             #endregion
 
+            #region Helper Functions
+            CompressBound = null;
+            IsError = null;
+            GetErrorName = null;
+            MinCLevel = null;
+            MaxCLevel = null;
+            DefaultCLevel = null;
+            #endregion
+
             #region Compression Streaming
             CreateCStream = null;
             FreeCStream = null;
@@ -119,6 +143,8 @@ namespace Joveler.Compression.Zstd
             GetCParams = null;
             CheckCParams = null;
             AdjustCParams = null;
+            CParamGetBounds = null;
+            CCtxSetParameter = null;
             #endregion
 
             #region Decompression Streaming
@@ -127,6 +153,10 @@ namespace Joveler.Compression.Zstd
             DecompressionStream = null;
             DStreamInSize = null;
             DStreamOutSize = null;
+            #endregion
+
+            #region Streaming Common
+            ToFlushNow = null;
             #endregion
 
             #region Memory Management
@@ -245,7 +275,7 @@ namespace Joveler.Compression.Zstd
         internal ZSTD_findFrameCompressedSize FindFrameCompressedSize;
         #endregion
 
-        #region Helper - CompressBound, IsError, GetErrorName, MinCLevel, MaxCLevel
+        #region Helper - CompressBound, IsError, GetErrorName, MinCLevel, MaxCLevel, DefaultCLevel
         /// <summary>
         /// maximum compressed size in worst case single-pass scenario
         /// </summary>
@@ -262,7 +292,7 @@ namespace Joveler.Compression.Zstd
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint ZSTD_isError(UIntPtr code); // size_t
-        internal ZSTD_isError FrameIsError;
+        internal ZSTD_isError IsError;
 
         /// <summary>
         /// provides readable string from an error code
@@ -274,9 +304,8 @@ namespace Joveler.Compression.Zstd
         internal ZSTD_getErrorName GetErrorName;
 
         /// <summary>
-        /// minimum negative compression level allowed
+        /// minimum negative compression level allowed, requires v1.4.0+
         /// </summary>
-        /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int ZSTD_minCLevel();
         internal ZSTD_minCLevel MinCLevel;
@@ -284,10 +313,16 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// maximum compression level available
         /// </summary>
-        /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int ZSTD_maxCLevel();
         internal ZSTD_maxCLevel MaxCLevel;
+
+        /// <summary>
+        /// default compression level, specified by ZSTD_CLEVEL_DEFAULT, requires v1.5.0+
+        /// </summary>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int ZSTD_defaultCLevel();
+        internal ZSTD_defaultCLevel DefaultCLevel;
         #endregion
 
         #region Compression Streaming
@@ -299,11 +334,40 @@ namespace Joveler.Compression.Zstd
         internal delegate UIntPtr ZSTD_freeCStream(IntPtr zcs);
         internal ZSTD_freeCStream FreeCStream;
 
+        /// <summary>
+        /// Behaves about the same as ZSTD_compressStream, with additional control on end directive.
+        /// </summary>
+        /// <remarks>
+        /// - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
+        /// - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
+        /// - output->pos must be <= dstCapacity, input->pos must be <= srcSize
+        /// - output->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
+        /// - endOp must be a valid directive
+        /// - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
+        /// - When nbWorkers>=1, function is non-blocking : it copies a portion of input, distributes jobs to internal worker threads, flush to output whatever is available,
+        ///                                                 and then immediately returns, just indicating that there is some data remaining to be flushed.
+        ///                                                 The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
+        /// - Exception : if the first call requests a ZSTD_e_end directive and provides enough dstCapacity, the function delegates to ZSTD_compress2() which is always blocking.
+        /// - @return 
+        ///           or an error code, which can be tested using ZSTD_isError().
+        ///           if @return != 0, flush is not fully completed, there is still some data left within internal buffers.
+        ///            This is useful for ZSTD_e_flush, since in this case more flushes are necessary to empty all buffers.
+        ///           For ZSTD_e_end, @return == 0 when internal buffers are fully flushed and frame is completed.
+        /// - after a ZSTD_e_end directive, if internal buffer is not fully flushed (@return != 0),
+        ///           only ZSTD_e_end or ZSTD_e_flush operations are allowed.
+        ///           Before starting a new compression job, or changing compression parameters,
+        ///           it is required to fully flush internal buffers.
+        /// </remarks>
+        /// <param name="cctx"></param>
+        /// <param name="output"></param>
+        /// <param name="input"></param>
+        /// <param name="endOp"></param>
+        /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_compressStream2(
             IntPtr cctx,
-            byte* output,
-            byte* input,
+            OutBuffer output,
+            InBuffer input,
             EndDirective endOp);
         internal ZSTD_compressStream2 CompressionStream2;
 
@@ -395,6 +459,36 @@ namespace Joveler.Compression.Zstd
             UIntPtr dictSize // size_t
         );
         internal ZSTD_adjustCParams AdjustCParams;
+
+        /// <summary>
+        /// All parameters must belong to an interval with lower and upper bounds,
+        /// otherwise they will either trigger an error or be automatically clamped.
+        /// </summary>
+        /// <returns>
+        /// a structure, ZSTD_bounds, which contains
+        /// - an error status field, which must be tested using ZSTD_isError()
+        /// - lower and upper bounds, both inclusive
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate Bounds ZSTD_cParam_getBounds(CParameter cParam);
+        internal ZSTD_cParam_getBounds CParamGetBounds;
+
+        /// <summary>
+        /// Set one compression parameter, selected by enum ZSTD_cParameter.
+        ///  All parameters have valid bounds.Bounds can be queried using ZSTD_cParam_getBounds().
+        /// Providing a value beyond bound will either clamp it, or trigger an error(depending on parameter).
+        /// Setting a parameter is generally only possible during frame initialization(before starting compression).
+        /// Exception : when using multi-threading mode(nbWorkers >= 1),
+        /// the following parameters can be updated _during_ compression(within same frame) :
+        ///              => compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
+        /// new parameters will be active for next job only(after a flush()).
+        /// </summary>
+        /// <returns>
+        /// an error code (which can be tested using ZSTD_isError()).
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate UIntPtr ZSTD_CCtx_setParameter(IntPtr cctx, CParameter param, int value);
+        internal ZSTD_CCtx_setParameter CCtxSetParameter;
         #endregion
 
         #region Decompression Streaming
@@ -432,6 +526,29 @@ namespace Joveler.Compression.Zstd
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_DStreamOutSize();
         internal ZSTD_DStreamOutSize DStreamOutSize;
+        #endregion
+
+        #region Streaming Common
+        /// <summary>
+        /// Tell how many bytes are ready to be flushed immediately.
+        /// Useful for multithreading scenarios (nbWorkers >= 1).
+        /// Probe the oldest active job, defined as oldest job not yet entirely flushed,
+        /// and check its output buffer.
+        /// </summary>
+        /// <return>
+        /// amount of data stored in oldest job and ready to be flushed immediately.
+        /// if @return == 0, it means either :
+        /// + there is no active job (could be checked with ZSTD_frameProgression()), or
+        /// + oldest job is still actively compressing data,
+        ///   but everything it has produced has also been flushed so far,
+        ///   therefore flush speed is limited by production speed of oldest job
+        ///   irrespective of the speed of concurrent (and newer) jobs.
+        /// </return>
+        /// <param name="cctx"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate UIntPtr ZSTD_toFlushNow(IntPtr cctx);
+        internal ZSTD_toFlushNow ToFlushNow;
         #endregion
 
         // TODO: Dictionary functions
@@ -483,6 +600,7 @@ namespace Joveler.Compression.Zstd
         #endregion
 
         // TODO: Frame size functions
+
         #endregion
     }
 }
@@ -525,35 +643,7 @@ namespace Joveler.Compression.Zstd
             int compressionLevel);
         internal ZSTD_compressCCtx CompressCCtx;
 
-        /// <summary>
-        /// All parameters must belong to an interval with lower and upper bounds,
-        /// otherwise they will either trigger an error or be automatically clamped.
-        /// </summary>
-        /// <returns>
-        /// a structure, ZSTD_bounds, which contains
-        /// - an error status field, which must be tested using ZSTD_isError()
-        /// - lower and upper bounds, both inclusive
-        /// </returns>
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate Bounds ZSTD_cParam_getBounds(CParameter cParam);
-        internal ZSTD_cParam_getBounds CParamGetBounds;
-
-        /// <summary>
-        /// Set one compression parameter, selected by enum ZSTD_cParameter.
-        ///  All parameters have valid bounds.Bounds can be queried using ZSTD_cParam_getBounds().
-        /// Providing a value beyond bound will either clamp it, or trigger an error(depending on parameter).
-        /// Setting a parameter is generally only possible during frame initialization(before starting compression).
-        /// Exception : when using multi-threading mode(nbWorkers >= 1),
-        /// the following parameters can be updated _during_ compression(within same frame) :
-        ///              => compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
-        /// new parameters will be active for next job only(after a flush()).
-        /// </summary>
-        /// <returns>
-        /// an error code (which can be tested using ZSTD_isError()).
-        /// </returns>
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CCtx_setParameter(IntPtr cctx, CParameter param, int value);
-        internal ZSTD_CCtx_setParameter CCtxSetParameter;
+        
 
         /// <summary>
         /// Total input data size to be compressed as a single frame.
