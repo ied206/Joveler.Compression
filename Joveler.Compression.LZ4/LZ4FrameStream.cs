@@ -220,10 +220,7 @@ namespace Joveler.Compression.LZ4
             UIntPtr frameSizeVal = LZ4Init.Lib.FrameCompressBound((UIntPtr)_bufferSize, prefs);
             Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
             uint frameSize = frameSizeVal.ToUInt32();
-            /*
-            if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            */
+
             _destBufSize = (uint)_bufferSize;
             if (_bufferSize < frameSize)
                 _destBufSize = frameSize;

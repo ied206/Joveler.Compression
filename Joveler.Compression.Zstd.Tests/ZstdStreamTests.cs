@@ -1,19 +1,23 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
-    Copyright (c) 2011-2016, Yann Collet
+    Derived from Zstandard header files (BSD 2-Clause)
+    Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2020-2022 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
 
-    * Redistributions of source code must retain the above copyright notice, this
-      list of conditions and the following disclaimer.
+     * Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
 
-    * Redistributions in binary form must reproduce the above copyright notice, this
-      list of conditions and the following disclaimer in the documentation and/or
-      other materials provided with the distribution.
+     * Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+     * Neither the name Facebook nor the names of its contributors may be used to
+       endorse or promote products derived from this software without specific
+       prior written permission.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -29,35 +33,38 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-// ReSharper disable InconsistentNaming
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Joveler.Compression.LZ4.Tests
+namespace Joveler.Compression.Zstd.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.Zstd")]
-    public class LZ4FrameStreamTests
+    public class ZstdStreamTests
     {
         #region Compress
         [TestMethod]
+        [TestCategory("Joveler.Compression.Zstd")]
         public void Compress()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, false);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, false);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, false);
+
+            CompressTemplate("A.pdf", ZstdStream.MaxCompressionLevel(), false, false);
+            CompressTemplate("B.txt", ZstdStream.DefaultCompressionLevel(), true, false);
+            CompressTemplate("C.bin", ZstdStream.MinCompressionLevel(), false, false);
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
+        [TestCategory("Joveler.Compression.Zstd")]
         public void CompressSpan()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, true);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, true);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, true);
+            CompressTemplate("A.pdf", ZstdStream.MaxCompressionLevel(), false, true);
+            CompressTemplate("B.txt", ZstdStream.DefaultCompressionLevel(), true, true);
+            CompressTemplate("C.bin", ZstdStream.MinCompressionLevel(), false, true);
         }
 
-        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, bool autoFlush, bool enableContentSize, bool useSpan)
+        private static void CompressTemplate(string sampleFileName, int compLevel, bool enableContentSize, bool useSpan)
         {
             if (sampleFileName == null)
                 throw new ArgumentNullException(nameof(sampleFileName));
@@ -68,50 +75,48 @@ namespace Joveler.Compression.LZ4.Tests
             try
             {
                 string tempDecompFile = Path.Combine(destDir, Path.GetFileName(sampleFileName));
-                string tempLz4File = tempDecompFile + ".lz4";
+                string tempZstdFile = tempDecompFile + ".zst";
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                    ZstdCompressOptions compOpts = new ZstdCompressOptions()
                     {
-                        Level = compLevel,
-                        AutoFlush = autoFlush,
+                        CompressionLevel = compLevel,
                         LeaveOpen = true,
                     };
                     if (enableContentSize)
                         compOpts.ContentSize = (ulong)sampleFs.Length;
 
-                    using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
-                    using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, compOpts))
+                    using (FileStream zstdCompFs = new FileStream(tempZstdFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                    using (ZstdStream zs = new ZstdStream(zstdCompFs, compOpts))
                     {
 #if !NETFRAMEWORK
                         if (useSpan)
                         {
-                            byte[] buffer = new byte[64 * 1024];
+                            byte[] buffer = new byte[1024 * 1024];
 
                             int bytesRead;
                             do
                             {
                                 bytesRead = sampleFs.Read(buffer.AsSpan());
-                                lzs.Write(buffer.AsSpan(0, bytesRead));
+                                zs.Write(buffer.AsSpan(0, bytesRead));
                             } while (0 < bytesRead);
                         }
                         else
 #endif
                         {
-                            sampleFs.CopyTo(lzs);
+                            sampleFs.CopyTo(zs);
                         }
 
-                        lzs.Flush();
+                        zs.Flush();
 
-                        Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
-                        Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
+                        Assert.AreEqual(sampleFs.Length, zs.TotalIn);
+                        Assert.AreEqual(zstdCompFs.Length, zs.TotalOut);
                     }
                 }
 
-
-                Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
+                Assert.IsTrue(TestHelper.RunZstd(tempZstdFile, tempDecompFile) == 0);
 
                 byte[] decompDigest;
                 byte[] originDigest;
@@ -139,17 +144,17 @@ namespace Joveler.Compression.LZ4.Tests
         [TestMethod]
         public void Decompress()
         {
-            DecompressTemplate("A.pdf.lz4", "A.pdf", false); // -12
-            DecompressTemplate("B.txt.lz4", "B.txt", false); // -9
-            DecompressTemplate("C.bin.lz4", "C.bin", false); // -1
+            // DecompressTemplate("A.pdf.zst", "A.pdf", false); // -12
+            // DecompressTemplate("B.txt.zst", "B.txt", false); // -9
+            DecompressTemplate("C.bin.zst", "C.bin", false); // -1
         }
 
         [TestMethod]
         public void DecompressSpan()
         {
-            DecompressTemplate("A.pdf.lz4", "A.pdf", true); // -12
-            DecompressTemplate("B.txt.lz4", "B.txt", true); // -9
-            DecompressTemplate("C.bin.lz4", "C.bin", true); // -1
+            DecompressTemplate("A.pdf.zst", "A.pdf", true); // -12
+            DecompressTemplate("B.txt.zst", "B.txt", true); // -9
+            DecompressTemplate("C.bin.zst", "C.bin", true); // -1
         }
 
         private static void DecompressTemplate(string lz4FileName, string originFileName, bool useSpan)
@@ -157,14 +162,14 @@ namespace Joveler.Compression.LZ4.Tests
             byte[] decompDigest;
             byte[] originDigest;
 
-            LZ4FrameDecompressOptions decompOpts = new LZ4FrameDecompressOptions();
+            ZstdDecompressOptions decompOpts = new ZstdDecompressOptions();
 
             string lz4File = Path.Combine(TestSetup.SampleDir, lz4FileName);
             string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
             using (MemoryStream decompMs = new MemoryStream())
             {
                 using (FileStream compFs = new FileStream(lz4File, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (LZ4FrameStream lzs = new LZ4FrameStream(compFs, decompOpts))
+                using (ZstdStream zs = new ZstdStream(compFs, decompOpts))
                 {
 #if !NETFRAMEWORK
                     if (useSpan)
@@ -174,20 +179,20 @@ namespace Joveler.Compression.LZ4.Tests
                         int bytesRead;
                         do
                         {
-                            bytesRead = lzs.Read(buffer.AsSpan());
+                            bytesRead = zs.Read(buffer.AsSpan());
                             decompMs.Write(buffer.AsSpan(0, bytesRead));
                         } while (0 < bytesRead);
                     }
                     else
 #endif
                     {
-                        lzs.CopyTo(decompMs);
+                        zs.CopyTo(decompMs);
                     }
 
                     decompMs.Flush();
 
-                    Assert.AreEqual(compFs.Length, lzs.TotalIn);
-                    Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                    Assert.AreEqual(compFs.Length, zs.TotalIn);
+                    Assert.AreEqual(decompMs.Length, zs.TotalOut);
                 }
                 decompMs.Position = 0;
 

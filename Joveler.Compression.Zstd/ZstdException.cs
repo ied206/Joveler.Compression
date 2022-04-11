@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2021 Hajin Jang
+    Copyright (C) 2020-2022 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -55,14 +55,20 @@ namespace Joveler.Compression.Zstd
         }
 
         public ZstdException(UIntPtr code, string msg)
-            : base(ForgeErrorMessage(code, msg))
+            : base(msg)
         {
             ReturnCode = code;
         }
 
         private static string ForgeErrorMessage(UIntPtr code, string msg = null)
         {
-            return msg == null ? $"[{code}]" : $"[{code}] {msg}";
+            if (msg == null)
+            {
+                // ZSTD_getErrorName returns const char*, which does not require freeing string.
+                IntPtr strPtr = ZstdInit.Lib.GetErrorName(code);
+                msg = Marshal.PtrToStringAnsi(strPtr);
+            }
+            return msg ?? $"ZSTD Unknown Error";
         }
 
         internal static void CheckReturnValue(UIntPtr code)
@@ -70,12 +76,7 @@ namespace Joveler.Compression.Zstd
             ZstdInit.Manager.EnsureLoaded();
 
             if (ZstdInit.Lib.IsError(code) != 0)
-            {
-                // ZSTD_getErrorName returns const char*, and it does not require freeing string.
-                IntPtr strPtr = ZstdInit.Lib.GetErrorName(code);
-                string errorName = Marshal.PtrToStringAnsi(strPtr);
-                throw new ZstdException(code, errorName);
-            }
+                throw new ZstdException(code);
         }
 
         #region Serializable

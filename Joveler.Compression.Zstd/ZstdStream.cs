@@ -34,6 +34,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Joveler.Compression.Zstd
@@ -47,10 +48,11 @@ namespace Joveler.Compression.Zstd
     /// </remarks>
     public class ZstdCompressOptions
     {
+        #region General parameters
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = ZstdFrameStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
@@ -58,9 +60,14 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// Compression level of <cref>ZstdFrameStream</cref>. 
         /// Default level is 0, which is controlled by <cref>ZstdFrameStream.CLevelDefault</cref>.
-        /// Refer to <cref>ZstdFrameStream.MinCompressionLevel()</cref> and <cref>ZstdFrameStream.MaxCompressionLevel()</cref> for bounds.
+        /// Refer to <cref>ZstdStream.MinCompressionLevel()</cref> and <cref>ZstdStream.MaxCompressionLevel()</cref> for bounds.
         /// </summary>
         public int CompressionLevel { get; set; } = 0;
+        /// <summary>
+        /// Size of uncompressed content ; 0 == unknown
+        /// </summary>
+        public ulong ContentSize { get; set; } = 0;
+        #endregion
 
         #region Advanced compression parameters
         /// <summary>
@@ -146,6 +153,13 @@ namespace Joveler.Compression.Zstd
         /// </summary>
         public int MTOverlapLog { get; set; } = 0;
         #endregion
+
+        #region zstd Dictionary
+        /// <summary>
+        /// A buffer to feed zstd custom dictionary.
+        /// </summary>
+        public byte[] DictBuffer { get; set; } = null;
+        #endregion
     }
 
     /// <summary>
@@ -153,20 +167,28 @@ namespace Joveler.Compression.Zstd
     /// </summary>
     public class ZstdDecompressOptions
     {
+        #region General parameters
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = ZstdFrameStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = ZstdStream.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the zstd stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
+        #endregion
+
+        #region zstd Dictionary
+        /// <summary>
+        /// A buffer to feed zstd custom dictionary.
+        /// </summary>
+        public byte[] DictBuffer { get; set; } = null;
+        #endregion
     }
     #endregion
 
     #region ZstdStream
-    // ReSharper disable once InconsistentNaming
-    public unsafe class ZstdFrameStream : Stream
+    public unsafe class ZstdStream : Stream
     {
         #region enum Mode
         private enum Mode
@@ -185,16 +207,10 @@ namespace Joveler.Compression.Zstd
         private IntPtr _cstream = IntPtr.Zero;
         private IntPtr _dstream = IntPtr.Zero;
 
-        private readonly int _bufferSize = DefaultBufferSize;
-        private readonly byte[] _srcBuf;
-        private readonly uint _srcBufSize;
-        private readonly byte[] _destBuf;
-        private readonly uint _destBufSize;
-
-        // Compression
+        private readonly byte[] _buf;
+        private readonly int _bufSize = DefaultBufferSize;
 
         // Decompression
-        private bool _firstRead = true;
         private int _decompSrcIdx = 0;
         private int _decompSrcCount = 0;
 
@@ -205,22 +221,21 @@ namespace Joveler.Compression.Zstd
 
         // Const
         private const int DecompressComplete = -1;
-        //internal const uint FrameVersion = 100;
         internal const int DefaultBufferSize = 1024 * 1024;
-        public const int CLevelDefault = 3;
         private const uint BlocksizeMax = 1 << 17;
-        private static readonly byte[] FrameMagicNumber = { 0x28, 0xB5, 0x2F, 0xFD }; // 0xFD2FB528 (LE), valid since v0.8.0
-        private static readonly byte[] MagicDictionary = { 0x37, 0xA4, 0x30, 0xEC }; // 0xEC30A437 (LE), valid since v0.7.0
-        private static readonly byte[] MagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE), all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame
-        private static readonly byte[] MagicSkippableMask = { 0xF0, 0xFF, 0xFF, 0xFF };
+        // private static readonly byte[] FrameMagicNumber = { 0x28, 0xB5, 0x2F, 0xFD }; // 0xFD2FB528 (LE), valid since v0.8.0
+        // private static readonly byte[] MagicDictionary = { 0x37, 0xA4, 0x30, 0xEC }; // 0xEC30A437 (LE), valid since v0.7.0
+        // private static readonly byte[] MagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE), all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame
+        // private static readonly byte[] MagicSkippableMask = { 0xF0, 0xFF, 0xFF, 0xFF };
         #endregion
 
         #region Constructor
         /// <summary>
         /// Create compressing ZstdFrameStream.
         /// </summary>
-        public unsafe ZstdFrameStream(Stream baseStream, ZstdCompressOptions compOpts)
+        public unsafe ZstdStream(Stream baseStream, ZstdCompressOptions compOpts)
         {
+            // From FIO_createCResources()
             ZstdInit.Manager.EnsureLoaded();
 
             // Check arguments
@@ -233,25 +248,30 @@ namespace Joveler.Compression.Zstd
             _leaveOpen = compOpts.LeaveOpen;
 
             // Get recommended size for input buffer.
-            UIntPtr srcBufSize = ZstdInit.Lib.CStreamInSize(); 
+            /*
+            UIntPtr srcBufSize = ZstdInit.Lib.CStreamInSize();
             if (uint.MaxValue < srcBufSize.ToUInt64())
                 _srcBufSize = uint.MaxValue;
             else
                 _srcBufSize = srcBufSize.ToUInt32();
             _srcBuf = new byte[_srcBufSize];
+            */
 
+            /*
             // Get recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block.
             UIntPtr destBufSize = ZstdInit.Lib.CStreamOutSize();
             if (uint.MaxValue < destBufSize.ToUInt64())
-                _destBufSize = uint.MaxValue;
+                _bufSize = uint.MaxValue;
             else
-                _destBufSize = destBufSize.ToUInt32();
-            _destBuf = new byte[_destBufSize];
+                _bufSize = destBufSize.ToUInt32();
+            _buf = new byte[_bufSize];
+            */
 
             // Allocate resources (Based on FIO_createCResources())
             // Check and set compress options
             _leaveOpen = compOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _bufSize = CheckBufferSize(compOpts.BufferSize);
+            _buf = new byte[_bufSize];
 
             // Prepare cctx
             _cstream = ZstdInit.Lib.CreateCStream();
@@ -272,9 +292,8 @@ namespace Joveler.Compression.Zstd
             ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.Strategy, (int)compOpts.Strategy));
 
             // Set frame parameters
-            // TODO: ContentSizeFlag
-            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ChecksumFlag, (int)compOpts.ChecksumFlag));
-            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.DictIdFlag, (int)compOpts.DictIdFlag));
+            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ChecksumFlag, compOpts.ChecksumFlag));
+            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.DictIdFlag, compOpts.DictIdFlag));
 
             // Set multithread parameters
             if (0 < compOpts.MTWorkers)
@@ -284,75 +303,31 @@ namespace Joveler.Compression.Zstd
                 ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.OverlapLog, compOpts.MTOverlapLog));
             }
 
-            // TODO: Dictionary parameters
-
-            // TODO: Use ZSTD_CCtx_setPledgedSrcSize? -> Not required
-
-
-
-            // Prepare FramePreferences
-            /*
-            FramePreferences prefs = new FramePreferences
+            // Set Dictionary
+            if (compOpts.DictBuffer != null && 0 < compOpts.DictBuffer.Length)
             {
-                FrameInfo = new FrameInfo
+                fixed (byte* bufPtr = compOpts.DictBuffer)
                 {
-                    BlockSizeId = compOpts.BlockSizeId,
-                    BlockMode = compOpts.BlockMode,
-                    ContentChecksumFlag = compOpts.ContentChecksumFlag,
-                    FrameType = compOpts.FrameType,
-                    ContentSize = compOpts.ContentSize,
-                    DictId = 0,
-                    BlockChecksumFlag = compOpts.BlockChecksumFlag,
-                },
-                CompressionLevel = compOpts.Level,
-                AutoFlush = compOpts.AutoFlush ? 1u : 0u,
-                FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
-            };
-            */
-
-            // Query the minimum required size of compress buffer
-            // _bufferSize is the source size, frameSize is the (required) dest size
-            /*
-            UIntPtr frameSizeVal = LZ4Init.Lib.FrameCompressBound((UIntPtr)_bufferSize, prefs);
-            Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
-            uint frameSize = frameSizeVal.ToUInt32();
-            */
-            //if (_bufferSize < frameSize)
-            //    _destBufSize = frameSize;
-
-
-
-            /*
-            _destBufSize = (uint)_bufferSize;
-            if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            _workBuf = new byte[_destBufSize];
-
-            _destBufSize = 1024 * 1024;
-
-
-                        _destBufSize = 1024 * 1024;
-            _workBuf = new byte[_destBufSize];
-
-            // Write the frame header into _workBuf
-            UIntPtr headerSizeVal;
-            fixed (byte* dest = _workBuf)
-            {
-                headerSizeVal = ZstdLoader.Lib.FrameCompressBegin(_cstream, dest, (UIntPtr)_bufferSize, prefs);
+                    ZstdInit.Lib.CctxLoadDictionary(_cstream, bufPtr, (UIntPtr)compOpts.DictBuffer.Length);
+                }
             }
-            LZ4FrameException.CheckReturnValue(headerSizeVal);
-            Debug.Assert(headerSizeVal.ToUInt64() < int.MaxValue);
 
-            int headerSize = (int)headerSizeVal.ToUInt32();
-            BaseStream.Write(_workBuf, 0, headerSize);
-            TotalOut += headerSize;
-            */
+            // Set PledgedSrcSize if given
+            if (0 < compOpts.ContentSize)
+            {
+                ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ContentSizeFlag, 1));
+                ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetPledgedSrcSize(_cstream, compOpts.ContentSize));
+            }
+            else
+            {
+                ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ContentSizeFlag, 0));
+            }
         }
 
         /// <summary>
         /// Create decompressing ZstdFrameStream.
         /// </summary>
-        public unsafe ZstdFrameStream(Stream baseStream, ZstdDecompressOptions compOpts)
+        public unsafe ZstdStream(Stream baseStream, ZstdDecompressOptions decompOpts)
         {
             ZstdInit.Manager.EnsureLoaded();
 
@@ -362,30 +337,30 @@ namespace Joveler.Compression.Zstd
             _disposed = false;
 
             // Check and set compress options
-            _leaveOpen = compOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _leaveOpen = decompOpts.LeaveOpen;
+            _bufSize = CheckBufferSize(decompOpts.BufferSize);
+            _buf = new byte[_bufSize];
 
             // From FIO_createDResources
+            _dstream = ZstdInit.Lib.CreateDStream();
+            if (_dstream == IntPtr.Zero)
+            { // Unable to create dctx
+                throw new InvalidOperationException("allocation error: cannot create ZSTD_DStream");
+            }
 
-            // Prepare dctx
-            UIntPtr ret = LZ4Init.Lib.CreateFrameDecompressContext(ref _dctx, FrameVersion);
-            LZ4FrameException.CheckReturnValue(ret);
-
-            // Remove LZ4 frame header from the baseStream
-            byte[] headerBuf = new byte[4];
-            int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
-            TotalIn += 4;
-
-            if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
-                throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
-
-            // Prepare a work buffer
-            _workBuf = new byte[_bufferSize];
+            // Dictionary
+            if (decompOpts.DictBuffer != null && 0 < decompOpts.DictBuffer.Length)
+            {
+                fixed (byte* bufPtr = decompOpts.DictBuffer)
+                {
+                    ZstdException.CheckReturnValue(ZstdInit.Lib.DctxLoadDictionary(_dstream, bufPtr, (UIntPtr)decompOpts.DictBuffer.Length));
+                }
+            }
         }
         #endregion
 
         #region Disposable Pattern
-        ~ZstdFrameStream()
+        ~ZstdStream()
         {
             Dispose(false);
         }
@@ -394,24 +369,18 @@ namespace Joveler.Compression.Zstd
         {
             if (disposing && !_disposed)
             {
-                /*
-                if (_cctx != IntPtr.Zero)
-                { // Compress
+                if (_cstream != IntPtr.Zero)
+                {
                     FinishWrite();
 
-                    UIntPtr ret = LZ4Init.Lib.FreeFrameCompressContext(_cctx);
-                    LZ4FrameException.CheckReturnValue(ret);
-
-                    _cctx = IntPtr.Zero;
+                    ZstdInit.Lib.FreeCStream(_cstream);
+                    _cstream = IntPtr.Zero;
                 }
-
-                if (_dctx != IntPtr.Zero)
+                
+                if (_dstream != IntPtr.Zero)
                 {
-                    UIntPtr ret = LZ4Init.Lib.FreeFrameDecompressContext(_dctx);
-                    LZ4FrameException.CheckReturnValue(ret);
-
-                    _dctx = IntPtr.Zero;
-
+                    ZstdInit.Lib.FreeDStream(_dstream);
+                    _dstream = IntPtr.Zero;
                 }
 
                 if (BaseStream != null)
@@ -423,7 +392,6 @@ namespace Joveler.Compression.Zstd
                 }
 
                 _disposed = true;
-                */
             }
         }
         #endregion
@@ -457,81 +425,75 @@ namespace Joveler.Compression.Zstd
                 return 0;
 
             int readSize = 0;
-            int destSize = span.Length;
-            int destLeftBytes = span.Length;
 
-            /*
-            if (_firstRead)
+            // Main decompression loop
+            fixed (byte* src = _buf)
+            fixed (byte* dest = span)
             {
-                // Write FrameMagicNumber into LZ4F_decompress
-                UIntPtr headerSizeVal = (UIntPtr)4;
-                UIntPtr destSizeVal = (UIntPtr)destSize;
-
-                UIntPtr ret;
-                fixed (byte* header = FrameMagicNumber)
-                fixed (byte* dest = span)
+                // Setup OutBuffer
+                OutBuffer outBuf = new OutBuffer()
                 {
-                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, header, ref headerSizeVal, null);
-                }
-                LZ4FrameException.CheckReturnValue(ret);
+                    Dst = dest,
+                    Size = (UIntPtr)span.Length,
+                    Pos = UIntPtr.Zero,
+                };
 
-                Debug.Assert(headerSizeVal.ToUInt64() <= int.MaxValue);
-                Debug.Assert(destSizeVal.ToUInt64() <= int.MaxValue);
+                int outBufPosBak = 0;
 
-                if (headerSizeVal.ToUInt32() != 4u)
-                    throw new InvalidOperationException("Not enough dest buffer");
-                int destWritten = (int)destSizeVal.ToUInt32();
-
-                span = span.Slice(destWritten);
-                TotalOut += destWritten;
-
-                _firstRead = false;
-            }
-
-            while (0 < destLeftBytes)
-            {
-                if (_decompSrcIdx == _decompSrcCount)
+                // C#'s indexing is limited to int.MaxValue.
+                while (outBuf.Pos.ToUInt32() < outBuf.Size.ToUInt32())
                 {
-                    // Read from _baseStream
-                    _decompSrcIdx = 0;
-                    _decompSrcCount = BaseStream.Read(_workBuf, 0, _workBuf.Length);
-                    TotalIn += _decompSrcCount;
-
-                    // _baseStream reached its end
-                    if (_decompSrcCount == 0)
+                    // If we are out of buffer to decompress, read it from BaseStream.
+                    if (_decompSrcIdx == _decompSrcCount)
                     {
-                        _decompSrcIdx = DecompressComplete;
-                        break;
+                        // Read from BaseStream
+                        _decompSrcIdx = 0;
+                        _decompSrcCount = BaseStream.Read(_buf, 0, _buf.Length);
+                        TotalIn += _decompSrcCount;
+
+                        // BaseStream readched its end
+                        if (_decompSrcCount == 0)
+                        {
+                            _decompSrcIdx = DecompressComplete;
+                            break;
+                        }
                     }
+                    
+                    // Setup InBuffer
+                    InBuffer inBuf = new InBuffer()
+                    {
+                        Src = src,
+                        Size = (UIntPtr)_decompSrcCount,
+                        Pos = (UIntPtr)_decompSrcIdx,
+                    };
+
+                    // Call ZSTD_decompressStream()
+                    UIntPtr ret = ZstdInit.Lib.DecompressStream(_dstream, outBuf, inBuf);
+                    ZstdException.CheckReturnValue(ret);
+                    ulong readSizeHint = ret.ToUInt64();
+
+                    // How many source bytes are decompressed?
+                    // _decompSrcIdx += (int)inBuf.Pos.ToUInt32() - _decompSrcIdx;
+                    _decompSrcIdx = (int)inBuf.Pos.ToUInt32();
+
+                    // How many destination bytes are written?
+                    int outBufPos = (int)outBuf.Pos;
+                    int outBufWritten = outBufPos - outBufPosBak;
+                    outBufPosBak = outBufPos;
+
+                    TotalOut += outBufWritten;
+                    readSize += outBufWritten;
+
+                    // Is it the end of zstd frame?
+                    if (readSizeHint == 0)
+                        break;
+
+                    // Is outBuf full?
+                    if (outBuf.Pos.ToUInt64() == outBuf.Size.ToUInt64())
+                        break;
                 }
-
-                UIntPtr srcSizeVal = (UIntPtr)(_decompSrcCount - _decompSrcIdx);
-                UIntPtr destSizeVal = (UIntPtr)(destLeftBytes);
-
-                UIntPtr ret;
-                fixed (byte* src = _workBuf.AsSpan(_decompSrcIdx))
-                fixed (byte* dest = span)
-                {
-                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, null);
-                }
-                LZ4FrameException.CheckReturnValue(ret);
-
-                // The number of bytes consumed from srcBuffer will be written into *srcSizePtr (necessarily <= original value).
-                Debug.Assert(srcSizeVal.ToUInt64() <= int.MaxValue);
-                int srcConsumed = (int)srcSizeVal.ToUInt32();
-                _decompSrcIdx += srcConsumed;
-                Debug.Assert(_decompSrcIdx <= _decompSrcCount);
-
-                // The number of bytes decompressed into dstBuffer will be written into *dstSizePtr (necessarily <= original value).
-                Debug.Assert(destSizeVal.ToUInt64() <= int.MaxValue);
-                int destWritten = (int)destSizeVal.ToUInt32();
-
-                span = span.Slice(destWritten);
-                destLeftBytes -= destWritten;
-                TotalOut += destWritten;
-                readSize += destWritten;
             }
-            */
+
             return readSize;
         }
 
@@ -558,134 +520,151 @@ namespace Joveler.Compression.Zstd
             if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
 
-            // Based on FIO_compressZstdFrame()
-            // Main compression loop
-            EndDirective directive = EndDirective.Continue;
-            do
+            fixed (byte* src = span)
+            fixed (byte* dest = _buf)
             {
-                fixed (byte* src = span)
-                fixed (byte* dest = _destBuf)
+                EndDirective endDirective = EndDirective.Continue;
+                int inBufPosBak = 0;
+                InBuffer inBuf = new InBuffer()
                 {
-                    InBuffer inBuff = new InBuffer()
+                    Src = src,
+                    Size = (UIntPtr)span.Length,
+                    Pos = (UIntPtr)0,
+                };
+                OutBuffer outBuf = new OutBuffer()
+                {
+                    Dst = dest,
+                    Size = (UIntPtr)_bufSize,
+                    Pos = (UIntPtr)0,
+                };
+
+                // C#'s indexing is limited to int.MaxValue.
+                while (inBuf.Pos.ToUInt32() < inBuf.Size.ToUInt32())
+                {
+                    UIntPtr ret = UIntPtr.Zero;
+
+                    // How many bytes are ready to be flushed?
+                    // ret = ZstdInit.Lib.ToFlushNow(_cstream);
+                    // ulong toFlushNow = ret.ToUInt64();
+
+                    // Compress the input buffer
+                    ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, endDirective);
+                    ZstdException.CheckReturnValue(ret);
+                    // ulong stillToFlush = ret.ToUInt64();
+
+                    // Reset EndDirective
+                    endDirective = EndDirective.Continue;
+
+                    // Write output buffer to baseStream, and reset it
+                    int outBufPos = (int)outBuf.Pos;
+                    if (0 < outBufPos)
                     {
-                        Src = src,
-                        Size = (UIntPtr)span.Length,
-                        Pos = (UIntPtr)0,
-                    };
-
-                    TotalIn += span.Length;
-
-                    if (span.Length == 0)
-                        directive = EndDirective.End;
-
-                    UIntPtr stillToFlush = (UIntPtr)1;
-                    while ((inBuff.Pos != inBuff.Size) || // input buffer must be entirely ingested
-                           (directive == EndDirective.End && stillToFlush != (UIntPtr)0))
-                    {
-                        UIntPtr oldInPos = inBuff.Pos;
-                        OutBuffer outBuff = new OutBuffer()
-                        {
-                            Dst = dest,
-                            Size = (UIntPtr)_destBufSize,
-                            Pos = (UIntPtr)0,
-                        };
-
-                        UIntPtr toFlushNow = ZstdInit.Lib.ToFlushNow(_cstream);
-                        stillToFlush = ZstdInit.Lib.CompressionStream2(_cstream, outBuff, inBuff, directive);
-                        ZstdException.CheckReturnValue(stillToFlush);
-
-                        // Write compressed stream
-                        Debug.Assert(outBuff.Pos.ToUInt64() < int.MaxValue, "OutBufferPos should be <2GB");
-                        int outBufPos = (int)outBuff.Pos;
-                        Debug.Assert(outBuff.Size.ToUInt64() < int.MaxValue, "OutBufferSize should be <2GB");
-                        int outBufSize = (int)outBuff.Size;
-                        if (outBufPos != 0)
-                        {
-                            BaseStream.Write(_destBuf, outBufPos, outBufSize);
-                            TotalOut += outBufPos;
-                        }
+                        BaseStream.Write(_buf, 0, outBufPos);
+                        TotalOut += outBufPos;
                     }
+                    outBuf.Pos = (UIntPtr)0;
+
+                    // Check remaining input buffer 
+                    int inBufPos = (int)inBuf.Pos;
+                    int inBufRead = inBufPos - inBufPosBak;
+                    inBufPosBak = inBufPos;
+                    TotalIn += inBufRead;
+
+                    // Check if flush is necessary
+                    if (inBufRead == 0) // Buffer is full, need flush
+                        endDirective = EndDirective.Flush;
                 }
             }
-            while (directive != EndDirective.End);
-
-            /*
-            // Based on FIO_compressZstdFrame()
-            // Main compression loop
-            EndDirective directive = EndDirective.Continue;
-            do
-            {
-                fixed (byte* src = span)
-                fixed (byte* dest = _destBuf)
-                {
-                    InBuffer inBuff = new InBuffer()
-                    {
-                        Src = src,
-                        Size = (UIntPtr)span.Length,
-                        Pos = (UIntPtr)0,
-                    };
-
-                    TotalIn += span.Length;
-
-                    if (span.Length == 0)
-                        directive = EndDirective.End;
-
-                    UIntPtr stillToFlush = (UIntPtr)1;
-                    while ((inBuff.Pos != inBuff.Size) || // input buffer must be entirely ingested
-                           (directive == EndDirective.End && stillToFlush != (UIntPtr)0))
-                    {
-                        UIntPtr oldInPos = inBuff.Pos;
-                        OutBuffer outBuff = new OutBuffer()
-                        {
-                            Dst = dest,
-                            Size = (UIntPtr)_destBufSize,
-                            Pos = (UIntPtr)0,
-                        };
-
-                        UIntPtr toFlushNow = ZstdInit.Lib.ToFlushNow(_cstream);
-                        stillToFlush = ZstdInit.Lib.CompressionStream2(_cstream, outBuff, inBuff, directive);
-                        ZstdException.CheckReturnValue(stillToFlush);
-
-                        // Write compressed stream
-                        Debug.Assert(outBuff.Pos.ToUInt64() < int.MaxValue, "OutBufferPos should be <2GB");
-                        int outBufPos = (int)outBuff.Pos;
-                        Debug.Assert(outBuff.Size.ToUInt64() < int.MaxValue, "OutBufferSize should be <2GB");
-                        int outBufSize = (int)outBuff.Size;
-                        if (outBufPos != 0)
-                        {
-                            BaseStream.Write(_destBuf, outBufPos, outBufSize);
-                            TotalOut += outBufPos;
-                        }
-                    }
-                }
-            }
-            while (directive != EndDirective.End);
-            */
         }
 
         private unsafe void FinishWrite()
         {
-            /*
-            Debug.Assert(_mode == Mode.Compress, "FinishWrite() cannot be called in decompression");
-
-            UIntPtr outSizeVal;
-            fixed (byte* dest = _workBuf)
+            fixed (byte* dest = _buf)
             {
-                outSizeVal = LZ4Init.Lib.FrameCompressEnd(_cctx, dest, (UIntPtr)_destBufSize, null);
+                InBuffer inBuf = new InBuffer()
+                {
+                    Src = null,
+                    Size = UIntPtr.Zero,
+                    Pos = UIntPtr.Zero,
+                };
+                OutBuffer outBuf = new OutBuffer()
+                {
+                    Dst = dest,
+                    Size = (UIntPtr)_bufSize,
+                    Pos = UIntPtr.Zero,
+                };
+
+                ulong stillToFlush = 0;
+                do
+                {
+                    UIntPtr ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, EndDirective.End);
+                    ZstdException.CheckReturnValue(ret);
+
+                    // stillToFlush must be 0 to finish.
+                    stillToFlush = ret.ToUInt64();
+
+                    // Write output buffer to baseStream, and reset it
+                    int outBufPos = (int)outBuf.Pos;
+                    if (0 < outBufPos)
+                    {
+                        BaseStream.Write(_buf, 0, outBufPos);
+                        TotalOut += outBufPos;
+                    }
+                    outBuf.Pos = (UIntPtr)0;
+                }
+                while (0 < stillToFlush);
             }
-            LZ4FrameException.CheckReturnValue(outSizeVal);
-
-            Debug.Assert(outSizeVal.ToUInt64() < int.MaxValue, "BufferSize should be <2GB");
-            int outSize = (int)outSizeVal.ToUInt64();
-
-            BaseStream.Write(_workBuf, 0, outSize);
-            TotalOut += outSize;
-            */
+                
         }
 
         /// <inheritdoc />
         public override void Flush()
         {
+            if (_mode == Mode.Compress)
+            {
+                /*
+                fixed (byte* dest = _buf)
+                {
+                    InBuffer inBuf = new InBuffer()
+                    {
+                        Src = null,
+                        Size = UIntPtr.Zero,
+                        Pos = UIntPtr.Zero,
+                    };
+                    OutBuffer outBuf = new OutBuffer()
+                    {
+                        Dst = dest,
+                        Size = (UIntPtr)_bufSize,
+                        Pos = UIntPtr.Zero,
+                    };
+
+                    ulong stillToFlush = 0;
+                    do
+                    {
+                        UIntPtr ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, EndDirective.Flush);
+                        ZstdException.CheckReturnValue(ret);
+
+                        // stillToFlush must be 0 to finish.
+                        stillToFlush = ret.ToUInt64();
+
+                        // Write output buffer to baseStream, and reset it
+                        int outBufPos = (int)outBuf.Pos;
+                        if (0 < outBufPos)
+                        {
+                            BaseStream.Write(_buf, 0, outBufPos);
+                            TotalOut += outBufPos;
+                        }
+                        outBuf.Pos = (UIntPtr)0;
+                    }
+                    while (0 < stillToFlush);
+                }
+                */
+            }
+            else if (_mode == Mode.Decompress)
+            {
+                
+            }
+
             BaseStream.Flush();
         }
 
@@ -730,7 +709,7 @@ namespace Joveler.Compression.Zstd
                             return 0;
                         return 100 - TotalIn * 100.0 / TotalOut;
                     default:
-                        throw new InvalidOperationException($"Internal Logic Error at {nameof(ZstdFrameStream)}.{nameof(CompressionRatio)}");
+                        throw new InvalidOperationException($"Internal Logic Error at {nameof(ZstdStream)}.{nameof(CompressionRatio)}");
                 }
             }
         }
