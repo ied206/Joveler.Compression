@@ -178,7 +178,7 @@ namespace Joveler.Compression.LZ4.Tests
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x86.exe");
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.exe");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {

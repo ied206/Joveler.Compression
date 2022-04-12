@@ -10,8 +10,8 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 
 | Arch  | Obtain Method |
 |-------|---------------|
-| x86   | From official release, `xz-(ver)-windows\bin_i686-sse2\liblzma.dll` |
-| x64   | From official release, `xz-(ver)-windows\bin_x86-64\liblzma.dll` |
+| x86   | From official release, `xz-(ver)-windows\bin_i686-sse2\liblzma.dll` with strip |
+| x64   | From official release, `xz-(ver)-windows\bin_x86-64\liblzma.dll` with strip |
 | arm64 | Manual compile with MSVC 2019 |
 
 ### Manual Compile ARM64 DLL
@@ -47,7 +47,7 @@ Linux .so files are built with default optimization.
    ldd lib/liblzma.(ver).so
    ```
  
-## macOS - x64
+## macOS - x64, arm64
 
 macOS .dylib files are built with default optimization.
 
@@ -61,5 +61,8 @@ macOS .dylib files are built with default optimization.
    ```
 1. Make sure the binary does not have unnecessary dependency
    ```sh
-   ottol -L `lib/liblzma.(ver).dylib`
+   otool -L `lib/liblzma.(ver).dylib`
    ```
+
+`xz` MachO binary for testing must be configured with `--disable-shared --enable-static`.
+- [Reference](https://github.com/therootcompany/xz-static)

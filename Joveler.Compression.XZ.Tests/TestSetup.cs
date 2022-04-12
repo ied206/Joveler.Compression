@@ -158,7 +158,7 @@ namespace Joveler.Compression.XZ.Tests
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x86.exe");
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.exe");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {

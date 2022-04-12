@@ -1,10 +1,10 @@
-# ZSTD Native Library Compile
+# zstd Native Library Compile
 
 This document explains how the embedded native binaries are compiled.
 
 ## Source
 
-ZSTD source can be obtained from [GitHub](https://github.com/facebook/zstd/releases).
+zstd source can be obtained from [GitHub](https://github.com/facebook/zstd/releases).
 
 ## Windows - x86, x64, arm64
 
@@ -40,7 +40,10 @@ Linux .so files are built with default optimization.
    ```sh
    ldd lib/libzstd.(ver).so
    ```
- 
+
+Patch `zstd` cli Makefile to prevent it from linking to unnecessary dependency.
+- Set `HAVE_ZLIB`, `HAVE_LZ4`, `HAVE_LZMA` to 0.
+
 ## macOS - x64, arm64
 
 macOS .dylib files are built with default optimization.
@@ -57,3 +60,6 @@ macOS .dylib files are built with default optimization.
    ```sh
    otool -L `lib/libzstd.(ver).dylib`
    ```
+
+Patch `zstd` cli Makefile to prevent it from linking to unnecessary dependency.
+- Set `HAVE_ZLIB`, `HAVE_LZ4`, `HAVE_LZMA` to 0.
