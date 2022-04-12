@@ -1,19 +1,23 @@
-﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
-    Copyright (c) 2011-2016, Yann Collet
+/*
+    Derived from Zstandard header files (BSD 2-Clause)
+    Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2020-2022 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
 
-    * Redistributions of source code must retain the above copyright notice, this
-      list of conditions and the following disclaimer.
+     * Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
 
-    * Redistributions in binary form must reproduce the above copyright notice, this
-      list of conditions and the following disclaimer in the documentation and/or
-      other materials provided with the distribution.
+     * Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+     * Neither the name Facebook nor the names of its contributors may be used to
+       endorse or promote products derived from this software without specific
+       prior written permission.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -33,9 +37,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-// ReSharper disable InconsistentNaming
 
-namespace Joveler.Compression.LZ4.Tests
+namespace Joveler.Compression.Zstd.Tests
 {
     [TestClass]
     public class TestSetup
@@ -53,13 +56,13 @@ namespace Joveler.Compression.LZ4.Tests
             SampleDir = Path.Combine(BaseDir, "Samples");
 
             string libPath = GetNativeLibPath();
-            LZ4Init.GlobalInit(libPath);
+            ZstdInit.GlobalInit(libPath);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            LZ4Init.GlobalCleanup();
+            ZstdInit.GlobalCleanup();
         }
 
         private static string GetNativeLibPath()
@@ -98,11 +101,11 @@ namespace Joveler.Compression.LZ4.Tests
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(libDir, "liblz4.dll");
+                libPath = Path.Combine(libDir, "libzstd.dll");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(libDir, "liblz4.so");
+                libPath = Path.Combine(libDir, "libzstd.so");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(libDir, "liblz4.dylib");
+                libPath = Path.Combine(libDir, "libzstd.dylib");
 
             if (libPath == null)
                 throw new PlatformNotSupportedException($"Unable to find native library.");
@@ -171,27 +174,27 @@ namespace Joveler.Compression.LZ4.Tests
             }
         }
 
-        public static int RunLZ4(string tempArchiveFile, string destFile)
+        public static int RunZstd(string tempArchiveFile, string destFile)
         {
             const string binDir = "RefBin";
 
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.exe");
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.x64.exe");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.elf");
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.x64.elf");
                         break;
                     case Architecture.Arm:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.armhf.elf");
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.armhf.elf");
                         break;
                     case Architecture.Arm64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.arm64.elf");
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.arm64.elf");
                         break;
                 }
             }
@@ -200,7 +203,10 @@ namespace Joveler.Compression.LZ4.Tests
                 switch (RuntimeInformation.ProcessArchitecture)
                 {
                     case Architecture.X64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.mach");
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.x64.mach");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "zstd.arm64.mach");
                         break;
                 }
             }
@@ -216,7 +222,7 @@ namespace Joveler.Compression.LZ4.Tests
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden,
                     FileName = binary,
-                    Arguments = $"-k -d {tempArchiveFile} {destFile}",
+                    Arguments = $"-k -d {tempArchiveFile} -o {destFile}",
                 }
             };
             proc.Start();

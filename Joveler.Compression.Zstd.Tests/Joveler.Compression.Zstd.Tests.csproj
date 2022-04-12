@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- Target .NET Framework 4.8 & .NET 6 | .NET Core 3.x or lower has stability issues on ARM/ARM64 (virtual) machines -->
@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Joveler.Compression.ZLib\Joveler.Compression.ZLib.csproj" />
+    <ProjectReference Include="..\Joveler.Compression.Zstd\Joveler.Compression.Zstd.csproj" />
   </ItemGroup>
 
 </Project>
