@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net451;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net451;netstandard2.0;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
@@ -39,7 +39,7 @@ Supports Windows, Linux and macOS.</Description>
     </None>
   </ItemGroup>
   <!-- Native Library for .NET Standard 2.0 & 2.1 -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netstandard2.1' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp3.1' ">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -68,6 +68,10 @@ Supports Windows, Linux and macOS.</Description>
       <Link>runtimes\osx-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="runtimes\osx-arm64\native\*.dylib">
+      <Link>runtimes\osx-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <!-- NuGet Pacakge -->
   <ItemGroup>
@@ -83,5 +87,6 @@ Supports Windows, Linux and macOS.</Description>
     <None Include="runtimes\linux-arm\native\*.so" Pack="true" PackagePath="runtimes\linux-arm\native" />
     <None Include="runtimes\linux-arm64\native\*.so" Pack="true" PackagePath="runtimes\linux-arm64\native" />
     <None Include="runtimes\osx-x64\native\*.dylib" Pack="true" PackagePath="runtimes\osx-x64\native" />
+    <None Include="runtimes\osx-arm64\native\*.dylib" Pack="true" PackagePath="runtimes\osx-arm64\native" />
   </ItemGroup>
 </Project>
