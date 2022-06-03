@@ -14,12 +14,14 @@
     <PackageReference Include="K4os.Hash.Crc" Version="1.1.4" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.7" />
     <PackageReference Include="SharpCompress" Version="0.31.0" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.6.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Joveler.Compression.LZ4\Joveler.Compression.LZ4.csproj" />
     <ProjectReference Include="..\Joveler.Compression.XZ\Joveler.Compression.XZ.csproj" />
     <ProjectReference Include="..\Joveler.Compression.ZLib\Joveler.Compression.ZLib.csproj" />
+    <ProjectReference Include="..\Joveler.Compression.Zstd\Joveler.Compression.Zstd.csproj" />
   </ItemGroup>
 
 </Project>

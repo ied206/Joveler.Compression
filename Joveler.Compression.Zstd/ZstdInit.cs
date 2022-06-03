@@ -28,12 +28,10 @@
 */
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.Zstd
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class ZstdInit
     {
         #region LoadManager

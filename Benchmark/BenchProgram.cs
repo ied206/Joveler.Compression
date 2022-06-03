@@ -18,7 +18,8 @@ namespace Benchmark
         ZLib = 0x1,
         XZ = 0x2,
         LZ4 = 0x4,
-        All = ZLib | XZ | LZ4,
+        Zstd = 0x8,
+        All = ZLib | XZ | LZ4 | Zstd,
     }
 
     public abstract class ParamOptions
@@ -80,67 +81,47 @@ namespace Benchmark
             string zlibPath = null;
             string xzPath = null;
             string lz4Path = null;
+            string zstdPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                string libDir;
-                switch (RuntimeInformation.ProcessArchitecture)
+                string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    case Architecture.X86:
-                        libDir = Path.Combine(baseDir, runtimes, "win-x86", native);
-                        break;
-                    case Architecture.X64:
-                        libDir = Path.Combine(baseDir, runtimes, "win-x64", native);
-                        break;
-                    case Architecture.Arm64:
-                        libDir = Path.Combine(baseDir, runtimes, "win-arm64", native);
-                        break;
-                    default:
-                        throw new PlatformNotSupportedException();
-                }
-
+                    Architecture.X86 => Path.Combine(baseDir, runtimes, "win-x86", native),
+                    Architecture.X64 => Path.Combine(baseDir, runtimes, "win-x64", native),
+                    Architecture.Arm64 => Path.Combine(baseDir, runtimes, "win-arm64", native),
+                    _ => throw new PlatformNotSupportedException(),
+                };
                 zlibPath = Path.Combine(libDir, "zlibwapi.dll");
                 xzPath = Path.Combine(libDir, "liblzma.dll");
                 lz4Path = Path.Combine(libDir, "liblz4.dll");
+                zstdPath = Path.Combine(libDir, "libzstd.dll");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                string libDir;
-                switch (RuntimeInformation.ProcessArchitecture)
+                string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    case Architecture.X64:
-                        libDir = Path.Combine(baseDir, runtimes, "linux-x64", native);
-                        break;
-                    case Architecture.Arm:
-                        libDir = Path.Combine(baseDir, runtimes, "linux-arm", native);
-                        break;
-                    case Architecture.Arm64:
-                        libDir = Path.Combine(baseDir, runtimes, "linux-arm64", native);
-                        break;
-                    default:
-                        throw new PlatformNotSupportedException();
-                }
-
+                    Architecture.X64 => Path.Combine(baseDir, runtimes, "linux-x64", native),
+                    Architecture.Arm => Path.Combine(baseDir, runtimes, "linux-arm", native),
+                    Architecture.Arm64 => Path.Combine(baseDir, runtimes, "linux-arm64", native),
+                    _ => throw new PlatformNotSupportedException(),
+                };
                 zlibPath = Path.Combine(libDir, "libz.so");
                 xzPath = Path.Combine(libDir, "liblzma.so");
                 lz4Path = Path.Combine(libDir, "liblz4.so");
+                zstdPath = Path.Combine(libDir, "libzstd.so");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                string libDir;
-                switch (RuntimeInformation.ProcessArchitecture)
+                string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    case Architecture.X64:
-                        libDir = Path.Combine(baseDir, runtimes, "osx-x64", native);
-                        break;
-                    case Architecture.Arm64:
-                        throw new PlatformNotSupportedException("TODO");
-                    default:
-                        throw new PlatformNotSupportedException();
-                }
-
+                    Architecture.X64 => Path.Combine(baseDir, runtimes, "osx-x64", native),
+                    Architecture.Arm64 => throw new PlatformNotSupportedException("TODO"),
+                    _ => throw new PlatformNotSupportedException(),
+                };
                 zlibPath = Path.Combine(libDir, "libz.dylib");
                 xzPath = Path.Combine(libDir, "liblzma.dylib");
                 lz4Path = Path.Combine(libDir, "liblz4.dylib");
+                zstdPath = Path.Combine(libDir, "libzstd.dylib");
             }
 
             if (zlibPath == null || xzPath == null || lz4Path == null)
@@ -149,6 +130,7 @@ namespace Benchmark
             Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath);
             Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
             Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path);
+            Joveler.Compression.Zstd.ZstdInit.GlobalInit(zstdPath);
         }
 
         public static void NativeGlobalCleanup()
@@ -156,6 +138,7 @@ namespace Benchmark
             Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
             Joveler.Compression.XZ.XZInit.GlobalCleanup();
             Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
+            Joveler.Compression.Zstd.ZstdInit.GlobalCleanup();
         }
         #endregion
 

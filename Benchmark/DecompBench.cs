@@ -48,7 +48,7 @@ namespace Benchmark
             {
                 foreach (string srcFileName in SrcFileNames)
                 {
-                    foreach (string ext in new string[] { ".zz", ".xz", ".lz4" })
+                    foreach (string ext in new string[] { ".zz", ".xz", ".lz4", ".zst" })
                     {
                         string srcFile = Path.Combine(_sampleDir, level, srcFileName + ext);
                         using MemoryStream ms = new MemoryStream();
@@ -170,6 +170,44 @@ namespace Benchmark
 
             ms.Flush();
             return ms.Length;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZSTD)]
+        public long ZSTD_Native()
+        {
+            Joveler.Compression.Zstd.ZstdDecompressOptions decompOpts = new Joveler.Compression.Zstd.ZstdDecompressOptions();
+
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zst"];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (MemoryStream rms = new MemoryStream(compData))
+                using (Joveler.Compression.Zstd.ZstdStream zs = new Joveler.Compression.Zstd.ZstdStream(rms, decompOpts))
+                {
+                    zs.CopyTo(ms);
+                }
+
+                ms.Flush();
+                return ms.Length;
+            }
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZSTD)]
+        public long ZSTD_Managed()
+        {
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zst"];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (MemoryStream rms = new MemoryStream(compData))
+                using (ZstdSharp.DecompressionStream zs = new ZstdSharp.DecompressionStream(rms))
+                {
+                    zs.CopyTo(ms);
+                }
+
+                ms.Flush();
+                return ms.Length;
+            }
         }
     }
     #endregion
