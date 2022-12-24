@@ -94,7 +94,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             }
         }
 
-        private void HashAlgorithmTemplate<T>(HashAlgorithm hash, string fileName, T expected)
+        private void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, ulong expected)
         {
             byte[] checksum;
             string filePath = Path.Combine(TestSetup.SampleDir, fileName);
@@ -117,7 +117,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                 uint actual = BitConverter.ToUInt32(checksum, 0);
                 Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
                 Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
-                Assert.AreEqual(expected, actual);
+                Assert.AreEqual((uint)expected, actual);
             }
             else
             {
