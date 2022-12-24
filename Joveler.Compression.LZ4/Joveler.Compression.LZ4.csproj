@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net451;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net462;netstandard2.0;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
@@ -24,11 +24,11 @@ Supports Windows, Linux and macOS.</Description>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.1.0" />
-    <PackageReference Include="System.Memory" Version="4.5.4" Condition=" '$(TargetFramework)' == 'net451' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="Joveler.DynLoader" Version="2.1.1" />
+    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.5.1 -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>x86\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -39,7 +39,7 @@ Supports Windows, Linux and macOS.</Description>
     </None>
   </ItemGroup>
   <!-- Native Library for .NET Standard 2.0 & 2.1 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netstandard2.1'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp3.1'">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -68,11 +68,16 @@ Supports Windows, Linux and macOS.</Description>
       <Link>runtimes\osx-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="runtimes\osx-arm64\native\*.dylib">
+      <Link>runtimes\osx-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <!-- NuGet Pacakge -->
   <ItemGroup>
     <!-- Build Script for .NET Framework -->
-    <None Include="Joveler.Compression.LZ4.netfx.targets" Pack="true" PackagePath="build\net451\Joveler.Compression.LZ4.targets" />
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+    <None Include="Joveler.Compression.LZ4.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.LZ4.targets" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
     <!-- Native Library -->
@@ -83,5 +88,6 @@ Supports Windows, Linux and macOS.</Description>
     <None Include="runtimes\linux-arm\native\*.so" Pack="true" PackagePath="runtimes\linux-arm\native" />
     <None Include="runtimes\linux-arm64\native\*.so" Pack="true" PackagePath="runtimes\linux-arm64\native" />
     <None Include="runtimes\osx-x64\native\*.dylib" Pack="true" PackagePath="runtimes\osx-x64\native" />
+    <None Include="runtimes\osx-arm64\native\*.dylib" Pack="true" PackagePath="runtimes\osx-arm64\native" />
   </ItemGroup>
 </Project>

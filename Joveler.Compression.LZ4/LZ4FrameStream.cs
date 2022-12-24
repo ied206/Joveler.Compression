@@ -220,10 +220,7 @@ namespace Joveler.Compression.LZ4
             UIntPtr frameSizeVal = LZ4Init.Lib.FrameCompressBound((UIntPtr)_bufferSize, prefs);
             Debug.Assert(frameSizeVal.ToUInt64() <= int.MaxValue);
             uint frameSize = frameSizeVal.ToUInt32();
-            /*
-            if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            */
+
             _destBufSize = (uint)_bufferSize;
             if (_bufferSize < frameSize)
                 _destBufSize = frameSize;
@@ -332,7 +329,7 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
-#if NETSTANDARD2_1
+#if NETCOREAPP3_1
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)
@@ -437,7 +434,7 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
-#if NETSTANDARD2_1
+#if NETCOREAPP3_1
         public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)

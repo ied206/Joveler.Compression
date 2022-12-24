@@ -9,6 +9,7 @@ namespace Benchmark
         public const string ZLib = "ZLib";
         public const string XZ = "XZ";
         public const string LZ4 = "LZ4";
+        public const string ZSTD = "ZSTD";
 
         public BenchConfig()
         {

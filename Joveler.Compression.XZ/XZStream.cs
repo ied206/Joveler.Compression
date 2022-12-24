@@ -344,7 +344,7 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-#if NETSTANDARD2_1
+#if NETCOREAPP3_1
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)
@@ -419,7 +419,7 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-#if NETSTANDARD2_1
+#if NETCOREAPP3_1
         public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)

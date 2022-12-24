@@ -36,7 +36,7 @@ using System.Linq;
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.LZ4")]
+    [TestCategory("Joveler.Compression.Zstd")]
     public class LZ4FrameStreamTests
     {
         #region Compress

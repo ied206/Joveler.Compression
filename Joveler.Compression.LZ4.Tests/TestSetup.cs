@@ -40,8 +40,8 @@ namespace Joveler.Compression.LZ4.Tests
     [TestClass]
     public class TestSetup
     {
-        public static string BaseDir;
-        public static string SampleDir;
+        public static string BaseDir { get; private set; }
+        public static string SampleDir { get; private set; }
 
         [AssemblyInitialize]
         public static void Init(TestContext context)
@@ -178,7 +178,7 @@ namespace Joveler.Compression.LZ4.Tests
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.exe");
+                binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.exe");
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
@@ -201,6 +201,9 @@ namespace Joveler.Compression.LZ4.Tests
                 {
                     case Architecture.X64:
                         binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.x64.mach");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "lz4.arm64.mach");
                         break;
                 }
             }

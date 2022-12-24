@@ -74,10 +74,21 @@ namespace Benchmark
             ["Best"] = K4os.Compression.LZ4.LZ4Level.L12_MAX, // LZ4-HC
         };
 
+        // ZstdLevel
+        public Dictionary<string, int> ZstdLevelDict = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["Fastest"] = 1,
+            ["Default"] = 3,
+            ["Best"] = 22,
+        };
+
         [GlobalSetup]
         public void GlobalSetup()
         {
             Program.NativeGlobalInit();
+
+            ZstdLevelDict["Fatest"] = Joveler.Compression.Zstd.ZstdStream.MinCompressionLevel();
+            ZstdLevelDict["Best"] = Joveler.Compression.Zstd.ZstdStream.MaxCompressionLevel();
 
             _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
@@ -231,6 +242,51 @@ namespace Benchmark
 
             CompRatio = (double)compLen / rawData.Length;
             return CompRatio;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZSTD)]
+        public double ZSTD_Native()
+        {
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Joveler.Compression.Zstd.ZstdCompressOptions compOpts = new Joveler.Compression.Zstd.ZstdCompressOptions
+                {
+                    CompressionLevel = ZstdLevelDict[Level],
+                    LeaveOpen = true,
+                };
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.Zstd.ZstdStream zs = new Joveler.Compression.Zstd.ZstdStream(ms, compOpts))
+                {
+                    rms.CopyTo(zs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+
+            CompRatio = (double)compLen / rawData.Length;
+            return CompRatio;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZSTD)]
+        public double ZSTD_Managed()
+        {
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (ZstdSharp.CompressionStream zs = new ZstdSharp.CompressionStream(ms, ZstdLevelDict[Level]))
+                {
+                    rms.CopyTo(zs);
+                }
+            }
+
+            return 0;
         }
     }
     #endregion
