@@ -20,9 +20,9 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 
 ### Targeted .NET platforms
 
-- .NET Core 3.1+
-- .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
-- .NET Framework 4.6.2+
+- .NET Core 3.1
+- .NET Standard 2.0
+- .NET Framework 4.6.2
 
 #### Discontinued target frameworks
 

@@ -22,12 +22,18 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 1. Create ARM64 target platform
    - Open `Configuration Manager`
    - Create ARM64 solution platform, using x64 as a template
-1. Choose `Release - All Platforms` build target
+1. Choose `ReleaseMT - All Platforms` build target
 1. Set build configurations
-   - Set `C/C++` - `Optimization` - `Optimization` as `Minimum Size (/O1)`
-   - Set `C/C++` - `Optimization` - `Small or Fast` as `Favor Small Code (/Os)`
-   - Set `C/C++` - `Code Generation` - `Use Run-Time Library` as `Multi Thread(/MT)`
-   - Set `Linker` - `Debugging` - `Generate Debug Info` as `None`
+   - Korean
+      - Set `C/C++` - `최적화` - `최적화` as `최대 최적화(크기 우선)(/O1)`
+      - Set `C/C++` - `최적화` - `크기 또는 속도` as `코드 크기 우선(/Os)`
+      - Set `C/C++` - `코드 생성` - `런타임 라이브러리` as `다중 스레드(/MT)`
+      - Set `Linker` - `디버깅` - `디버그 정보 생성` as `아니요`
+   - English
+      - Set `C/C++` - `Optimization` - `Optimization` as `Minimum Size (/O1)`
+      - Set `C/C++` - `Optimization` - `Small or Fast` as `Favor Small Code (/Os)`
+      - Set `C/C++` - `Code Generation` - `Use Run-Time Library` as `Multi Thread(/MT)`
+      - Set `Linker` - `Debugging` - `Generate Debug Info` as `None`
 1. Build the project and obtain `liblzma.dll`
 
 ## Linux - x64, armhf, arm64
