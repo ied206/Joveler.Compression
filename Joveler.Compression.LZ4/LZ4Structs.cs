@@ -111,7 +111,7 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] Reserved;
+        private uint[] _reserved = new uint[3];
     }
     #endregion
 
@@ -128,7 +128,7 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] Reserved;
+        private uint[] _reserved = new uint[3] { 0, 0, 0 };
     }
     #endregion
 
@@ -137,15 +137,21 @@ namespace Joveler.Compression.LZ4
     internal class FrameDecompressOptions
     {
         /// <summary>
-        /// pledges that last 64KB decompressed data will remain available unmodified. This optimization skips storage operations in tmp buffers.
+        /// pledges that last 64KB decompressed data will remain available unmodified between invocations.
+        /// This optimization skips storage operations in tmp buffers.
         /// </summary>
         public uint StableDst;
         /// <summary>
+        /// disable checksum calculation and verification, even when one is present in frame, to save CPU time.
+        /// Setting this option to 1 once disables all checksums for the rest of the frame.
+        /// </summary>
+        public uint SkipChecksums;
+        /// <summary>
         /// must be set to zero for forward compatibility
         /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] Reserved;
+        private uint[] _reserved = new uint[2] { 0, 0 };
     }
     #endregion
 

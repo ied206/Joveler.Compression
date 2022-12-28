@@ -30,8 +30,6 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
-// ReSharper disable UnusedMember.Global
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.ZLib
 {
