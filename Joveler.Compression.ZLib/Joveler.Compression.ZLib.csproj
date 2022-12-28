@@ -7,7 +7,7 @@
     <Platforms>AnyCPU</Platforms>
     <PackageId>Joveler.Compression.ZLib</PackageId>
     <Title>Joveler.Compression.ZLib</Title>
-    <Version>4.1.1</Version>
+    <Version>4.2.0</Version>
     <Authors>Jean-loup Gailly, Mark Adler, Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>zlib pinvoke library for .NET.
@@ -19,7 +19,8 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Recompile Windows zlib binaries with proper compile options.</PackageReleaseNotes>    
+    <PackageReleaseNotes>- Recompile Windows zlib binaries with proper compile options.
+- Discontinue .NET Framework 4.5.1, 4.6, 4.6.1 due to end of official Microsoft support.</PackageReleaseNotes>    
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
   </PropertyGroup>
   <!-- PackageReference -->
