@@ -22,6 +22,7 @@ Supports Windows, Linux and macOS.</Description>
     <PackageReleaseNotes>- Recompile Windows zlib binaries with proper compile options.
 - Discontinue .NET Framework 4.5.1, 4.6, 4.6.1 due to end of official Microsoft support.</PackageReleaseNotes>    
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
@@ -80,6 +81,8 @@ Supports Windows, Linux and macOS.</Description>
   </ItemGroup>
   <!-- NuGet Pacakge -->
   <ItemGroup>
+    <!-- Nuget README -->
+    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md"/>
     <!-- Build Script for .NET Framework -->
     <None Include="Joveler.Compression.ZLib.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.ZLib.targets" />
     <!-- NuGet Pacakge Icon -->

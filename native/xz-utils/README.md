@@ -44,13 +44,13 @@ Linux .so files are built with default optimization.
    ```sh
    make -j(N)
    ```
-1. Strip `lib/liblzma.(ver).so`
+1. Strip `src/liblzma/.libs/liblzma.so.(ver)`
    ```sh
-   strip lib/liblzma.(ver).so
+   strip src/liblzma/.libs/liblzma.so.(ver)
    ```
 1. Make sure the binary does not have unnecessary dependency
    ```sh
-   ldd lib/liblzma.(ver).so
+   ldd src/liblzma/.libs/liblzma.so.(ver)
    ```
  
 ## macOS - x64, arm64

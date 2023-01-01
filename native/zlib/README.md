@@ -32,20 +32,21 @@ Windows .dll files are compiled with size optimization.
 
 ## Linux - x64, armhf, arm64
 
-Linux .so files are built with default optimization.
+Linux .so files are built with default optimization, using autotools and make.
 
+1. Configure Makefile
 1. Build with standard Makefile
-   ```sh
-   make -j(N)
-   ```
-1. Strip `lib/libzstd.(ver).so`
-   ```sh
-   strip lib/libzstd.(ver).so
-   ```
+1. Strip `libz.so.(ver)`
 1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   ldd lib/libzstd.(ver).so
-   ```
+
+```sh
+./configure
+make -j`nproc`
+ls -l libz.so.(ver)
+strip libz.so.(ver)
+ls -l libz.so.(ver)
+ldd libz.so.(ver)
+```
 
 Patch `zstd` cli Makefile to prevent it from linking to unnecessary dependency.
 - Set `HAVE_ZLIB`, `HAVE_LZ4`, `HAVE_LZMA` to 0.
