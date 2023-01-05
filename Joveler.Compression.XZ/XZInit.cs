@@ -82,19 +82,17 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        #region Hardware - PhysMem & CPU Threads
+        #region Hardware - PhysMem & CPU Threads (Obsolete)
+        [Obsolete($"Moved to {nameof(XZHardware)}.{nameof(PhysMem)}().")]
         public static ulong PhysMem()
         {
-            Manager.EnsureLoaded();
-
-            return Lib.LzmaPhysMem();
+            return XZHardware.PhysMem();
         }
 
+        [Obsolete($"Moved to {nameof(XZHardware)}.{nameof(CpuThreads)}().")]
         public static uint CpuThreads()
         {
-            Manager.EnsureLoaded();
-
-            return Lib.LzmaCpuThreads();
+            return XZHardware.CpuThreads();
         }
         #endregion
 

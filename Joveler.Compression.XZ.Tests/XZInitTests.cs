@@ -44,21 +44,6 @@ namespace Joveler.Compression.XZ.Tests
             Console.WriteLine($"liblzma Version (String)  = {verStr}");
         }
 
-        [TestMethod]
-        public void PhysMem()
-        {
-            ulong physMem = XZInit.PhysMem();
-            Console.WriteLine($"Hardware Physical Memory = {physMem}");
-        }
-
-        [TestMethod]
-        public void CpuThreads()
-        {
-            uint xzCoreCount = XZInit.CpuThreads();
-            uint bclCoreCount = (uint)Environment.ProcessorCount;
-            Assert.AreEqual(bclCoreCount, xzCoreCount);
-            Console.WriteLine($"Hardware CPU Threads = {xzCoreCount}");
-        }
 
         #region EncoderMemUsage
         private void EncoderMemUsageTemplate(LzmaCompLevel level, bool extreme)

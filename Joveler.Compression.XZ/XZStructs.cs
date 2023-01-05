@@ -150,7 +150,18 @@ namespace Joveler.Compression.XZ
         private IntPtr ReservedPtr2 = IntPtr.Zero;
         private IntPtr ReservedPtr3 = IntPtr.Zero;
         private IntPtr ReservedPtr4 = IntPtr.Zero;
-        private ulong ReservedInt1 = 0;
+        /// <summary>
+        /// New seek input position for LZMA_SEEK_NEEDED
+        /// </summary>
+        /// <remarks>
+        /// When lzma_code() returns LZMA_SEEK_NEEDED, the new input position
+        /// needed by liblzma will be available seek_pos. The value is
+        /// guaranteed to not exceed the file size that was specified when
+        /// this lzma_stream was initialized.
+        /// 
+        /// In all other situations the value of this variable is undefined.
+        /// </remarks>
+        public ulong SeekPos = 0;
         private ulong ReservedInt2 = 0;
         private UIntPtr ReservedInt3 = UIntPtr.Zero;
         private UIntPtr ReservedInt4 = UIntPtr.Zero;
@@ -227,21 +238,28 @@ namespace Joveler.Compression.XZ
     #endregion
 
     #region (internal) LzmaMt
+    /// <summary>
+    /// Multithreading options
+    /// </summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal class LzmaMt
     {
         /// <summary>
         /// Set this to zero if no flags are wanted.
         ///
-        /// No flags are currently supported.
+        /// Encoder: No flags are currently supported.
+        /// Decoder: Bitwise-or of zero or more of the decoder flags:
+        ///     LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
+        ///     LZMA_TELL_ANY_CHECK, LZMA_IGNORE_CHECK,
+        ///     LZMA_CONCATENATED, LZMA_FAIL_FAST
         /// </summary>
-        private uint Flags = 0;
+        public LzmaDecodingFlag Flags = LzmaDecodingFlag.None;
         /// <summary>
         /// Number of worker threads to use
         /// </summary>
         public uint Threads;
         /// <summary>
-        /// Maximum uncompressed size of a Block
+        /// Encoder only: Maximum uncompressed size of a Block
         /// </summary>
         /// <remarks>
         /// The encoder will start a new .xz Block every block_size bytes.
@@ -297,7 +315,7 @@ namespace Joveler.Compression.XZ
         /// </remarks>
         public uint TimeOut;
         /// <summary>
-        /// Compression preset (level and possible flags)
+        /// Encoder only: Compression preset
         /// </summary>
         /// <remarks>
         /// The preset is set just like with lzma_easy_encoder().
@@ -305,15 +323,15 @@ namespace Joveler.Compression.XZ
         /// </remarks>
         public uint Preset;
         /// <summary>
-        /// Filter chain (alternative to a preset)
+        /// Encoder only: Filter chain (alternative to a preset)
         /// </summary>
         /// <remarks>
         /// If this is NULL, the preset above is used. Otherwise the preset
         /// is ignored and the filter chain specified here is used.
         /// </remarks>
-        private IntPtr Filters;
+        private IntPtr _filters;
         /// <summary>
-        /// Integrity check type
+        /// Encoder only: Integrity check type
         /// </summary>
         /// <remarks>
         /// See check.h for available checks. The xz command line tool
@@ -322,21 +340,63 @@ namespace Joveler.Compression.XZ
         /// </remarks>
         public LzmaCheck Check;
 
-        private uint ReservedEnum1;
-        private uint ReservedEnum2;
-        private uint ReservedEnum3;
-        private uint ReservedInt1;
-        private uint ReservedInt2;
-        private uint ReservedInt3;
-        private uint ReservedInt4;
-        private ulong ReservedInt5;
-        private ulong ReservedInt6;
-        private ulong ReservedInt7;
-        private ulong ReservedInt8;
-        private IntPtr ReservedPtr1;
-        private IntPtr ReservedPtr2;
-        private IntPtr ReservedPtr3;
-        private IntPtr ReservedPtr4;
+        private uint ReservedEnum1 = 0;
+        private uint ReservedEnum2 = 0;
+        private uint ReservedEnum3 = 0;
+        private uint ReservedInt1 = 0;
+        private uint ReservedInt2 = 0;
+        private uint ReservedInt3 = 0;
+        private uint ReservedInt4 = 0;
+        /// <summary>
+        /// Memory usage limit to reduce the number of threads
+        /// </summary>
+        /// <remarks>
+        /// Encoder: Ignored.
+        /// 
+        /// Decoder:
+        /// 
+        /// If the number of threads has been set so high that more than
+        /// memlimit_threading bytes of memory would be needed, the number
+        /// of threads will be reduced so that the memory usage will not exceed
+        /// memlimit_threading bytes. However, if memlimit_threading cannot
+        /// be met even in single-threaded mode, then decoding will continue
+        /// in single-threaded mode and memlimit_threading may be exceeded
+        /// even by a large amount. That is, memlimit_threading will never make
+        /// lzma_code() return LZMA_MEMLIMIT_ERROR. To truly cap the memory
+        /// usage, see memlimit_stop below.
+        /// 
+        /// Setting memlimit_threading to UINT64_MAX or a similar huge value
+        /// means that liblzma is allowed to keep the whole compressed file
+        /// and the whole uncompressed file in memory in addition to the memory
+        /// needed by the decompressor data structures used by each thread!
+        /// In other words, a reasonable value limit must be set here or it
+        /// will cause problems sooner or later. If you have no idea what
+        /// a reasonable value could be, try lzma_physmem() / 4 as a starting
+        /// point. Setting this limit will never prevent decompression of
+        /// a file; this will only reduce the number of threads.
+        /// 
+        /// If memlimit_threading is greater than memlimit_stop, then the value
+        /// of memlimit_stop will be used for both.
+        /// </remarks>
+        public ulong MemlimitThreading = 0;
+        /// <summary>
+        /// Memory usage limit that should never be exceeded
+        /// </summary>
+        /// <remarks>
+        /// Encoder: Ignored.
+        ///
+        /// Decoder: If decompressing will need more than this amount of
+        /// memory even in the single-threaded mode, then lzma_code() will
+        /// return LZMA_MEMLIMIT_ERROR.
+        /// </remarks>
+        public ulong MemlimitStop = 0;
+        private ulong _reservedInt6 = 0;
+        private ulong _reservedInt7 = 0;
+        private ulong _reservedInt8 = 0;
+        private IntPtr ReservedPtr1 = new IntPtr(0);
+        private IntPtr ReservedPtr2 = new IntPtr(0);
+        private IntPtr ReservedPtr3 = new IntPtr(0);
+        private IntPtr ReservedPtr4 = new IntPtr(0);
 
         public static LzmaMt Create(uint preset, int threads)
         {
@@ -353,7 +413,7 @@ namespace Joveler.Compression.XZ
                 // See the documentation of lzma_mt in lzma/container.h for information how to choose a reasonable timeout.
                 TimeOut = 0,
                 // To use a preset, filters must be set to NULL.
-                Filters = IntPtr.Zero,
+                _filters = IntPtr.Zero,
                 Preset = preset,
                 // Use XZ default
                 Check = LzmaCheck.Crc64,
@@ -617,6 +677,12 @@ namespace Joveler.Compression.XZ
         /// specified memory usage limit. To continue decoding,
         /// the memory usage limit has to be increased with
         /// lzma_memlimit_set().
+        /// 
+        /// liblzma 5.2.6 and earlier had a bug in single-threaded .xz
+        /// decoder (lzma_stream_decoder()) which made it impossible
+        /// to continue decoding after LZMA_MEMLIMIT_ERROR even if
+        /// the limit was increased using lzma_memlimit_set().
+        /// Other decoders worked correctly.
         /// </remarks>
         MemLimitError = 6,
         /// <summary>
@@ -707,6 +773,23 @@ namespace Joveler.Compression.XZ
         /// how to report bugs.
         /// </remarks>
         ProgError = 11,
+        /// <summary>
+        /// Request to change the input file position
+        /// </summary>
+        /// <remarks>
+        /// Some coders can do random access in the input file. The
+        /// initialization functions of these coders take the file size
+        /// as an argument. No other coders can return LZMA_SEEK_NEEDED.
+        /// 
+        /// When this value is returned, the application must seek to
+        /// the file position given in lzma_stream.seek_pos. This value
+        /// is guaranteed to never exceed the file size that was
+        /// specified at the coder initialization.
+        /// 
+        /// After seeking the application should read new input and
+        /// pass it normally via lzma_stream.next_in and .avail_in.
+        /// </remarks>
+        SeekNeeded = 12,
     }
     #endregion
 
@@ -747,6 +830,7 @@ namespace Joveler.Compression.XZ
     [Flags]
     public enum LzmaDecodingFlag : uint
     {
+        None = 0,
         /// <summary>
         /// This flag makes lzma_code() return LZMA_NO_CHECK if the input stream
         /// being decoded has no integrity check. Note that when used with
@@ -793,8 +877,8 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// This flag enables decoding of concatenated files with file formats that
         /// allow concatenating compressed files as is. From the formats currently
-        /// supported by liblzma, only the .xz format allows concatenated files.
-        /// Concatenated files are not allowed with the legacy .lzma format.
+        /// supported by liblzma, only the .xz and .lz formats allow concatenated
+        /// files. Concatenated files are not allowed with the legacy .lzma format.
         /// </summary>
         /// <remarks>
         /// This flag also affects the usage of the `action' argument for lzma_code().
@@ -806,6 +890,33 @@ namespace Joveler.Compression.XZ
         /// as `action' for lzma_code(), but the usage of LZMA_FINISH isn't required.
         /// </remarks>
         Concatenated = 0x08,
+        /// <summary>
+        /// This flag makes the threaded decoder report errors (like LZMA_DATA_ERROR)
+        /// as soon as they are detected. This saves time when the application has no
+        /// interest in a partially decompressed truncated or corrupt file. Note that
+        /// due to timing randomness, if the same truncated or corrupt input is
+        /// decompressed multiple times with this flag, a different amount of output
+        /// may be produced by different runs, and even the error code might vary.
+        ///
+        /// When using LZMA_FAIL_FAST, it is recommended to use LZMA_FINISH to tell
+        /// the decoder when no more input will be coming because it can help fast
+        /// detection and reporting of truncated files. Note that in this situation
+        /// truncated files might be diagnosed with LZMA_DATA_ERROR instead of
+        /// LZMA_OK or LZMA_BUF_ERROR!
+        ///
+        /// Without this flag the threaded decoder will provide as much output as
+        /// possible at first and then report the pending error. This default behavior
+        /// matches the single-threaded decoder and provides repeatable behavior
+        /// with truncated or corrupt input. There are a few special cases where the
+        /// behavior can still differ like memory allocation failures (LZMA_MEM_ERROR).
+        ///
+        /// Single-threaded decoders currently ignore this flag.
+        ///
+        /// Support for this flag was added in liblzma 5.3.3alpha. Note that in older
+        /// versions this flag isn't supported (LZMA_OPTIONS_ERROR) even by functions
+        /// that ignore this flag in newer liblzma versions.
+        /// </summary>
+        FailFast = 0x20,
     }
     #endregion
 
