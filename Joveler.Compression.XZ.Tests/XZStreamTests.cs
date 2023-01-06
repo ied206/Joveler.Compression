@@ -198,11 +198,10 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void DecompressMulti()
         {
-            Template("A.xz", "A.pdf", 1, true);
-            Template("A.xz", "A.pdf", 2, true);
-            Template("B9.xz", "B.txt", 2, true);
-            Template("B1.xz", "B.txt", Environment.ProcessorCount, true);
-            Template("C.xz", "C.bin", Environment.ProcessorCount, true);
+            Template("A_mt16.xz", "A.pdf", 1, true);
+            Template("B9_mt16.xz", "B.txt", 2, true);
+            Template("B1_mt16.xz", "B.txt", Environment.ProcessorCount, true);
+            Template("C_mt16.xz", "C.bin", Environment.ProcessorCount, true);
         }
 
         private static void Template(string xzFileName, string originFileName, int threads, bool useSpan)
@@ -256,8 +255,10 @@ namespace Joveler.Compression.XZ.Tests
                             xzs.CopyTo(decompMs);
                         }
 
+#if LZMA_MEM_ENABLE
                         ulong memUsage = xzs.GetDecompresMemUsage();
                         Console.WriteLine($"{xzFileName} ({threads}t) MEM: requires {memUsage / (1024 * 1024) + 1}MB ({memUsage}B)");
+#endif
 
                         decompMs.Flush();
                         xzs.GetProgress(out ulong finalIn, out ulong finalOut);
@@ -273,7 +274,7 @@ namespace Joveler.Compression.XZ.Tests
                     xzs?.Dispose();
                     xzs = null;
                 }
-                
+
                 decompMs.Position = 0;
 
                 using (HashAlgorithm hash = SHA256.Create())

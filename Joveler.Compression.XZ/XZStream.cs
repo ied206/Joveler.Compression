@@ -849,7 +849,11 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        #region Memory Usage (Decompression Only)
+
+        #region Memory Usage (Decompression Only) - DISABLED
+        // lzma_memusage() only works on per-thread basis.
+        // It would not help users to perceive how many memory cap would needed on multi-threaded decompression.
+#if LZMA_MEM_ENABLE
         /// <summary>
         /// Get the memory usage of decompression setup.
         /// <para>Must be called after calling Read() at least once.</para>
@@ -873,6 +877,7 @@ namespace Joveler.Compression.XZ
                 throw new NotSupportedException($"{nameof(GetDecompresMemUsage)}() not supported on compression.");
             return XZInit.Lib.LzmaMemusage(_lzmaStream);
         }
+#endif
         #endregion
 
         #region (internal, private) Check Arguments
@@ -904,7 +909,7 @@ namespace Joveler.Compression.XZ
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
             return Math.Max(bufferSize, 4096);
         }
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }

@@ -28,7 +28,6 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
-using static Joveler.Compression.XZ.XZLoader;
 
 namespace Joveler.Compression.XZ
 {
@@ -82,10 +81,12 @@ namespace Joveler.Compression.XZ
             LzmaCpuThreads = GetFuncPtr<lzma_cputhreads>(nameof(lzma_cputhreads));
             #endregion
 
-            #region Memory - Memusage, MemlimitGet, MemlimitSet
+            #region Memory - Memusage, MemlimitGet, MemlimitSet (DISABLED)
+#if LZMA_MEM_ENABLE
             LzmaMemusage = GetFuncPtr<lzma_memusage>(nameof(lzma_memusage));
             LzmaMemlimitGet = GetFuncPtr<lzma_memlimit_get>(nameof(lzma_memlimit_get));
             LzmaMemlimitSet = GetFuncPtr<lzma_memlimit_set>(nameof(lzma_memlimit_set));
+#endif
             #endregion
 
             #region Check - Crc32, Crc64
@@ -123,10 +124,12 @@ namespace Joveler.Compression.XZ
             LzmaCpuThreads = null;
             #endregion
 
-            #region Memory - Memusage, MemlimitGet, MemlimitSet
+            #region Memory - Memusage, MemlimitGet, MemlimitSet (DISABLED)
+#if LZMA_MEM_ENABLE
             LzmaMemusage = null;
             LzmaMemlimitGet = null;
             LzmaMemlimitSet = null;
+#endif
             #endregion
 
             #region Check - Crc32, Crc64
@@ -194,7 +197,7 @@ namespace Joveler.Compression.XZ
             LzmaMt options);
         internal lzma_stream_encoder_mt LzmaStreamEncoderMt;
 
-#if false
+#if LZMA_MICROLZMA_ENABLE
         /// <summary>
         /// MicroLZMA encoder
         /// </summary>
@@ -458,7 +461,8 @@ namespace Joveler.Compression.XZ
         internal lzma_cputhreads LzmaCpuThreads;
         #endregion
 
-        #region Memory - Memusage, MemlimitGet, MemlimitSet
+        #region Memory - Memusage, MemlimitGet, MemlimitSet (DISABLED)
+#if LZMA_MEM_ENABLE
         /// <summary>
         /// Get the memory usage of decoder filter chain
         /// </summary>
@@ -521,6 +525,7 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_memlimit_set(LzmaStream strm);
         internal lzma_memlimit_set LzmaMemlimitSet;
+#endif
         #endregion
 
         #region Check - Crc32, Crc64
