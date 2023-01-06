@@ -1,4 +1,7 @@
 ﻿/*
+    Derived from liblzma header files (Public Domain)
+
+    C# Wrapper written by Hajin Jang
     Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
@@ -22,15 +25,39 @@
     SOFTWARE.
 */
 
-using Joveler.DynLoader;
+using System;
 
 namespace Joveler.Compression.XZ
 {
-    internal class XZLoadManager : LoadManagerBase<XZLoader>
+    public class XZHardware
     {
-        protected override string ErrorMsgInitFirst => "Please call XZInit.GlobalInit() first!";
-        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.XZ is already initialized.";
+        #region Hardware - PhysMem & CPU Threads
+        public static ulong PhysMem()
+        {
+            XZInit.Manager.EnsureLoaded();
 
-        protected override XZLoader CreateLoader() => new XZLoader();
+            return XZInit.Lib.LzmaPhysMem();
+        }
+
+        public static uint CpuThreads()
+        {
+            XZInit.Manager.EnsureLoaded();
+
+            return XZInit.Lib.LzmaCpuThreads();
+        }
+        #endregion
+
+        #region (internal) Thread Limiter
+        internal static uint CheckThreadCount(int threads)
+        {
+            if (threads < 0)
+                throw new ArgumentOutOfRangeException(nameof(threads));
+            if (threads == 0) // Use system's thread number by default
+                threads = Environment.ProcessorCount;
+            else if (Environment.ProcessorCount < threads) // If the number of CPU cores/threads exceeds system thread number,
+                threads = Environment.ProcessorCount; // Limit the number of threads to keep memory usage lower.
+            return (uint)threads;
+        }
+        #endregion
     }
 }

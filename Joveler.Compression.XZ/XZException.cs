@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
 
@@ -27,13 +27,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 namespace Joveler.Compression.XZ
 {
     [Serializable]
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class XZException : Exception
     {
         public LzmaRet ReturnCode { get; set; }
@@ -56,10 +54,27 @@ namespace Joveler.Compression.XZ
             ReturnCode = ret;
         }
 
-        public static void CheckReturnValue(LzmaRet ret)
+        public static void CheckReturnValueNormal(LzmaRet ret)
         {
-            if (ret != LzmaRet.Ok)
-                throw new XZException(ret);
+            switch (ret)
+            {
+                case LzmaRet.Ok:
+                    break;
+                default:
+                    throw new XZException(ret);
+            }
+        }
+
+        public static void CheckReturnValueDecompress(LzmaRet ret)
+        {
+            switch (ret)
+            {
+                case LzmaRet.Ok:
+                case LzmaRet.SeekNeeded:
+                    break;
+                default:
+                    throw new XZException(ret);
+            }
         }
 
         #region Serializable

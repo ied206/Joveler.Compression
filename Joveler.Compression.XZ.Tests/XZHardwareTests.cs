@@ -1,4 +1,5 @@
 ﻿/*
+    C# Wrapper written by Hajin Jang
     Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
@@ -22,15 +23,29 @@
     SOFTWARE.
 */
 
-using Joveler.DynLoader;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 
-namespace Joveler.Compression.XZ
+namespace Joveler.Compression.XZ.Tests
 {
-    internal class XZLoadManager : LoadManagerBase<XZLoader>
+    [TestClass]
+    [TestCategory("Joveler.Compression.XZ")]
+    public class XZHardwareTests
     {
-        protected override string ErrorMsgInitFirst => "Please call XZInit.GlobalInit() first!";
-        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.XZ is already initialized.";
+        [TestMethod]
+        public void PhysMem()
+        {
+            ulong physMem = XZHardware.PhysMem();
+            Console.WriteLine($"Hardware Physical Memory = {physMem}");
+        }
 
-        protected override XZLoader CreateLoader() => new XZLoader();
+        [TestMethod]
+        public void CpuThreads()
+        {
+            uint xzCoreCount = XZHardware.CpuThreads();
+            uint bclCoreCount = (uint)Environment.ProcessorCount;
+            Assert.AreEqual(bclCoreCount, xzCoreCount);
+            Console.WriteLine($"Hardware CPU Threads = {xzCoreCount}");
+        }
     }
 }
