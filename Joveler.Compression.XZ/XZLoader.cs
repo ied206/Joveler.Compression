@@ -447,7 +447,7 @@ namespace Joveler.Compression.XZ
         internal delegate LzmaRet lzma_lzip_decoder(
             LzmaStream strm,
             ulong memlimit,
-            uint flags);
+            LzmaDecodingFlag flags);
         internal lzma_lzip_decoder LzmaLZipDecoder;
         #endregion
 

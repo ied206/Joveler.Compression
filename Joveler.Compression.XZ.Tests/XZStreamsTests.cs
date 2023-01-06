@@ -1,8 +1,6 @@
 ﻿/*
-    Derived from liblzma header files (Public Domain)
-
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
 
@@ -35,38 +33,38 @@ namespace Joveler.Compression.XZ.Tests
 {
     [TestClass]
     [TestCategory("Joveler.Compression.XZ")]
-    public class XZStreamTests
+    public class XZStreamsTests
     {
-        #region Compress
+        #region XZ Compress
         [TestMethod]
-        public void Compress()
+        public void XZCompressSingle()
         {
-            CompressTemplate("A.pdf", false, true, -1, LzmaCompLevel.Level7, false);
-            CompressTemplate("B.txt", false, true, -1, LzmaCompLevel.Default, false);
-            CompressTemplate("C.bin", false, true, -1, LzmaCompLevel.Level1, true);
-            CompressTemplate("C.bin", false, false, -1, (LzmaCompLevel)255, false);
+            XZCompressTemplate("A.pdf", false, true, -1, LzmaCompLevel.Level7, false);
+            XZCompressTemplate("B.txt", false, true, -1, LzmaCompLevel.Default, false);
+            XZCompressTemplate("C.bin", false, true, -1, LzmaCompLevel.Level1, true);
+            XZCompressTemplate("C.bin", false, false, -1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
-        public void CompressSpan()
+        public void XZCompressSingleSpan()
         {
-            CompressTemplate("A.pdf", true, true, -1, LzmaCompLevel.Level7, false);
-            CompressTemplate("B.txt", true, true, -1, LzmaCompLevel.Default, false);
-            CompressTemplate("C.bin", true, true, -1, LzmaCompLevel.Level1, true);
-            CompressTemplate("C.bin", true, false, -1, (LzmaCompLevel)255, false);
+            XZCompressTemplate("A.pdf", true, true, -1, LzmaCompLevel.Level7, false);
+            XZCompressTemplate("B.txt", true, true, -1, LzmaCompLevel.Default, false);
+            XZCompressTemplate("C.bin", true, true, -1, LzmaCompLevel.Level1, true);
+            XZCompressTemplate("C.bin", true, false, -1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
-        public void CompressMulti()
+        public void XZCompressMulti()
         {
-            CompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
-            CompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Default, false);
-            CompressTemplate("B.txt", false, true, 2, LzmaCompLevel.Level3, true);
-            CompressTemplate("C.bin", false, true, Environment.ProcessorCount, LzmaCompLevel.Level1, false);
-            CompressTemplate("C.bin", false, false, Environment.ProcessorCount, (LzmaCompLevel)255, false);
+            XZCompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
+            XZCompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Default, false);
+            XZCompressTemplate("B.txt", false, true, 2, LzmaCompLevel.Level3, true);
+            XZCompressTemplate("C.bin", false, true, Environment.ProcessorCount, LzmaCompLevel.Level1, false);
+            XZCompressTemplate("C.bin", false, false, Environment.ProcessorCount, (LzmaCompLevel)255, false);
         }
 
-        private static void CompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, LzmaCompLevel level, bool extreme)
+        private static void XZCompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, LzmaCompLevel level, bool extreme)
         {
             string destDir = Path.GetTempFileName();
             File.Delete(destDir);
@@ -176,35 +174,35 @@ namespace Joveler.Compression.XZ.Tests
         }
         #endregion
 
-        #region Decompress
+        #region XZ Decompress
         [TestMethod]
-        public void Decompress()
+        public void XZDecompressSingle()
         {
-            Template("A.xz", "A.pdf", -1, false);
-            Template("B9.xz", "B.txt", -1, false);
-            Template("B1.xz", "B.txt", -1, false);
-            Template("C.xz", "C.bin", -1, false);
+            XZDecompressTemplate("A.xz", "A.pdf", -1, false);
+            XZDecompressTemplate("B9.xz", "B.txt", -1, false);
+            XZDecompressTemplate("B1.xz", "B.txt", -1, false);
+            XZDecompressTemplate("C.xz", "C.bin", -1, false);
         }
 
         [TestMethod]
-        public void DecompressSpan()
+        public void XZDecompressSingleSpan()
         {
-            Template("A.xz", "A.pdf", -1, true);
-            Template("B9.xz", "B.txt", -1, true);
-            Template("B1.xz", "B.txt", -1, true);
-            Template("C.xz", "C.bin", -1, true);
+            XZDecompressTemplate("A.xz", "A.pdf", -1, true);
+            XZDecompressTemplate("B9.xz", "B.txt", -1, true);
+            XZDecompressTemplate("B1.xz", "B.txt", -1, true);
+            XZDecompressTemplate("C.xz", "C.bin", -1, true);
         }
 
         [TestMethod]
-        public void DecompressMulti()
+        public void XZDecompressMulti()
         {
-            Template("A_mt16.xz", "A.pdf", 1, true);
-            Template("B9_mt16.xz", "B.txt", 2, true);
-            Template("B1_mt16.xz", "B.txt", Environment.ProcessorCount, true);
-            Template("C_mt16.xz", "C.bin", Environment.ProcessorCount, true);
+            XZDecompressTemplate("A_mt16.xz", "A.pdf", 1, true);
+            XZDecompressTemplate("B9_mt16.xz", "B.txt", 2, true);
+            XZDecompressTemplate("B1_mt16.xz", "B.txt", Environment.ProcessorCount, true);
+            XZDecompressTemplate("C_mt16.xz", "C.bin", Environment.ProcessorCount, true);
         }
 
-        private static void Template(string xzFileName, string originFileName, int threads, bool useSpan)
+        private static void XZDecompressTemplate(string xzFileName, string originFileName, int threads, bool useSpan)
         {
             byte[] decompDigest;
             byte[] originDigest;
@@ -295,7 +293,114 @@ namespace Joveler.Compression.XZ.Tests
         }
         #endregion
 
-        #region GetProgress
+        #region Legacy LZMA Decompress
+        [TestMethod]
+        public void LzmaAloneDecompressSingle()
+        {
+            LzmaAloneDecompressTemplate("A.lzma", "A.pdf");
+            LzmaAloneDecompressTemplate("B9.lzma", "B.txt");
+            LzmaAloneDecompressTemplate("B1.lzma", "B.txt");
+            LzmaAloneDecompressTemplate("C.lzma", "C.bin");
+        }
+
+        private static void LzmaAloneDecompressTemplate(string lzmaFileName, string originFileName)
+        {
+            byte[] decompDigest;
+            byte[] originDigest;
+
+            string xzFile = Path.Combine(TestSetup.SampleDir, lzmaFileName);
+            string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
+            using (MemoryStream decompMs = new MemoryStream())
+            {
+                XZDecompressOptions decompOpts = new XZDecompressOptions();
+
+                using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (LzmaAloneStream lzs = new LzmaAloneStream(compFs, decompOpts))
+                {
+                    lzs.CopyTo(decompMs);
+
+                    decompMs.Flush();
+                    lzs.GetProgress(out ulong finalIn, out ulong finalOut);
+
+                    Assert.AreEqual(compFs.Length, lzs.TotalIn);
+                    Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                    Assert.AreEqual((ulong)compFs.Length, finalIn);
+                    Assert.AreEqual((ulong)decompMs.Length, finalOut);
+                }
+
+                decompMs.Position = 0;
+
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    decompDigest = hash.ComputeHash(decompMs);
+                }
+            }
+
+            using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    originDigest = hash.ComputeHash(originFs);
+                }
+            }
+
+            Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
+        }
+        #endregion
+
+        #region LZip Decompress
+        [TestMethod]
+        public void LZipDecompressSingle()
+        {
+            LZipDecompressTemplate("A.lz", "A.pdf");
+            LZipDecompressTemplate("B9.lz", "B.txt");
+            LZipDecompressTemplate("B1.lz", "B.txt");
+            LZipDecompressTemplate("C.lz", "C.bin");
+        }
+
+        private static void LZipDecompressTemplate(string lzmaFileName, string originFileName)
+        {
+            byte[] decompDigest;
+            byte[] originDigest;
+
+            string xzFile = Path.Combine(TestSetup.SampleDir, lzmaFileName);
+            string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
+            using (MemoryStream decompMs = new MemoryStream())
+            {
+                XZDecompressOptions decompOpts = new XZDecompressOptions();
+
+                using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (LZipStream lzs = new LZipStream(compFs, decompOpts))
+                {
+                    lzs.CopyTo(decompMs);
+
+                    decompMs.Flush();
+                    lzs.GetProgress(out ulong finalIn, out ulong finalOut);
+
+                    Assert.AreEqual(compFs.Length, lzs.TotalIn);
+                    Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                    Assert.AreEqual((ulong)compFs.Length, finalIn);
+                    Assert.AreEqual((ulong)decompMs.Length, finalOut);
+                }
+
+                decompMs.Position = 0;
+
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    decompDigest = hash.ComputeHash(decompMs);
+                }
+            }
+
+            using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    originDigest = hash.ComputeHash(originFs);
+                }
+            }
+
+            Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
+        }
         #endregion
     }
 }

@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
 
@@ -181,7 +181,7 @@ namespace Joveler.Compression.XZ
             // - UINT64_MAX
 
             // Soft limit
-            ulong memSoftLimit = threadOpts.MemlimitThreading; 
+            ulong memSoftLimit = threadOpts.MemlimitThreading;
 
             // Use of XZThreadedDecompressionOptions means the caller explicitly wants to use multi-threaded decompression.
             // liblzma requires memlimit{Threading,Stop} to be set with actual numbers, not 0.
@@ -193,7 +193,7 @@ namespace Joveler.Compression.XZ
                         memSoftLimit = Math.Min(XZHardware.PhysMem() / 4, 1400U << 20);
                         break;
                     case DynLoader.PlatformBitness.Bit64:
-                        memSoftLimit = XZHardware.PhysMem() / 4; 
+                        memSoftLimit = XZHardware.PhysMem() / 4;
                         break;
                 }
             }
@@ -291,6 +291,9 @@ namespace Joveler.Compression.XZ
     #endregion
 
     #region XZStream
+    /// <summary>
+    /// The stream to handle .xz file format.
+    /// </summary>
     public class XZStream : Stream
     {
         #region enum Mode
@@ -298,6 +301,20 @@ namespace Joveler.Compression.XZ
         {
             Compress,
             Decompress,
+        }
+        #endregion
+
+        #region enum CoderFormat
+        /// <summary>
+        /// Determine which encoder/decoder to use.
+        /// <para>Single-threaded decompression only.</para>
+        /// </summary>
+        protected enum CoderFormat
+        {
+            Auto = 0,
+            XZ = 1,
+            LegacyLzma = 2,
+            LZip = 3,
         }
         #endregion
 
@@ -351,7 +368,7 @@ namespace Joveler.Compression.XZ
         internal const int DefaultBufferSize = 1024 * 1024;
         #endregion
 
-        #region Constructor
+        #region Constructor (Compression)
         /// <summary>
         /// Create single-threaded compressing XZStream instance.
         /// </summary>
@@ -431,18 +448,24 @@ namespace Joveler.Compression.XZ
             // Set possible max memory usage.
             MaxMemUsage = XZInit.Lib.LzmaStreamEncoderMtMemUsage(mt);
         }
+        #endregion
 
+        #region Constructors (Decompression)
         /// <summary>
         /// Create decompressing XZStream instance.
         /// </summary>
         /// <param name="baseStream">
         /// <para>A stream of XZ container to decompress.</para>
-        /// <para>5.4.0+: liblzma may perform random seek on the stream.</para>
         /// </param>
         /// <param name="decompOpts">
         /// Options to control general decompression.
         /// </param>
-        public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts)
+        public XZStream(Stream baseStream, XZDecompressOptions decompOpts)
+            : this(baseStream, decompOpts, CoderFormat.XZ)
+        {
+        }
+
+        protected unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, CoderFormat fileFormat)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -460,7 +483,22 @@ namespace Joveler.Compression.XZ
             _lzmaStreamPin = GCHandle.Alloc(_lzmaStream, GCHandleType.Pinned);
 
             // Initialize the decoder
-            LzmaRet ret = XZInit.Lib.LzmaStreamDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+            LzmaRet ret = LzmaRet.Ok;
+            switch (fileFormat)
+            {
+                case CoderFormat.XZ:
+                    ret = XZInit.Lib.LzmaStreamDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    break;
+                case CoderFormat.Auto:
+                    ret = XZInit.Lib.LzmaAutoDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    break;
+                case CoderFormat.LegacyLzma:
+                    ret = XZInit.Lib.LzmaAloneDecoder(_lzmaStream, decompOpts.MemLimit);
+                    break;
+                case CoderFormat.LZip:
+                    ret = XZInit.Lib.LzmaLZipDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    break;
+            }
             XZException.CheckReturnValueNormal(ret);
         }
 
@@ -470,7 +508,6 @@ namespace Joveler.Compression.XZ
         /// </summary>
         /// <param name="baseStream">
         /// <para>A stream of XZ container to decompress.</para>
-        /// <para>5.4.0+: liblzma may perform random seek on the stream.</para>
         /// </param>
         /// <param name="decompOpts">
         /// Options to control general decompression.
@@ -849,7 +886,6 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-
         #region Memory Usage (Decompression Only) - DISABLED
         // lzma_memusage() only works on per-thread basis.
         // It would not help users to perceive how many memory cap would needed on multi-threaded decompression.
@@ -909,7 +945,73 @@ namespace Joveler.Compression.XZ
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
             return Math.Max(bufferSize, 4096);
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
+
+    #region XZUtilsAutoStream (Decompress Only)
+    /// <summary>
+    /// The stream to handle .xz, .lzma, and .lz (lzip) files with autodetection. (Decompression Only)
+    /// </summary>
+    public class XZUtilsAutoStream : XZStream
+    {
+        /// <summary>
+        /// Create decompressing XZUtilsAutoStrea instance.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of xz/lzma/lz container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        public XZUtilsAutoStream(Stream baseStream, XZDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, CoderFormat.Auto)
+        {
+        }
+    }
+    #endregion
+
+    #region LzmaAloneStream
+    /// <summary>
+    /// The stream to handle legacy .lzma file format. (Decompression Only)
+    /// </summary>
+    public class LzmaAloneStream : XZStream
+    {
+        /// <summary>
+        /// Create decompressing LzmaAloneStream instance.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of .lz (lzip) container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        public LzmaAloneStream(Stream baseStream, XZDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, CoderFormat.LegacyLzma)
+        {
+        }
+    }
+    #endregion
+
+    #region LZipStream (Decompress Only)
+    /// <summary>
+    /// The stream to handle .lz (lzip) file format. (Decompression Only)
+    /// </summary>
+    public class LZipStream : XZStream
+    {
+        /// <summary>
+        /// Create decompressing LZipStream instance.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of .lz (lzip) container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        public LZipStream(Stream baseStream, XZDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, CoderFormat.LZip)
+        {
+        }
+    }
+    #endregion
 }

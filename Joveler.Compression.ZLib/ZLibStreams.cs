@@ -584,20 +584,20 @@ namespace Joveler.Compression.ZLib
         /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotSupportedException("Seek() not supported");
+            throw new NotSupportedException($"{nameof(Seek)}() not supported.");
         }
         /// <inheritdoc />
         public override void SetLength(long value)
         {
-            throw new NotSupportedException("SetLength not supported");
+            throw new NotSupportedException($"{nameof(SetLength)} not supported.");
         }
         /// <inheritdoc />
-        public override long Length => throw new NotSupportedException("Length not supported");
+        public override long Length => throw new NotSupportedException($"{nameof(Length)} not supported.");
         /// <inheritdoc />
         public override long Position
         {
-            get => throw new NotSupportedException("Position not supported");
-            set => throw new NotSupportedException("Position not supported");
+            get => throw new NotSupportedException($"{nameof(Position)} not supported.");
+            set => throw new NotSupportedException($"{nameof(Position)} not supported.");
         }
 
         public double CompressionRatio
