@@ -28,6 +28,7 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
+using static Joveler.Compression.XZ.XZLoader;
 
 namespace Joveler.Compression.XZ
 {
@@ -71,14 +72,20 @@ namespace Joveler.Compression.XZ
             LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>(nameof(lzma_stream_encoder_mt));
             LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>(nameof(lzma_stream_decoder));
             LzmaStreamDecoderMt = GetFuncPtr<lzma_stream_decoder_mt>(nameof(lzma_stream_decoder_mt));
-            //LzmaAloneDecoder = GetFuncPtr<lzma_alone_decoder>(nameof(lzma_alone_decoder));
-            //LzmaLZipDecoder = GetFuncPtr<lzma_lzip_decoder>(nameof(lzma_lzip_decoder));
-            //LzmaAutoDecoder = GetFuncPtr<lzma_auto_decoder>(nameof(lzma_auto_decoder));
+            LzmaAloneDecoder = GetFuncPtr<lzma_alone_decoder>(nameof(lzma_alone_decoder));
+            LzmaLZipDecoder = GetFuncPtr<lzma_lzip_decoder>(nameof(lzma_lzip_decoder));
+            LzmaAutoDecoder = GetFuncPtr<lzma_auto_decoder>(nameof(lzma_auto_decoder));
             #endregion
 
             #region Hardware - PhyMem & CPU Threads
             LzmaPhysMem = GetFuncPtr<lzma_physmem>(nameof(lzma_physmem));
             LzmaCpuThreads = GetFuncPtr<lzma_cputhreads>(nameof(lzma_cputhreads));
+            #endregion
+
+            #region Memory - Memusage, MemlimitGet, MemlimitSet
+            LzmaMemusage = GetFuncPtr<lzma_memusage>(nameof(lzma_memusage));
+            LzmaMemlimitGet = GetFuncPtr<lzma_memlimit_get>(nameof(lzma_memlimit_get));
+            LzmaMemlimitSet = GetFuncPtr<lzma_memlimit_set>(nameof(lzma_memlimit_set));
             #endregion
 
             #region Check - Crc32, Crc64
@@ -114,6 +121,12 @@ namespace Joveler.Compression.XZ
             #region Hardware - PhyMem & CPU Threads
             LzmaPhysMem = null;
             LzmaCpuThreads = null;
+            #endregion
+
+            #region Memory - Memusage, MemlimitGet, MemlimitSet
+            LzmaMemusage = null;
+            LzmaMemlimitGet = null;
+            LzmaMemlimitSet = null;
             #endregion
 
             #region Check - Crc32, Crc64
@@ -433,9 +446,9 @@ namespace Joveler.Compression.XZ
             ulong memlimit,
             uint flags);
         internal lzma_lzip_decoder LzmaLZipDecoder;
-#endregion
+        #endregion
 
-#region Hardware - PhyMem & CPU Threads
+        #region Hardware - PhyMem & CPU Threads
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_physmem();
         internal lzma_physmem LzmaPhysMem;
@@ -443,9 +456,74 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_cputhreads();
         internal lzma_cputhreads LzmaCpuThreads;
-#endregion
+        #endregion
 
-#region Check - Crc32, Crc64
+        #region Memory - Memusage, MemlimitGet, MemlimitSet
+        /// <summary>
+        /// Get the memory usage of decoder filter chain
+        /// </summary>
+        /// <remarks>
+        /// <para>This function is currently supported only when *strm has been initialized
+        /// with a function that takes a memlimit argument. With other functions, you
+        /// should use e.g. lzma_raw_encoder_memusage() or lzma_raw_decoder_memusage()
+        /// to estimate the memory requirements.</para>
+        ///
+        /// <para>This function is useful e.g. after LZMA_MEMLIMIT_ERROR to find out how big
+        /// the memory usage limit should have been to decode the input. Note that
+        /// this may give misleading information if decoding .xz Streams that have
+        /// multiple Blocks, because each Block can have different memory requirements.</para>
+        /// </remarks>
+        /// <returns>
+        /// How much memory is currently allocated for the filter decoders.
+        /// If no filter chain is currently allocated, some non-zero value is still returned,
+        /// which is less than or equal to what any filter chain would indicate as its  memory requirement.
+        ///
+        /// If this function isn't supported by *strm or some other error occurs, zero is returned.
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_memusage(LzmaStream strm);
+        internal lzma_memusage LzmaMemusage;
+
+        /// <summary>
+        /// This function is supported only when *strm has been initialized with
+        /// a function that takes a memlimit argument.
+        /// </summary>
+        /// <returns>
+        /// On success, the current memory usage limit is returned
+        /// (always non-zero). On error, zero is returned.
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_memlimit_get(LzmaStream strm);
+        internal lzma_memlimit_get LzmaMemlimitGet;
+
+        /// <summary>
+        /// Set the memory usage limit
+        /// 
+        /// This function is supported only when *strm has been initialized with
+        /// a function that takes a memlimit argument.
+        /// </summary>
+        /// <remarks>
+        /// liblzma 5.2.3 and earlier has a bug where memlimit value of 0 causes
+        /// this function to do nothing (leaving the limit unchanged) and still
+        /// return LZMA_OK. Later versions treat 0 as if 1 had been specified (so
+        /// lzma_memlimit_get() will return 1 even if you specify 0 here).
+        ///
+        /// liblzma 5.2.6 and earlier had a bug in single-threaded .xz decoder
+        /// (lzma_stream_decoder()) which made it impossible to continue decoding
+        /// after LZMA_MEMLIMIT_ERROR even if the limit was increased using
+        /// lzma_memlimit_set(). Other decoders worked correctly.
+        /// </remarks>
+        /// <returns>
+        /// - LZMA_OK: New memory usage limit successfully set.
+        /// - LZMA_MEMLIMIT_ERROR: The new limit is too small. The limit was not changed.
+        /// - LZMA_PROG_ERROR: Invalid arguments, e.g. *strm doesn't support memory usage limit.
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_memlimit_set(LzmaStream strm);
+        internal lzma_memlimit_set LzmaMemlimitSet;
+        #endregion
+
+        #region Check - Crc32, Crc64
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal unsafe delegate uint lzma_crc32(
             byte* buf,
@@ -459,9 +537,9 @@ namespace Joveler.Compression.XZ
             UIntPtr size, // size_t
             ulong crc);
         internal lzma_crc64 LzmaCrc64;
-#endregion
+        #endregion
 
-#region Version - LzmaVersionNumber, LzmaVersionString
+        #region Version - LzmaVersionNumber, LzmaVersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_version_number();
         internal lzma_version_number LzmaVersionNumber;
@@ -469,10 +547,10 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr lzma_version_string();
         internal lzma_version_string LzmaVersionString;
-#endregion
+        #endregion
 
-#region Memlimit - Memlimit
-#endregion
-#endregion
+        #region Memlimit - Memlimit
+        #endregion
+        #endregion
     }
 }

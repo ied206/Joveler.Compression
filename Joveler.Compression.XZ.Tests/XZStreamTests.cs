@@ -41,25 +41,26 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
-            CompressTemplate("B.txt", false, true, 1, LzmaCompLevel.Default, false);
-            CompressTemplate("C.bin", false, true, 1, LzmaCompLevel.Level1, true);
-            CompressTemplate("C.bin", false, false, 1, (LzmaCompLevel)255, false);
+            CompressTemplate("A.pdf", false, true, -1, LzmaCompLevel.Level7, false);
+            CompressTemplate("B.txt", false, true, -1, LzmaCompLevel.Default, false);
+            CompressTemplate("C.bin", false, true, -1, LzmaCompLevel.Level1, true);
+            CompressTemplate("C.bin", false, false, -1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("A.pdf", true, true, 1, LzmaCompLevel.Level7, false);
-            CompressTemplate("B.txt", true, true, 1, LzmaCompLevel.Default, false);
-            CompressTemplate("C.bin", true, true, 1, LzmaCompLevel.Level1, true);
-            CompressTemplate("C.bin", true, false, 1, (LzmaCompLevel)255, false);
+            CompressTemplate("A.pdf", true, true, -1, LzmaCompLevel.Level7, false);
+            CompressTemplate("B.txt", true, true, -1, LzmaCompLevel.Default, false);
+            CompressTemplate("C.bin", true, true, -1, LzmaCompLevel.Level1, true);
+            CompressTemplate("C.bin", true, false, -1, (LzmaCompLevel)255, false);
         }
 
         [TestMethod]
         public void CompressMulti()
         {
-            CompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Level7, false);
+            CompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
+            CompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Default, false);
             CompressTemplate("B.txt", false, true, 2, LzmaCompLevel.Level3, true);
             CompressTemplate("C.bin", false, true, Environment.ProcessorCount, LzmaCompLevel.Level1, false);
             CompressTemplate("C.bin", false, false, Environment.ProcessorCount, (LzmaCompLevel)255, false);
@@ -81,41 +82,63 @@ namespace Joveler.Compression.XZ.Tests
                     ExtremeFlag = extreme,
                     LeaveOpen = true,
                 };
-                XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
-                {
-                    Threads = threads,
-                };
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
                 using (FileStream xzCompFs = new FileStream(tempXzFile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZStream xzs = new XZStream(xzCompFs, compOpts, threadOpts))
                 {
-#if !NETFRAMEWORK
-                    if (useSpan)
+                    XZStream xzs = null;
+                    try
                     {
-                        byte[] buffer = new byte[64 * 1024];
-
-                        int bytesRead;
-                        do
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(xzCompFs, compOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(xzCompFs, compOpts, threadOpts);
+                        }
+                        else
                         {
-                            bytesRead = sampleFs.Read(buffer.AsSpan());
-                            xzs.Write(buffer.AsSpan(0, bytesRead));
-                        } while (0 < bytesRead);
-                    }
-                    else
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
+
+#if !NETFRAMEWORK
+                        if (useSpan)
+                        {
+                            byte[] buffer = new byte[64 * 1024];
+
+                            int bytesRead;
+                            do
+                            {
+                                bytesRead = sampleFs.Read(buffer.AsSpan());
+                                xzs.Write(buffer.AsSpan(0, bytesRead));
+                            } while (0 < bytesRead);
+                        }
+                        else
 #endif
-                    {
-                        sampleFs.CopyTo(xzs);
+                        {
+                            sampleFs.CopyTo(xzs);
+                        }
+
+                        xzs.Flush();
+                        xzs.GetProgress(out ulong finalIn, out ulong finalOut);
+
+                        Assert.AreEqual(sampleFs.Length, xzs.TotalIn);
+                        Assert.AreEqual(xzCompFs.Length, xzs.TotalOut);
+                        Assert.AreEqual((ulong)sampleFs.Length, finalIn);
+                        Assert.AreEqual((ulong)xzCompFs.Length, finalOut);
                     }
-
-                    xzs.Flush();
-                    xzs.GetProgress(out ulong finalIn, out ulong finalOut);
-
-                    Assert.AreEqual(sampleFs.Length, xzs.TotalIn);
-                    Assert.AreEqual(xzCompFs.Length, xzs.TotalOut);
-                    Assert.AreEqual((ulong)sampleFs.Length, finalIn);
-                    Assert.AreEqual((ulong)xzCompFs.Length, finalOut);
+                    finally
+                    {
+                        xzs?.Dispose();
+                        xzs = null;
+                    }
                 }
 
                 Assert.IsTrue(TestHelper.RunXZ(tempXzFile) == 0);
@@ -141,12 +164,10 @@ namespace Joveler.Compression.XZ.Tests
                 Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
                 Assert.IsTrue(success);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception)
             {
                 Assert.IsFalse(success);
             }
-#pragma warning restore CA1031 // Do not catch general exception types
             finally
             {
                 if (Directory.Exists(destDir))
@@ -159,22 +180,32 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void Decompress()
         {
-            Template("A.xz", "A.pdf", false);
-            Template("B9.xz", "B.txt", false);
-            Template("B1.xz", "B.txt", false);
-            Template("C.xz", "C.bin", false);
+            Template("A.xz", "A.pdf", -1, false);
+            Template("B9.xz", "B.txt", -1, false);
+            Template("B1.xz", "B.txt", -1, false);
+            Template("C.xz", "C.bin", -1, false);
         }
 
         [TestMethod]
         public void DecompressSpan()
         {
-            Template("A.xz", "A.pdf", true);
-            Template("B9.xz", "B.txt", true);
-            Template("B1.xz", "B.txt", true);
-            Template("C.xz", "C.bin", true);
+            Template("A.xz", "A.pdf", -1, true);
+            Template("B9.xz", "B.txt", -1, true);
+            Template("B1.xz", "B.txt", -1, true);
+            Template("C.xz", "C.bin", -1, true);
         }
 
-        private static void Template(string xzFileName, string originFileName, bool useSpan)
+        [TestMethod]
+        public void DecompressMulti()
+        {
+            Template("A.xz", "A.pdf", 1, true);
+            Template("A.xz", "A.pdf", 2, true);
+            Template("B9.xz", "B.txt", 2, true);
+            Template("B1.xz", "B.txt", Environment.ProcessorCount, true);
+            Template("C.xz", "C.bin", Environment.ProcessorCount, true);
+        }
+
+        private static void Template(string xzFileName, string originFileName, int threads, bool useSpan)
         {
             byte[] decompDigest;
             byte[] originDigest;
@@ -185,35 +216,64 @@ namespace Joveler.Compression.XZ.Tests
             {
                 XZDecompressOptions decompOpts = new XZDecompressOptions();
 
-                using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZStream xz = new XZStream(compFs, decompOpts))
+                XZStream xzs = null;
+                try
                 {
-#if !NETFRAMEWORK
-                    if (useSpan)
+                    using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
-                        byte[] buffer = new byte[64 * 1024];
-
-                        int bytesRead;
-                        do
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(compFs, decompOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(compFs, decompOpts, threadOpts);
+                        }
+                        else
                         {
-                            bytesRead = xz.Read(buffer.AsSpan());
-                            decompMs.Write(buffer.AsSpan(0, bytesRead));
-                        } while (0 < bytesRead);
-                    }
-                    else
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
+
+#if !NETFRAMEWORK
+                        if (useSpan)
+                        {
+                            byte[] buffer = new byte[64 * 1024];
+
+                            int bytesRead;
+                            do
+                            {
+                                bytesRead = xzs.Read(buffer.AsSpan());
+                                decompMs.Write(buffer.AsSpan(0, bytesRead));
+                            } while (0 < bytesRead);
+                        }
+                        else
 #endif
-                    {
-                        xz.CopyTo(decompMs);
+                        {
+                            xzs.CopyTo(decompMs);
+                        }
+
+                        ulong memUsage = xzs.GetDecompresMemUsage();
+                        Console.WriteLine($"{xzFileName} ({threads}t) MEM: requires {memUsage / (1024 * 1024) + 1}MB ({memUsage}B)");
+
+                        decompMs.Flush();
+                        xzs.GetProgress(out ulong finalIn, out ulong finalOut);
+
+                        Assert.AreEqual(compFs.Length, xzs.TotalIn);
+                        Assert.AreEqual(decompMs.Length, xzs.TotalOut);
+                        Assert.AreEqual((ulong)compFs.Length, finalIn);
+                        Assert.AreEqual((ulong)decompMs.Length, finalOut);
                     }
-
-                    decompMs.Flush();
-                    xz.GetProgress(out ulong finalIn, out ulong finalOut);
-
-                    Assert.AreEqual(compFs.Length, xz.TotalIn);
-                    Assert.AreEqual(decompMs.Length, xz.TotalOut);
-                    Assert.AreEqual((ulong)compFs.Length, finalIn);
-                    Assert.AreEqual((ulong)decompMs.Length, finalOut);
                 }
+                finally
+                {
+                    xzs?.Dispose();
+                    xzs = null;
+                }
+                
                 decompMs.Position = 0;
 
                 using (HashAlgorithm hash = SHA256.Create())

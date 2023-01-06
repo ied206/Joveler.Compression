@@ -349,8 +349,7 @@ namespace Joveler.Compression.XZ
         private uint ReservedInt4 = 0;
         /// <summary>
         /// Memory usage limit to reduce the number of threads
-        /// </summary>
-        /// <remarks>
+        /// 
         /// Encoder: Ignored.
         /// 
         /// Decoder:
@@ -377,19 +376,34 @@ namespace Joveler.Compression.XZ
         /// 
         /// If memlimit_threading is greater than memlimit_stop, then the value
         /// of memlimit_stop will be used for both.
+        /// </summary>
+        /// <remarks>
+        /// If single-threaded mode was requested, set the memlimit for threading to zero.
+        /// This forces the decoder to use single-threaded mode which matches the behavior of lzma_stream_decoder().
+        ///
+        /// Otherwise use the limit for threaded decompression which has a sane default
+        /// (users are still free to make it insanely high though).
+        /// 
+        /// Default values used within xz-utils are
+        /// - 64bit systems: TOTAL_RAM / 4.
+        /// - 32bit systems: 1.4GB
+        /// xz-utils author suggests to use MemAvailable value of the OS, though.
         /// </remarks>
         public ulong MemlimitThreading = 0;
         /// <summary>
-        /// Memory usage limit that should never be exceeded
-        /// </summary>
-        /// <remarks>
+        /// Memory usage limit that should never be exceeded.
+        /// 
         /// Encoder: Ignored.
         ///
         /// Decoder: If decompressing will need more than this amount of
         /// memory even in the single-threaded mode, then lzma_code() will
         /// return LZMA_MEMLIMIT_ERROR.
+        /// </summary>
+        /// <remarks>
+        /// Default hard limit values used in liblzma/xz are 
+        /// - UINT64_MAX
         /// </remarks>
-        public ulong MemlimitStop = 0;
+        public ulong MemlimitStop = ulong.MaxValue;
         private ulong _reservedInt6 = 0;
         private ulong _reservedInt7 = 0;
         private ulong _reservedInt8 = 0;

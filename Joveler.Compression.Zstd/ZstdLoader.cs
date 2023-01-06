@@ -417,13 +417,13 @@ namespace Joveler.Compression.Zstd
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_DCtx_reset(IntPtr dctx, ResetDirective reset);
         internal ZSTD_DCtx_reset DctxReset;
-        
+
         /*
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_initDStream(IntPtr zds);
         internal ZSTD_initDStream InitDStream;
         */
-        
+
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_decompressStream(

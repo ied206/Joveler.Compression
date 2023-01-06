@@ -83,13 +83,13 @@ namespace Joveler.Compression.XZ
         #endregion
 
         #region Hardware - PhysMem & CPU Threads (Obsolete)
-        [Obsolete($"Moved to {nameof(XZHardware)}.{nameof(PhysMem)}().")]
+        [Obsolete($"Replaced to {nameof(XZHardware)}.{nameof(PhysMem)}().")]
         public static ulong PhysMem()
         {
             return XZHardware.PhysMem();
         }
 
-        [Obsolete($"Moved to {nameof(XZHardware)}.{nameof(CpuThreads)}().")]
+        [Obsolete($"Replaced to {nameof(XZHardware)}.{nameof(CpuThreads)}().")]
         public static uint CpuThreads()
         {
             return XZHardware.CpuThreads();
@@ -104,6 +104,7 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for the given preset when encoding.
         /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.EncoderMemUsage)}().")]
         public static ulong EncoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
             Manager.EnsureLoaded();
@@ -119,6 +120,7 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for the given preset when encoding.
         /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.EncoderMemUsage)}().")]
         public static ulong EncoderMemUsage(XZCompressOptions compOpts)
         {
             Manager.EnsureLoaded();
@@ -133,13 +135,10 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for encoding with the given options. 
         /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.ThreadedEncoderMemUsage)}().")]
         public static ulong EncoderMultiMemUsage(LzmaCompLevel level, bool extremeFlag, int threads)
         {
-            Manager.EnsureLoaded();
-
-            uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            LzmaMt mtOpts = LzmaMt.Create(preset, threads);
-            return Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return XZMemory.ThreadedEncoderMemUsage(level, extremeFlag, threads);
         }
 
         /// <summary>
@@ -149,12 +148,10 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for encoding with the given options. 
         /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.ThreadedEncoderMemUsage)}().")]
         public static ulong EncoderMultiMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
-            Manager.EnsureLoaded();
-
-            LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
-            return Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return XZMemory.ThreadedEncoderMemUsage(compOpts, threadOpts);
         }
 
         /// <summary>
@@ -164,12 +161,10 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required to decompress a file that was compressed using the given preset.
         /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.DecoderMemUsage)}(). Planned to be removed in next major update.")]
         public static ulong DecoderMemUsage(LzmaCompLevel level, bool extremeFlag)
         {
-            Manager.EnsureLoaded();
-
-            uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return Lib.LzmaEasyDecoderMemUsage(preset);
+            return XZMemory.DecoderMemUsage(level, extremeFlag);
         }
 
         /// <summary>
@@ -179,11 +174,10 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required to decompress a file that was compressed using the given preset.
         /// If an error occurs, for example due to unsupported preset, UINT64_MAX is returned.
         /// </returns>
+        [Obsolete($"Replaced to {nameof(XZMemory)}.{nameof(XZMemory.DecoderMemUsage)}. Planned to be removed in next major update.")]
         public static ulong DecoderMemUsage(XZCompressOptions compOpts)
         {
-            Manager.EnsureLoaded();
-
-            return Lib.LzmaEasyDecoderMemUsage(compOpts.Preset);
+            return XZMemory.DecoderMemUsage(compOpts);
         }
         #endregion
     }

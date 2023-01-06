@@ -30,7 +30,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Joveler.Compression.XZ
 {
@@ -90,6 +89,12 @@ namespace Joveler.Compression.XZ
         }
     }
 
+    /// <summary>
+    /// Options to control threaded XZ compresion.
+    /// </summary>
+    /// <remarks>
+    /// IT IS HIGHLY RECOMMENDED TO SET memlimitThreading AND memlimitStop YOURSELF.
+    /// </remarks>
     public class XZThreadedCompressOptions
     {
         /// <summary>
@@ -110,41 +115,52 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public int Threads { get; set; } = 1;
         /// <summary>
-        /// Timeout to allow lzma_code() to return early
+        /// Timeout to allow lzma_code() to return early.
         /// </summary>
         /// <remarks>
-        /// Multithreading can make liblzma to consume input and produce
+        /// <para>Multithreading can make liblzma to consume input and produce
         /// output in a very bursty way: it may first read a lot of input
         /// to fill internal buffers, then no input or output occurs for
-        /// a while.
+        /// a while.</para>
         ///
-        /// In single-threaded mode, lzma_code() won't return until it has
+        /// <para>In single-threaded mode, lzma_code() won't return until it has
         /// either consumed all the input or filled the output buffer. If
         /// this is done in multithreaded mode, it may cause a call
         /// lzma_code() to take even tens of seconds, which isn't acceptable
-        /// in all applications.
+        /// in all applications.</para>
         ///
-        /// To avoid very long blocking times in lzma_code(), a timeout
+        /// <para>To avoid very long blocking times in lzma_code(), a timeout
         /// (in milliseconds) may be set here. If lzma_code() would block
         /// longer than this number of milliseconds, it will return with
         /// LZMA_OK. Reasonable values are 100 ms or more. The xz command
-        /// line tool uses 300 ms.
+        /// line tool uses 300 ms.</para>
         ///
-        /// If long blocking times are fine for you, set timeout to a special
+        /// <para>If long blocking times are fine for you, set timeout to a special
         /// value of 0, which will disable the timeout mechanism and will make
         /// lzma_code() block until all the input is consumed or the output
-        /// buffer has been filled.
+        /// buffer has been filled.</para>
         ///
-        /// note         Even with a timeout, lzma_code() might sometimes take
-        ///              somewhat long time to return. No timing guarantees
-        ///              are made.
+        /// <para>NOTE: Even with a timeout, lzma_code() might sometimes take
+        ///             somewhat long time to return. No timing guarantees
+        ///             are made.</para>
         /// </remarks>
         public uint TimeOut = 0;
     }
 
     public class XZDecompressOptions
     {
+        /// <summary>
+        /// Memory usage hard limit as bytes, that should never be exceeded.
+        /// </summary>
+        /// <remarks>
+        /// Decoder: If decompressing will need more than this amount of
+        /// memory even in the single-threaded mode, then lzma_code() will
+        /// return LZMA_MEMLIMIT_ERROR.
+        /// </remarks>
         public ulong MemLimit { get; set; } = ulong.MaxValue;
+        /// <summary>
+        /// 
+        /// </summary>
         public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlags;
         /// <summary>
         /// Size of the internal buffer.
@@ -157,17 +173,49 @@ namespace Joveler.Compression.XZ
 
         internal LzmaMt ToLzmaMt(XZThreadedDecompressOptions threadOpts)
         {
+            // Default soft limit values used within xz-utils are
+            // - 64bit systems: TOTAL_RAM / 4.
+            // - 32bit systems: + ceiling of 1.4GB (1400U << 20)
+            // xz-utils author suggests to use MemAvailable value of the OS, though.
+            // Default hard limit values used in liblzma/xz are 
+            // - UINT64_MAX
+
+            // Soft limit
+            ulong memSoftLimit = threadOpts.MemlimitThreading; 
+
+            // Use of XZThreadedDecompressionOptions means the caller explicitly wants to use multi-threaded decompression.
+            // liblzma requires memlimit{Threading,Stop} to be set with actual numbers, not 0.
+            if (memSoftLimit == 0)
+            { // Convert 0 to a default value
+                switch (XZInit.Lib.PlatformBitness)
+                {
+                    case DynLoader.PlatformBitness.Bit32:
+                        memSoftLimit = Math.Min(XZHardware.PhysMem() / 4, 1400U << 20);
+                        break;
+                    case DynLoader.PlatformBitness.Bit64:
+                        memSoftLimit = XZHardware.PhysMem() / 4; 
+                        break;
+                }
+            }
+
+            // Return LzmaMt
             return new LzmaMt()
             {
                 Flags = DecodeFlags,
                 Threads = XZHardware.CheckThreadCount(threadOpts.Threads),
                 TimeOut = threadOpts.TimeOut,
-                MemlimitThreading = threadOpts.MemlimitThreading,
-                MemlimitStop = threadOpts.MemlimitStop,
+                MemlimitThreading = memSoftLimit,
+                MemlimitStop = MemLimit,
             };
         }
     }
 
+    /// <summary>
+    /// Options to control threaded XZ decompresion.
+    /// </summary>
+    /// <remarks>
+    /// IT IS HIGHLY RECOMMENDED TO EXPLICITLY SET memlimitThreading WITH PROPER VALUE.
+    /// </remarks>
     public class XZThreadedDecompressOptions
     {
         /// <summary>
@@ -178,38 +226,44 @@ namespace Joveler.Compression.XZ
         /// Timeout to allow lzma_code() to return early
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Multithreading can make liblzma to consume input and produce
         /// output in a very bursty way: it may first read a lot of input
         /// to fill internal buffers, then no input or output occurs for
         /// a while.
-        ///
+        /// </para>
+        /// <para>
         /// In single-threaded mode, lzma_code() won't return until it has
         /// either consumed all the input or filled the output buffer. If
         /// this is done in multithreaded mode, it may cause a call
         /// lzma_code() to take even tens of seconds, which isn't acceptable
         /// in all applications.
-        ///
+        /// </para>
+        /// <para>
         /// To avoid very long blocking times in lzma_code(), a timeout
         /// (in milliseconds) may be set here. If lzma_code() would block
         /// longer than this number of milliseconds, it will return with
         /// LZMA_OK. Reasonable values are 100 ms or more. The xz command
         /// line tool uses 300 ms.
-        ///
+        /// </para>
+        /// <para>
         /// If long blocking times are fine for you, set timeout to a special
         /// value of 0, which will disable the timeout mechanism and will make
         /// lzma_code() block until all the input is consumed or the output
         /// buffer has been filled.
-        ///
-        /// note         Even with a timeout, lzma_code() might sometimes take
-        ///              somewhat long time to return. No timing guarantees
-        ///              are made.
+        /// </para>
+        /// <para>
+        /// NOTE: Even with a timeout, lzma_code() might sometimes take somewhat long time to return.
+        ///       No timing guarantees are made.
+        /// </para>
         /// </remarks>
         public uint TimeOut = 0; // TODO: Need Benchmark to figure out best performance
         /// <summary>
-        /// Memory usage limit to reduce the number of threads
+        /// <para>Memory usage soft limit to reduce the number of threads.</para>
+        /// <para>Joveler.Compression.XZ specific: Set to 0 to use default value (TotalMem / 4).</para>
         /// </summary>
         /// <remarks>
-        /// If the number of threads has been set so high that more than
+        /// <para>If the number of threads has been set so high that more than
         /// memlimit_threading bytes of memory would be needed, the number
         /// of threads will be reduced so that the memory usage will not exceed
         /// memlimit_threading bytes. However, if memlimit_threading cannot
@@ -217,9 +271,9 @@ namespace Joveler.Compression.XZ
         /// in single-threaded mode and memlimit_threading may be exceeded
         /// even by a large amount. That is, memlimit_threading will never make
         /// lzma_code() return LZMA_MEMLIMIT_ERROR. To truly cap the memory
-        /// usage, see memlimit_stop below.
+        /// usage, see memlimit_stop below.</para>
         /// 
-        /// Setting memlimit_threading to UINT64_MAX or a similar huge value
+        /// <para>Setting memlimit_threading to UINT64_MAX or a similar huge value
         /// means that liblzma is allowed to keep the whole compressed file
         /// and the whole uncompressed file in memory in addition to the memory
         /// needed by the decompressor data structures used by each thread!
@@ -227,21 +281,12 @@ namespace Joveler.Compression.XZ
         /// will cause problems sooner or later. If you have no idea what
         /// a reasonable value could be, try lzma_physmem() / 4 as a starting
         /// point. Setting this limit will never prevent decompression of
-        /// a file; this will only reduce the number of threads.
+        /// a file; this will only reduce the number of threads.</para>
         /// 
-        /// If memlimit_threading is greater than memlimit_stop, then the value
-        /// of memlimit_stop will be used for both.
+        /// <para>If memlimit_threading is greater than memlimit_stop, then the value
+        /// of memlimit_stop will be used for both.</para>
         /// </remarks>
         public ulong MemlimitThreading = 0;
-        /// <summary>
-        /// Memory usage limit that should never be exceeded
-        /// </summary>
-        /// <remarks>
-        /// Decoder: If decompressing will need more than this amount of
-        /// memory even in the single-threaded mode, then lzma_code() will
-        /// return LZMA_MEMLIMIT_ERROR.
-        /// </remarks>
-        public ulong MemlimitStop = 0;
     }
     #endregion
 
@@ -308,8 +353,14 @@ namespace Joveler.Compression.XZ
 
         #region Constructor
         /// <summary>
-        /// Create single-threaded compressing XZStream.
+        /// Create single-threaded compressing XZStream instance.
         /// </summary>
+        /// <param name="baseStream">
+        /// A stream of XZ container to compress.
+        /// </param>
+        /// <param name="compOpts">
+        /// Options to control general compression.
+        /// </param>
         public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts)
         {
             XZInit.Manager.EnsureLoaded();
@@ -340,8 +391,18 @@ namespace Joveler.Compression.XZ
         }
 
         /// <summary>
-        /// Create multi-threaded compressing XZStream. Requires more memory than single-threaded mode.
+        /// Create multi-threaded compressing XZStream instance.
+        /// Requires more memory than single-threaded mode.
         /// </summary>
+        /// <param name="baseStream">
+        /// A stream of XZ container to compress.
+        /// </param>
+        /// <param name="compOpts">
+        /// Options to control general compression.
+        /// </param>
+        /// <param name="threadOpts">
+        /// Options to control threaded compression.
+        /// </param>
         public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
@@ -372,8 +433,15 @@ namespace Joveler.Compression.XZ
         }
 
         /// <summary>
-        /// Create decompressing XZStream
+        /// Create decompressing XZStream instance.
         /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of XZ container to decompress.</para>
+        /// <para>5.4.0+: liblzma may perform random seek on the stream.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
         public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts)
         {
             XZInit.Manager.EnsureLoaded();
@@ -397,8 +465,20 @@ namespace Joveler.Compression.XZ
         }
 
         /// <summary>
-        /// Create multi-threaded decompressing XZStream. Requires more memory than single-threaded mode.
+        /// Create multi-threaded decompressing XZStream instance.
+        /// Requires more memory than single-threaded mode.
         /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of XZ container to decompress.</para>
+        /// <para>5.4.0+: liblzma may perform random seek on the stream.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        /// <param name="threadOpts">
+        /// Options to control threaded decompression.
+        /// <para>It is highly recommended to explicitly set <see cref="XZThreadedDecompressOptions.MemlimitThreading"/> value.</para>
+        /// </param>
         public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZThreadedDecompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
@@ -469,7 +549,7 @@ namespace Joveler.Compression.XZ
         public override int Read(byte[] buffer, int offset, int count)
         { // For Decompress
             if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
+                throw new NotSupportedException($"{nameof(Read)}() not supported on compression.");
             CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
@@ -486,7 +566,7 @@ namespace Joveler.Compression.XZ
 #endif
         { // For Decompress
             if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
+                throw new NotSupportedException($"{nameof(Read)}() not supported on compression.");
             if (_workBufPos == ReadDone)
                 return 0;
 
@@ -524,7 +604,7 @@ namespace Joveler.Compression.XZ
                     _workBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
                     readSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
 
-                    
+
                     if (ret == LzmaRet.StreamEnd)
                     { // Once everything has been decoded successfully, the return value of lzma_code() will be LZMA_STREAM_END.
                         _workBufPos = ReadDone;
@@ -555,7 +635,7 @@ namespace Joveler.Compression.XZ
         public override void Write(byte[] buffer, int offset, int count)
         { // For Compress
             if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
+                throw new NotSupportedException($"{nameof(Write)}() not supported on decompression.");
             CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
@@ -572,7 +652,7 @@ namespace Joveler.Compression.XZ
 #endif
         { // For Compress
             if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
+                throw new NotSupportedException($"{nameof(Write)}() not supported on decompression.");
 
             TotalIn += span.Length;
 
@@ -611,7 +691,7 @@ namespace Joveler.Compression.XZ
 
         private unsafe void FinishWrite()
         {
-            Debug.Assert(_mode == Mode.Compress, "FinishWrite() must not be called in decompression");
+            Debug.Assert(_mode == Mode.Compress, $"{nameof(FinishWrite)}() must not be called in decompression.");
 
             fixed (byte* writePtr = _workBuf)
             {
@@ -631,8 +711,8 @@ namespace Joveler.Compression.XZ
                     // write the data from the output buffer to the output file.
                     if (_lzmaStream.AvailOut == 0 || ret == LzmaRet.StreamEnd)
                     { // Write to _baseStream
-                        // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially
-                        // full. Calculate how much new data there is to be written to the output file.
+                        // When lzma_code() has returned LZMA_STREAM_END, the output buffer is likely to be only partially full.
+                        // Calculate how much new data there is to be written to the output file.
                         BaseStream.Write(_workBuf, 0, _workBufPos);
                         TotalOut += _workBufPos;
 
@@ -704,20 +784,20 @@ namespace Joveler.Compression.XZ
         /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotSupportedException("Seek() not supported");
+            throw new NotSupportedException($"{nameof(Seek)} not supported.");
         }
         /// <inheritdoc />
         public override void SetLength(long value)
         {
-            throw new NotSupportedException("SetLength not supported");
+            throw new NotSupportedException($"{nameof(SetLength)} not supported.");
         }
         /// <inheritdoc />
-        public override long Length => throw new NotSupportedException("Length not supported");
+        public override long Length => throw new NotSupportedException($"{nameof(Length)} not supported.");
         /// <inheritdoc />
         public override long Position
         {
-            get => throw new NotSupportedException("Position not supported");
-            set => throw new NotSupportedException("Position not supported");
+            get => throw new NotSupportedException($"{nameof(Position)} not supported.");
+            set => throw new NotSupportedException($"{nameof(Position)} not supported.");
         }
 
         public double CompressionRatio
@@ -742,26 +822,56 @@ namespace Joveler.Compression.XZ
 
         #region GetProgress
         /// <summary>
-        /// Get progress information
+        /// Get progress information of XZ stream.
         /// </summary>
         /// <remarks>
-        /// In single-threaded mode, applications can get progress information from 
-        /// strm->total_in and strm->total_out.In multi-threaded mode this is less
+        /// <para>In single-threaded mode, applications can get progress information from 
+        /// strm->total_in and strm->total_out.</para>
+        /// 
+        /// <para>In multi-threaded mode this is less
         /// useful because a significant amount of both input and output data gets
         /// buffered internally by liblzma. This makes total_in and total_out give
         /// misleading information and also makes the progress indicator updates
         /// non-smooth.
-        /// 
+        /// </para>
+        /// <para>
         /// This function gives realistic progress information also in multi-threaded
         /// mode by taking into account the progress made by each thread. In
         /// single-threaded mode *progress_in and *progress_out are set to
         /// strm->total_in and strm->total_out, respectively.
+        /// </para>
         /// </remarks>
         public void GetProgress(out ulong progressIn, out ulong progressOut)
         {
             progressIn = 0;
             progressOut = 0;
             XZInit.Lib.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
+        }
+        #endregion
+
+        #region Memory Usage (Decompression Only)
+        /// <summary>
+        /// Get the memory usage of decompression setup.
+        /// <para>Must be called after calling Read() at least once.</para>
+        /// </summary>
+        /// <remarks>
+        /// <para>This function is useful e.g. after LZMA_MEMLIMIT_ERROR to find out how big
+        /// the memory usage limit should have been to decode the input. Note that
+        /// this may give misleading information if decoding .xz Streams that have
+        /// multiple Blocks, because each Block can have different memory requirements.</para>
+        /// </remarks>
+        /// <returns>
+        /// How much memory is currently allocated for the filter decoders.
+        /// If no filter chain is currently allocated, some non-zero value is still returned,
+        /// which is less than or equal to what any filter chain would indicate as its  memory requirement.
+        ///
+        /// If this function isn't supported by *strm or some other error occurs, zero is returned.
+        /// </returns>
+        public ulong GetDecompresMemUsage()
+        {
+            if (_mode != Mode.Decompress)
+                throw new NotSupportedException($"{nameof(GetDecompresMemUsage)}() not supported on compression.");
+            return XZInit.Lib.LzmaMemusage(_lzmaStream);
         }
         #endregion
 

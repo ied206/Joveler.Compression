@@ -157,10 +157,10 @@ namespace Joveler.Compression.LZ4
         {
             StableSrc = 0,
         };
-        private FrameDecompressOptions _decompOpts = new FrameDecompressOptions() 
+        private FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
         {
             StableDst = 0,
-            SkipChecksums = 0, 
+            SkipChecksums = 0,
         };
 
         // Const

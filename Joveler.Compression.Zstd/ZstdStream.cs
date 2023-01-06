@@ -32,9 +32,7 @@
 */
 
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Joveler.Compression.Zstd
@@ -375,8 +373,30 @@ namespace Joveler.Compression.Zstd
 
                     ZstdInit.Lib.FreeCStream(_cstream);
                     _cstream = IntPtr.Zero;
+
+                    /* 'Joveler.Compression.Zstd (netstandard2.0)' 프로젝트에서 병합되지 않은 변경 내용
+                    이전:
+                                    }
+
+                                    if (_dstream != IntPtr.Zero)
+                    이후:
+                                    }
+
+                                    if (_dstream != IntPtr.Zero)
+                    */
+
+                    /* 'Joveler.Compression.Zstd (netcoreapp3.1)' 프로젝트에서 병합되지 않은 변경 내용
+                    이전:
+                                    }
+
+                                    if (_dstream != IntPtr.Zero)
+                    이후:
+                                    }
+
+                                    if (_dstream != IntPtr.Zero)
+                    */
                 }
-                
+
                 if (_dstream != IntPtr.Zero)
                 {
                     ZstdInit.Lib.FreeDStream(_dstream);
@@ -457,8 +477,30 @@ namespace Joveler.Compression.Zstd
                             _decompSrcIdx = DecompressComplete;
                             break;
                         }
+
+                        /* 'Joveler.Compression.Zstd (netstandard2.0)' 프로젝트에서 병합되지 않은 변경 내용
+                        이전:
+                                            }
+
+                                            // Setup InBuffer
+                        이후:
+                                            }
+
+                                            // Setup InBuffer
+                        */
+
+                        /* 'Joveler.Compression.Zstd (netcoreapp3.1)' 프로젝트에서 병합되지 않은 변경 내용
+                        이전:
+                                            }
+
+                                            // Setup InBuffer
+                        이후:
+                                            }
+
+                                            // Setup InBuffer
+                        */
                     }
-                    
+
                     // Setup InBuffer
                     InBuffer inBuf = new InBuffer()
                     {
@@ -614,7 +656,7 @@ namespace Joveler.Compression.Zstd
                 }
                 while (0 < stillToFlush);
             }
-                
+
         }
 
         /// <inheritdoc />
@@ -662,7 +704,7 @@ namespace Joveler.Compression.Zstd
             }
             else if (_mode == Mode.Decompress)
             {
-                
+
             }
 
             BaseStream.Flush();
