@@ -402,5 +402,60 @@ namespace Joveler.Compression.XZ.Tests
             Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
         }
         #endregion
+
+        #region Auto Decompress
+        [TestMethod]
+        public void AutoDecompressSingle()
+        {
+            AutoDecompressTemplate("A.lzma", "A.pdf");
+            AutoDecompressTemplate("B9.xz", "B.txt");
+            AutoDecompressTemplate("B1_mt16.xz", "B.txt");
+            AutoDecompressTemplate("C.lz", "C.bin");
+        }
+
+        private static void AutoDecompressTemplate(string lzmaFileName, string originFileName)
+        {
+            byte[] decompDigest;
+            byte[] originDigest;
+
+            string xzFile = Path.Combine(TestSetup.SampleDir, lzmaFileName);
+            string originFile = Path.Combine(TestSetup.SampleDir, originFileName);
+            using (MemoryStream decompMs = new MemoryStream())
+            {
+                XZDecompressOptions decompOpts = new XZDecompressOptions();
+
+                using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (XZUtilsAutoStream lzs = new XZUtilsAutoStream(compFs, decompOpts))
+                {
+                    lzs.CopyTo(decompMs);
+
+                    decompMs.Flush();
+                    lzs.GetProgress(out ulong finalIn, out ulong finalOut);
+
+                    Assert.AreEqual(compFs.Length, lzs.TotalIn);
+                    Assert.AreEqual(decompMs.Length, lzs.TotalOut);
+                    Assert.AreEqual((ulong)compFs.Length, finalIn);
+                    Assert.AreEqual((ulong)decompMs.Length, finalOut);
+                }
+
+                decompMs.Position = 0;
+
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    decompDigest = hash.ComputeHash(decompMs);
+                }
+            }
+
+            using (FileStream originFs = new FileStream(originFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (HashAlgorithm hash = SHA256.Create())
+                {
+                    originDigest = hash.ComputeHash(originFs);
+                }
+            }
+
+            Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
+        }
+        #endregion
     }
 }

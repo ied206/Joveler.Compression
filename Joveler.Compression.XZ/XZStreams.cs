@@ -956,8 +956,12 @@ namespace Joveler.Compression.XZ
     public class XZUtilsAutoStream : XZStream
     {
         /// <summary>
-        /// Create decompressing XZUtilsAutoStrea instance.
+        /// Create decompressing XZUtilsAutoStream instance.
+        /// <para>Auto detects .xz, .lzma and .lz file format.</para>
         /// </summary>
+        /// <remarks>
+        /// Does not support multi-threaded xz decompression.
+        /// </remarks>
         /// <param name="baseStream">
         /// <para>A stream of xz/lzma/lz container to decompress.</para>
         /// </param>
