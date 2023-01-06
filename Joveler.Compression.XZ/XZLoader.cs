@@ -71,9 +71,9 @@ namespace Joveler.Compression.XZ
             LzmaStreamEncoderMt = GetFuncPtr<lzma_stream_encoder_mt>(nameof(lzma_stream_encoder_mt));
             LzmaStreamDecoder = GetFuncPtr<lzma_stream_decoder>(nameof(lzma_stream_decoder));
             LzmaStreamDecoderMt = GetFuncPtr<lzma_stream_decoder_mt>(nameof(lzma_stream_decoder_mt));
-            LzmaAloneDecoder = GetFuncPtr<lzma_alone_decoder>(nameof(lzma_alone_decoder));
-            LzmaLZipDecoder = GetFuncPtr<lzma_lzip_decoder>(nameof(lzma_lzip_decoder));
-            LzmaAutoDecoder = GetFuncPtr<lzma_auto_decoder>(nameof(lzma_auto_decoder));
+            //LzmaAloneDecoder = GetFuncPtr<lzma_alone_decoder>(nameof(lzma_alone_decoder));
+            //LzmaLZipDecoder = GetFuncPtr<lzma_lzip_decoder>(nameof(lzma_lzip_decoder));
+            //LzmaAutoDecoder = GetFuncPtr<lzma_auto_decoder>(nameof(lzma_auto_decoder));
             #endregion
 
             #region Hardware - PhyMem & CPU Threads

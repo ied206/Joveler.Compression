@@ -8,13 +8,21 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 
 ## Windows - x86, x64, arm64
 
+### 5.4.0
+
+xz 5.4.0 MSVC vcxproj files has an issue regarding `lzma_stream_decoder_mt`.
+
+Use MSYS2 as a workaround.
+
+### 5.2.x
+
 | Arch  | Obtain Method |
 |-------|---------------|
 | x86   | From official release, `xz-(ver)-windows\bin_i686-sse2\liblzma.dll` with strip |
 | x64   | From official release, `xz-(ver)-windows\bin_x86-64\liblzma.dll` with strip |
 | arm64 | Manual compile with MSVC 2019 |
 
-### Manual Compile ARM64 DLL
+#### Manual Compile ARM64 DLL
 
 1. Open `windows\vs2019\xz_win.sln` with MSVC 2019
 1. Select `liblzma_dll` project
