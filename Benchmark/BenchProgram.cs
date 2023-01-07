@@ -1,16 +1,15 @@
-﻿using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 using CommandLine;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-// ReSharper disable InconsistentNaming
 
 namespace Benchmark
 {
-    #region Parameter
+    #region Parameters
     [Flags]
     public enum AlgorithmFlags
     {
@@ -26,20 +25,6 @@ namespace Benchmark
     {
         [Option("algo", Default = AlgorithmFlags.All, HelpText = "Choose algorithms to benchmark | zlib,xz,lz4,all")]
         public AlgorithmFlags Algorithms { get; set; }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Cast<T>() where T : ParamOptions
-        {
-            T cast = this as T;
-            Debug.Assert(cast != null);
-            return cast;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T Cast<T>(ParamOptions opts) where T : ParamOptions
-        {
-            return opts.Cast<T>();
-        }
     }
 
     [Verb("all", HelpText = "Benchmark all")]
@@ -51,6 +36,9 @@ namespace Benchmark
     [Verb("decomp", HelpText = "Benchmark decompression")]
     public class DecompBenchOptions : ParamOptions { }
 
+    [Verb("xzmulti", HelpText = "Benchmark multithread options (XZ only)")]
+    public class XZMultiCompBenchOptions : ParamOptions { }
+
     [Verb("hash", HelpText = "Benchmark hash and checksums")]
     public class HashBenchOptions : ParamOptions { }
 
@@ -61,6 +49,11 @@ namespace Benchmark
     #region Program
     public static class Program
     {
+        #region Directories
+        public static string BaseDir => Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
+        public static string SampleDir => Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+        #endregion
+
         #region PrintErrorAndExit
         internal static void PrintErrorAndExit(IEnumerable<Error> errs)
         {
@@ -76,8 +69,6 @@ namespace Benchmark
             const string runtimes = "runtimes";
             const string native = "native";
 
-            string baseDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
-
             string zlibPath = null;
             string xzPath = null;
             string lz4Path = null;
@@ -86,9 +77,9 @@ namespace Benchmark
             {
                 string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    Architecture.X86 => Path.Combine(baseDir, runtimes, "win-x86", native),
-                    Architecture.X64 => Path.Combine(baseDir, runtimes, "win-x64", native),
-                    Architecture.Arm64 => Path.Combine(baseDir, runtimes, "win-arm64", native),
+                    Architecture.X86 => Path.Combine(BaseDir, runtimes, "win-x86", native),
+                    Architecture.X64 => Path.Combine(BaseDir, runtimes, "win-x64", native),
+                    Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "win-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
                 zlibPath = Path.Combine(libDir, "zlibwapi.dll");
@@ -100,9 +91,9 @@ namespace Benchmark
             {
                 string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    Architecture.X64 => Path.Combine(baseDir, runtimes, "linux-x64", native),
-                    Architecture.Arm => Path.Combine(baseDir, runtimes, "linux-arm", native),
-                    Architecture.Arm64 => Path.Combine(baseDir, runtimes, "linux-arm64", native),
+                    Architecture.X64 => Path.Combine(BaseDir, runtimes, "linux-x64", native),
+                    Architecture.Arm => Path.Combine(BaseDir, runtimes, "linux-arm", native),
+                    Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "linux-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
                 zlibPath = Path.Combine(libDir, "libz.so");
@@ -114,8 +105,8 @@ namespace Benchmark
             {
                 string libDir = RuntimeInformation.ProcessArchitecture switch
                 {
-                    Architecture.X64 => Path.Combine(baseDir, runtimes, "osx-x64", native),
-                    Architecture.Arm64 => throw new PlatformNotSupportedException("TODO"),
+                    Architecture.X64 => Path.Combine(BaseDir, runtimes, "osx-x64", native),
+                    Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "osx-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
                 zlibPath = Path.Combine(libDir, "libz.dylib");
@@ -157,38 +148,51 @@ namespace Benchmark
             });
 
             argParser.ParseArguments<AllBenchOptions,
-                CompBenchOptions, DecompBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
+                CompBenchOptions, DecompBenchOptions, XZMultiCompBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
                 .WithParsed<DecompBenchOptions>(x => Opts = x)
+                .WithParsed<XZMultiCompBenchOptions>(x => Opts = x)
                 .WithParsed<HashBenchOptions>(x => Opts = x)
                 .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
+            // InvertedTomato.Crc is the slowest, and ships unoptimized binaries.
+            // Disable for awhile to avoid BenchmarkDotNet's unoptimized run error.
+#if INVERTEDTOMATO_CRC_EANBLE
+            ManualConfig config = DefaultConfig.Instance.WithOptions(ConfigOptions.DisableOptimizationsValidator);
+#else
+            ManualConfig config = DefaultConfig.Instance.WithOptions(ConfigOptions.Default);
+#endif
+
             switch (Opts)
             {
                 case AllBenchOptions _:
-                    BenchmarkRunner.Run<CompBench>();
-                    BenchmarkRunner.Run<DecompBench>();
-                    BenchmarkRunner.Run<HashBench>();
-                    BenchmarkRunner.Run<BufferSizeBench>();
+                    BenchmarkRunner.Run<CompBench>(config);
+                    BenchmarkRunner.Run<DecompBench>(config);
+                    BenchmarkRunner.Run<XZMultiOptionBench>(config);
+                    BenchmarkRunner.Run<HashBench>(config);
+                    BenchmarkRunner.Run<BufferSizeBench>(config);
                     break;
                 case CompBenchOptions _:
-                    BenchmarkRunner.Run<CompBench>();
+                    BenchmarkRunner.Run<CompBench>(config);
                     break;
                 case DecompBenchOptions _:
-                    BenchmarkRunner.Run<DecompBench>();
+                    BenchmarkRunner.Run<DecompBench>(config);
+                    break;
+                case XZMultiCompBenchOptions _:
+                    BenchmarkRunner.Run<XZMultiOptionBench>(config);
                     break;
                 case HashBenchOptions _:
-                    BenchmarkRunner.Run<HashBench>();
+                    BenchmarkRunner.Run<HashBench>(config);
                     break;
                 case BufferSizeBenchOptions _:
-                    BenchmarkRunner.Run<BufferSizeBench>();
+                    BenchmarkRunner.Run<BufferSizeBench>(config);
                     break;
             }
         }
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }

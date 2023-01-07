@@ -425,7 +425,7 @@ namespace Joveler.Compression.XZ.Tests
                 XZDecompressOptions decompOpts = new XZDecompressOptions();
 
                 using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (XZUtilsAutoStream lzs = new XZUtilsAutoStream(compFs, decompOpts))
+                using (LzmaAutoStream lzs = new LzmaAutoStream(compFs, decompOpts))
                 {
                     lzs.CopyTo(decompMs);
 

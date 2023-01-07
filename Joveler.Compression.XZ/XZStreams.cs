@@ -115,7 +115,7 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public int Threads { get; set; } = 1;
         /// <summary>
-        /// Timeout to allow lzma_code() to return early.
+        /// Timeout (millisecond) to allow lzma_code() to return early.
         /// </summary>
         /// <remarks>
         /// <para>Multithreading can make liblzma to consume input and produce
@@ -144,6 +144,7 @@ namespace Joveler.Compression.XZ
         ///             somewhat long time to return. No timing guarantees
         ///             are made.</para>
         /// </remarks>
+        // Bench: Does not affect performance in a meaningful way.
         public uint TimeOut = 0;
     }
 
@@ -257,7 +258,8 @@ namespace Joveler.Compression.XZ
         ///       No timing guarantees are made.
         /// </para>
         /// </remarks>
-        public uint TimeOut = 0; // TODO: Need Benchmark to figure out best performance
+        // Bench: Does not affect performance in a meaningful way.
+        public uint TimeOut = 0;
         /// <summary>
         /// <para>Memory usage soft limit to reduce the number of threads.</para>
         /// <para>Joveler.Compression.XZ specific: Set to 0 to use default value (TotalMem / 4).</para>
@@ -291,6 +293,7 @@ namespace Joveler.Compression.XZ
     #endregion
 
     #region XZStream
+    /// <inheritdoc />
     /// <summary>
     /// The stream to handle .xz file format.
     /// </summary>
@@ -465,6 +468,19 @@ namespace Joveler.Compression.XZ
         {
         }
 
+        /// <summary>
+        /// (Not Public) Create decompressing XZStream instance with <see cref="CoderFormat"/>.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of XZ container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        /// <param name="fileFormat">
+        /// 
+        /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         protected unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, CoderFormat fileFormat)
         {
             XZInit.Manager.EnsureLoaded();
@@ -949,14 +965,18 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
-    #region XZUtilsAutoStream (Decompress Only)
+    #region LzmaAutoStream (Decompress Only)
+    /// <inheritdoc />
     /// <summary>
     /// The stream to handle .xz, .lzma, and .lz (lzip) files with autodetection. (Decompression Only)
     /// </summary>
-    public class XZUtilsAutoStream : XZStream
+    /// <remarks>
+    /// Does not support multi-threaded xz decompression.
+    /// </remarks>
+    public class LzmaAutoStream : XZStream
     {
         /// <summary>
-        /// Create decompressing XZUtilsAutoStream instance.
+        /// Create decompressing LzmaAutoStream instance.
         /// <para>Auto detects .xz, .lzma and .lz file format.</para>
         /// </summary>
         /// <remarks>
@@ -968,19 +988,23 @@ namespace Joveler.Compression.XZ
         /// <param name="decompOpts">
         /// Options to control general decompression.
         /// </param>
-        public XZUtilsAutoStream(Stream baseStream, XZDecompressOptions decompOpts)
+        public LzmaAutoStream(Stream baseStream, XZDecompressOptions decompOpts)
             : base(baseStream, decompOpts, CoderFormat.Auto)
         {
         }
     }
     #endregion
 
-    #region LzmaAloneStream
+    #region LzmaAloneStream (Decompress Only)
     /// <summary>
     /// The stream to handle legacy .lzma file format. (Decompression Only)
     /// </summary>
+    // TODO: liblzma supports .lzma compression. Since the .lzma format is the legacy one and is almost dead,
+    //       Do we really need it on Joveler.Compression.XZ?
+    //       To support it, lzma_options_lzma also needs to be p/invoked.
     public class LzmaAloneStream : XZStream
     {
+        /// <inheritdoc />
         /// <summary>
         /// Create decompressing LzmaAloneStream instance.
         /// </summary>
@@ -1003,6 +1027,7 @@ namespace Joveler.Compression.XZ
     /// </summary>
     public class LZipStream : XZStream
     {
+        /// <inheritdoc />
         /// <summary>
         /// Create decompressing LZipStream instance.
         /// </summary>
