@@ -37,7 +37,7 @@ namespace Benchmark
     public class DecompBenchOptions : ParamOptions { }
 
     [Verb("xzmulti", HelpText = "Benchmark multithread options (XZ only)")]
-    public class XZMultiCompBenchOptions : ParamOptions { }
+    public class XZMultiOptionBenchOptions : ParamOptions { }
 
     [Verb("hash", HelpText = "Benchmark hash and checksums")]
     public class HashBenchOptions : ParamOptions { }
@@ -148,11 +148,11 @@ namespace Benchmark
             });
 
             argParser.ParseArguments<AllBenchOptions,
-                CompBenchOptions, DecompBenchOptions, XZMultiCompBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
+                CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
                 .WithParsed<DecompBenchOptions>(x => Opts = x)
-                .WithParsed<XZMultiCompBenchOptions>(x => Opts = x)
+                .WithParsed<XZMultiOptionBenchOptions>(x => Opts = x)
                 .WithParsed<HashBenchOptions>(x => Opts = x)
                 .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
@@ -181,7 +181,7 @@ namespace Benchmark
                 case DecompBenchOptions _:
                     BenchmarkRunner.Run<DecompBench>(config);
                     break;
-                case XZMultiCompBenchOptions _:
+                case XZMultiOptionBenchOptions _:
                     BenchmarkRunner.Run<XZMultiOptionBench>(config);
                     break;
                 case HashBenchOptions _:
@@ -192,7 +192,7 @@ namespace Benchmark
                     break;
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 }

@@ -218,7 +218,7 @@ namespace Benchmark
 
         [Benchmark]
         [BenchmarkCategory(BenchConfig.XZ)]
-        public double XZ_Native()
+        public double XZ_Native_Single()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -232,6 +232,44 @@ namespace Benchmark
 
                 using (MemoryStream rms = new MemoryStream(rawData))
                 using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts))
+                {
+                    rms.CopyTo(xzs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+
+            CompRatio = (double)compLen / rawData.Length;
+            return CompRatio;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
+        public double XZ_Native_Multi()
+        {
+            // LZMA2 threaded compression with -9 option takes a lot of memory.
+            // To prevent memory starvation, skip threaded -9 compression.
+            if (Level.Equals("Best", StringComparison.OrdinalIgnoreCase))
+                return 0;
+
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Joveler.Compression.XZ.XZCompressOptions compOpts = new Joveler.Compression.XZ.XZCompressOptions
+                {
+                    Level = XZLevelDict[Level],
+                    LeaveOpen = true,
+                };    
+
+                Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
+                {
+                    Threads = Environment.ProcessorCount,
+                };
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.XZ.XZStream xzs = new Joveler.Compression.XZ.XZStream(ms, compOpts, threadOpts))
                 {
                     rms.CopyTo(xzs);
                 }
