@@ -41,13 +41,12 @@ BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 
 # Create dest directory
-rm -rf "${DEST_DIR}"
 mkdir -p "${DEST_DIR}"
 
 # Compile liblzma
 pushd "${SRCDIR}" > /dev/null
 make clean
-/configure \
+./configure \
     --disable-debug \
     --disable-shared \
     --disable-dependency-tracking \

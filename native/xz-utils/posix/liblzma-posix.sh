@@ -41,14 +41,13 @@ BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 
 # Create dest directory
-rm -rf "${DEST_DIR}"
 mkdir -p "${DEST_DIR}"
 
 # Compile libmagic
 # Adapted from https://wimlib.net/git/?p=wimlib;a=tree;f=tools/make-windows-release;
 pushd "${SRCDIR}" > /dev/null
 make clean
-/configure \
+./configure \
     --disable-debug \
     --enable-shared \
     --disable-dependency-tracking \
