@@ -141,13 +141,34 @@ namespace Benchmark
 
         [Benchmark]
         [BenchmarkCategory(BenchConfig.XZ)]
-        public long XZ_Native()
+        public long XZ_Native_Single()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();
             Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
             using (MemoryStream rms = new MemoryStream(compData))
             using (Joveler.Compression.XZ.XZStream zs = new Joveler.Compression.XZ.XZStream(rms, decompOpts))
+            {
+                zs.CopyTo(ms);
+            }
+
+            ms.Flush();
+            return ms.Length;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.XZ)]
+        public long XZ_Native_Multi()
+        {
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
+            using MemoryStream ms = new MemoryStream();
+            Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
+            Joveler.Compression.XZ.XZThreadedDecompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedDecompressOptions()
+            {
+                Threads = Environment.ProcessorCount,
+            };
+            using (MemoryStream rms = new MemoryStream(compData))
+            using (Joveler.Compression.XZ.XZStream zs = new Joveler.Compression.XZ.XZStream(rms, decompOpts, threadOpts))
             {
                 zs.CopyTo(ms);
             }

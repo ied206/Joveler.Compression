@@ -43,7 +43,6 @@ mkdir -p "${DEST_DIR}"
 
 # Set library paths
 DEST_LIB="liblzma.dll"
-DEST_EXE="xz.exe"
 STRIP="strip"
 CHECKDEP="ldd"
 
@@ -60,7 +59,8 @@ elif [ "${ARCH}" = aarch64 ]; then
         exit 1
     fi
 else
-    echo "${ARCH} is not a supported architecture" >&2
+    HOST_ARCH=$(uname -m)
+    echo "[${ARCH}] is not a supported architecture, Ex) use '-a ${HOST_ARCH}'" >&2
     exit 1
 fi
 
@@ -72,20 +72,24 @@ fi
 # Compile liblzma
 pushd "${SRCDIR}" > /dev/null
 make clean
-./configure --host=${TARGET_TRIPLE}
+./configure --host=${TARGET_TRIPLE} \
+    --disable-debug \
+    --enable-shared \
+    --disable-dependency-tracking \
+    --disable-nls \
+    --disable-scripts
 make "-j${CORES}"
 cp "src/liblzma/.libs/liblzma-5.dll" "${DEST_DIR}/${DEST_LIB}"
-cp "src/xz/.libs/xz.exe" "${DEST_DIR}/${DEST_EXE}"
 popd > /dev/null
 
 # Strip a binary
 pushd "${DEST_DIR}" > /dev/null
 ls -lh *.dll *.exe
-${STRIP} "${DEST_LIB}" "${DEST_EXE}" 
+${STRIP} "${DEST_LIB}"
 ls -lh *.dll *.exe
 popd > /dev/null
 
 # print dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_LIB}" "${DEST_EXE}"
+${CHECKDEP} "${DEST_LIB}"
 popd > /dev/null

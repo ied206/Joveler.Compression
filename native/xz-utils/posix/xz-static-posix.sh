@@ -2,7 +2,7 @@
 # Compile liblzma on Linux/macOS
 
 # Usage:
-#   ./liblzma-posix.sh ~/build/native/xz-5.4.3
+#   ./xz-static-posix.sh ~/build/native/xz-5.4.3
 
 # Check script arguments
 if [[ "$#" -ne 1 ]]; then
@@ -24,13 +24,13 @@ OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
 if [ "${OS}" = Linux ]; then
     BASE_ABS_PATH=$(readlink -f "$0")
     CORES=$(grep -c ^processor /proc/cpuinfo)
-    DEST_LIB="liblzma.so"
+    DEST_EXE="xz"
     STRIP="strip"
     CHECKDEP="ldd"
 elif [ "${OS}" = Darwin ]; then
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
-    DEST_LIB="liblzma.dylib"
+    DEST_EXE="xz"
     STRIP="strip -x"
     CHECKDEP="otool -L"
 else
@@ -43,29 +43,28 @@ DEST_DIR="${BASE_DIR}/build"
 # Create dest directory
 mkdir -p "${DEST_DIR}"
 
-# Compile libmagic
-# Adapted from https://wimlib.net/git/?p=wimlib;a=tree;f=tools/make-windows-release;
+# Compile liblzma
 pushd "${SRCDIR}" > /dev/null
 make clean
 ./configure \
     --disable-debug \
-    --enable-shared \
+    --disable-shared \
     --disable-dependency-tracking \
     --disable-nls \
     --disable-scripts
 make "-j${CORES}"
-cp "src/liblzma/.libs/${DEST_LIB}" "${DEST_DIR}/${DEST_LIB}"
+cp "src/xz/${DEST_EXE}" "${DEST_DIR}/${DEST_EXE}"
 popd > /dev/null
 
 # Strip a binary
 pushd "${DEST_DIR}" > /dev/null
-ls -lh "${DEST_LIB}"
-${STRIP} "${DEST_LIB}"
-ls -lh "${DEST_LIB}"
+ls -lh "${DEST_EXE}"
+${STRIP} "${DEST_EXE}"
+ls -lh  "${DEST_EXE}"
 popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_LIB}"
+${CHECKDEP} "${DEST_EXE}"
 popd > /dev/null
 
