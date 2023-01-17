@@ -2,6 +2,9 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+# Bash shell script requires LF on POSIX (CRLF is also supported on MSYS2)
+native/**/posix/*.sh text eol=lf
+native/**/windows/*.sh text eol=lf
 
 ###############################################################################
 # Set default behavior for command prompt diff.

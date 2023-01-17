@@ -37,12 +37,9 @@ BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR=${BASE_DIR}/build-${ARCH}
 CORES=$(grep -c ^processor /proc/cpuinfo)
 
-# Create dest directory
-rm -rf "${DEST_DIR}"
-mkdir -p "${DEST_DIR}"
-
 # Set library paths
 DEST_LIB="liblzma.dll"
+DEST_EXE="xz.exe"
 STRIP="strip"
 CHECKDEP="ldd"
 
@@ -64,32 +61,55 @@ else
     exit 1
 fi
 
+# Create dest directory
+rm -rf "${DEST_DIR}"
+mkdir -p "${DEST_DIR}"
+
 # Let custom toolchain is called first in PATH
 if ! [[ -z "${TOOLCHAIN_DIR}" ]]; then
     export PATH=${TOOLCHAIN_DIR}/bin:${PATH}
 fi
 
-# Compile liblzma
+# Compile liblzma, xz
+BUILD_MODES=( "lib" "exe" )
 pushd "${SRCDIR}" > /dev/null
-make clean
-./configure --host=${TARGET_TRIPLE} \
-    --disable-debug \
-    --enable-shared \
-    --disable-dependency-tracking \
-    --disable-nls \
-    --disable-scripts
-make "-j${CORES}"
-cp "src/liblzma/.libs/liblzma-5.dll" "${DEST_DIR}/${DEST_LIB}"
+for BUILD_MODE in "${BUILD_MODES[@]}"; do
+    CONFIGURE_ARGS=""
+    if [ "$BUILD_MODE" = "lib" ]; then
+        CONFIGURE_ARGS="--enable-shared --disable-xz"
+    elif [ "$BUILD_MODE" = "exe" ]; then
+        CONFIGURE_ARGS="--disable-shared"
+    fi
+    
+    make clean
+    ./configure --host=${TARGET_TRIPLE} \
+        --disable-debug \
+        --disable-dependency-tracking \
+        --disable-nls \
+        --disable-scripts \
+        --disable-xzdec \
+        --disable-lzmadec \
+        --disable-lzmainfo \
+        --disable-lzma-links \
+        ${CONFIGURE_ARGS}
+    make "-j${CORES}"
+
+    if [ "$BUILD_MODE" = "lib" ]; then
+        cp "src/liblzma/.libs/liblzma-5.dll" "${DEST_DIR}/${DEST_LIB}"
+    elif [ "$BUILD_MODE" = "exe" ]; then
+        cp "src/xz/xz.exe" "${DEST_DIR}/${DEST_EXE}"
+    fi    
+done 
 popd > /dev/null
 
-# Strip a binary
+# Strip binaries
 pushd "${DEST_DIR}" > /dev/null
 ls -lh *.dll *.exe
-${STRIP} "${DEST_LIB}"
+${STRIP} "${DEST_LIB}" "${DEST_EXE}"
 ls -lh *.dll *.exe
 popd > /dev/null
 
-# print dependency of a binary
+# Print dependency of binraies
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_LIB}"
+${CHECKDEP} "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
