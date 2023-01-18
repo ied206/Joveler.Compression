@@ -153,41 +153,35 @@ namespace Joveler.Compression.XZ.Tests
         {
             const string binDir = "RefBin";
 
-            string binary = null;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            string arch = string.Empty;
+            switch (RuntimeInformation.ProcessArchitecture)
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.exe");
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                switch (RuntimeInformation.ProcessArchitecture)
-                {
-                    case Architecture.X64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.elf");
-                        break;
-                    case Architecture.Arm:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.armhf.elf");
-                        break;
-                    case Architecture.Arm64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.arm64.elf");
-                        break;
-                }
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                switch (RuntimeInformation.ProcessArchitecture)
-                {
-                    case Architecture.X64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.x64.mach");
-                        break;
-                    case Architecture.Arm64:
-                        binary = Path.Combine(TestSetup.SampleDir, binDir, "xz.arm64.mach");
-                        break;
-                }
+                case Architecture.X86:
+                    arch = "x86";
+                    break;
+                case Architecture.X64:
+                    arch = "x64";
+                    break;
+                case Architecture.Arm:
+                    arch = "armhf";
+                    break;
+                case Architecture.Arm64:
+                    arch = "arm64";
+                    break;
             }
 
-            if (binary == null)
-                throw new PlatformNotSupportedException();
+            string ext = string.Empty;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                ext = "exe";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                ext = "elf";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                ext = "mach";
+
+            string binary = Path.Combine(TestSetup.SampleDir, binDir, $"xz.{arch}.{ext}");
+
+            if (File.Exists(binary) == false)
+                throw new PlatformNotSupportedException($"xz executable does not exist! [{binary}]");
 
             Process proc = new Process
             {
