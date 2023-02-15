@@ -110,8 +110,12 @@ Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.2.5`. Th
 | Linux arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
 | macOS x64     | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`  | Compiled in Catalina     |
 
+- Bundled Windows binaires now target [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) for better interopability with MSVC.
+    - .NET Core/.NET 5+ runs on UCRT, so no action is required in most cases.
+    - If you encounter a dependency issue on Windows Vista, 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
 - If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
-- Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
+- Linux binaries are not portable. They may not work on your distribution.
+    - You may call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
 ### Custom binary
 
