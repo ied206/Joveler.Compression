@@ -2,8 +2,8 @@
 # Compile liblzma for Windows on MSYS2
 
 # Usage:
-#   ./liblzma-msys2.sh -a i686 /d/build/native/file-xz-5.4.0
-#   ./liblzma-msys2.sh -a x86_64 /d/build/native/file-xz-5.4.0
+#   ./liblzma-msys2.sh -a i686 /d/build/native/xz-5.4.0
+#   ./liblzma-msys2.sh -a x86_64 /d/build/native/xz-5.4.0
 #   ./liblzma-msys2.sh -a aarch64 -t /c/llvm-mingw /d/build/native/xz-5.4.0
 
 # Check script arguments

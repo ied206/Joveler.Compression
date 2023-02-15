@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     MIT License
 
@@ -42,7 +42,7 @@ namespace Joveler.Compression.XZ
         {
             get
             {
-#if !NET451
+#if !NETFRAMEWORK
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     return "liblzma.so.5";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))

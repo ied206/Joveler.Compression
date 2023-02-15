@@ -49,7 +49,7 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-#if !NET451
+#if !NETFRAMEWORK
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     return "libz.so.1";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))

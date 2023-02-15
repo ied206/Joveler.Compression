@@ -1,10 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net46;netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Platforms>AnyCPU</Platforms>
+    <IsTrimmable>true</IsTrimmable>
+    
     <PackageId>Joveler.Compression.ZLib</PackageId>
     <Title>Joveler.Compression.ZLib</Title>
     <Version>4.2.0</Version>
@@ -27,10 +29,10 @@ Supports Windows, Linux and macOS.</Description>
   <!-- PackageReference -->
   <ItemGroup>
     <PackageReference Include="Joveler.DynLoader" Version="2.1.1" />
-    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
-  <!-- Native Library for .NET Framework 4.6.2 -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
+  <!-- Native Library for .NET Framework 4.6 -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net46' ">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>x86\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -83,10 +85,10 @@ Supports Windows, Linux and macOS.</Description>
   <ItemGroup>
     <!-- Nuget README -->
     <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md"/>
-    <!-- Build Script for .NET Framework -->
-    <None Include="Joveler.Compression.ZLib.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.ZLib.targets" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
+    <!-- Build Script for .NET Framework -->
+    <None Include="Joveler.Compression.ZLib.netfx.targets" Pack="true" PackagePath="build\net46\Joveler.Compression.ZLib.targets" />
     <!-- Native Library -->
     <None Include="runtimes\win-x86\native\*.dll" Pack="true" PackagePath="runtimes\win-x86\native" />
     <None Include="runtimes\win-x64\native\*.dll" Pack="true" PackagePath="runtimes\win-x64\native" />
