@@ -2,6 +2,13 @@
 
 ## v4.x
 
+### v4.2.0
+
+Released in 2023-02-16
+
+- Supports xz-utils 5.4.1.
+- Target .NET Framework 4.6 instead of [deprecated 4.5.1](https://devblogs.microsoft.com/dotnet/net-framework-4-5-2-4-6-4-6-1-will-reach-end-of-support-on-april-26-2022/).
+
 ### v4.1.0
 
 Released in 2021-04-05

@@ -100,6 +100,11 @@ namespace Joveler.Compression.LZ4
     public class LZ4FrameDecompressOptions
     {
         /// <summary>
+        /// disable checksum calculation and verification, even when one is present in frame, to save CPU time.
+        /// Setting this option to 1 once disables all checksums for the rest of the frame.
+        /// </summary>
+        public bool SkipChecksums { get; set; } = false;
+        /// <summary>
         /// Size of the internal buffer.
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
@@ -147,11 +152,23 @@ namespace Joveler.Compression.LZ4
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
 
+        // LZ4F_compressOptions_t, LZ4F_decompressOptions_t
+        private FrameCompressOptions _compOpts = new FrameCompressOptions()
+        {
+            StableSrc = 0,
+        };
+        private FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
+        {
+            StableDst = 0,
+            SkipChecksums = 0,
+        };
+
         // Const
         private const int DecompressComplete = -1;
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal const uint FrameVersion = 100;
         private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
+        private static readonly byte[] FrameMagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE)
         /*
         private const int FrameSizeToKnowHeaderLength = 5;
         /// <summary>
@@ -243,7 +260,7 @@ namespace Joveler.Compression.LZ4
         /// <summary>
         /// Create decompressing LZ4FrameStream.
         /// </summary>
-        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions compOpts)
+        public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions decompOpts)
         {
             LZ4Init.Manager.EnsureLoaded();
 
@@ -252,12 +269,16 @@ namespace Joveler.Compression.LZ4
             _disposed = false;
 
             // Check and set compress options
-            _leaveOpen = compOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(compOpts.BufferSize);
+            _leaveOpen = decompOpts.LeaveOpen;
+            _bufferSize = CheckBufferSize(decompOpts.BufferSize);
 
             // Prepare dctx
             UIntPtr ret = LZ4Init.Lib.CreateFrameDecompressContext(ref _dctx, FrameVersion);
             LZ4FrameException.CheckReturnValue(ret);
+
+            // Prepare LZ4F_decompressOptions_t*
+            if (decompOpts.SkipChecksums)
+                _decompOpts.SkipChecksums = 1;
 
             // Remove LZ4 frame header from the baseStream
             byte[] headerBuf = new byte[4];
@@ -356,7 +377,7 @@ namespace Joveler.Compression.LZ4
                 fixed (byte* header = FrameMagicNumber)
                 fixed (byte* dest = span)
                 {
-                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, header, ref headerSizeVal, null);
+                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, header, ref headerSizeVal, _decompOpts);
                 }
                 LZ4FrameException.CheckReturnValue(ret);
 
@@ -397,7 +418,7 @@ namespace Joveler.Compression.LZ4
                 fixed (byte* src = _workBuf.AsSpan(_decompSrcIdx))
                 fixed (byte* dest = span)
                 {
-                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, null);
+                    ret = LZ4Init.Lib.FrameDecompress(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, _decompOpts);
                 }
                 LZ4FrameException.CheckReturnValue(ret);
 
@@ -453,7 +474,7 @@ namespace Joveler.Compression.LZ4
                 fixed (byte* dest = _workBuf)
                 fixed (byte* src = span)
                 {
-                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate(_cctx, dest, (UIntPtr)_destBufSize, src, (UIntPtr)srcWorkSize, null);
+                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate(_cctx, dest, (UIntPtr)_destBufSize, src, (UIntPtr)srcWorkSize, _compOpts);
                 }
 
                 LZ4FrameException.CheckReturnValue(outSizeVal);
@@ -477,7 +498,7 @@ namespace Joveler.Compression.LZ4
             UIntPtr outSizeVal;
             fixed (byte* dest = _workBuf)
             {
-                outSizeVal = LZ4Init.Lib.FrameCompressEnd(_cctx, dest, (UIntPtr)_destBufSize, null);
+                outSizeVal = LZ4Init.Lib.FrameCompressEnd(_cctx, dest, (UIntPtr)_destBufSize, _compOpts);
             }
             LZ4FrameException.CheckReturnValue(outSizeVal);
 

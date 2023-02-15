@@ -117,7 +117,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory("ZLib", "XZ")]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
         public byte[] CRC32_ForceManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -126,7 +126,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory("ZLib", "XZ")]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
         public uint CRC32_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -134,9 +134,12 @@ namespace Benchmark
             crc32.Update(compData);
             return crc32.Digest();
         }
-
+        
+        // InvertedTomato.Crc is the slowest, and ships unoptimized binaries.
+        // Disable for awhile to avoid BenchmarkDotNet's unoptimized run error.
+#if INVERTEDTOMATO_CRC_EANBLE
         [Benchmark]
-        [BenchmarkCategory("ZLib", "XZ")]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
         public ulong CRC32_TomatoManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -144,6 +147,7 @@ namespace Benchmark
             crc32.Append(compData);
             return crc32.Check;
         }
+#endif
         #endregion
 
         #region CRC64

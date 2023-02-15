@@ -3,6 +3,8 @@
 
 # Joveler Custom
 res/
+native/**/posix/build*/
+native/**/windows/build*/
 
 # User-specific files
 *.suo

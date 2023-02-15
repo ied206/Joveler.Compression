@@ -48,7 +48,7 @@ namespace Joveler.Compression.Zstd
         {
             get
             {
-#if !NET451
+#if !NETFRAMEWORK
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     return "libzstd.so.1";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -417,13 +417,13 @@ namespace Joveler.Compression.Zstd
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_DCtx_reset(IntPtr dctx, ResetDirective reset);
         internal ZSTD_DCtx_reset DctxReset;
-        
+
         /*
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_initDStream(IntPtr zds);
         internal ZSTD_initDStream InitDStream;
         */
-        
+
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr ZSTD_decompressStream(

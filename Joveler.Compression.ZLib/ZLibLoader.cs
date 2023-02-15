@@ -30,8 +30,6 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
-// ReSharper disable UnusedMember.Global
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.ZLib
 {
@@ -51,7 +49,7 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-#if !NET451
+#if !NETFRAMEWORK
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     return "libz.so.1";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))

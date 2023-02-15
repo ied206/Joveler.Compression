@@ -30,9 +30,6 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
-// ReSharper disable UnusedMember.Global
-// ReSharper disable ArrangeTypeMemberModifiers
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.LZ4
 {
@@ -151,14 +148,20 @@ namespace Joveler.Compression.LZ4
 
         #region FrameCompress
         /// <summary>
-        /// The first thing to do is to create a compressionContext object, which will be used in all compression operations.
-        /// This is achieved using LZ4F_createCompressionContext(), which takes as argument a version.
-        /// The version provided MUST be LZ4F_VERSION. It is intended to track potential version mismatch, notably when using DLL.
-        /// The function will provide a pointer to a fully allocated LZ4F_cctx object.
+        /// The first thing to do is to create a compressionContext object,
+        /// which will keep track of operation state during streaming compression.
+        /// This is achieved using LZ4F_createCompressionContext(), which takes as argument a version,
+        /// and a pointer to LZ4F_cctx*, to write the resulting pointer into.
         /// </summary>
+        /// <param name="cctxPtr">
+        /// MUST be != NULL.
+        /// </param>
+        /// <param name="version">
+        /// provided MUST be LZ4F_VERSION. It is intended to track potential version mismatch, notably when using DLL.
+        /// The function provides a pointer to a fully allocated LZ4F_cctx object.
+        /// </param>
         /// <returns>
-        /// If @return != zero, there was an error during context creation.
-        /// Object can release its memory using LZ4F_freeCompressionContext();
+        /// If @return != zero, context creation failed.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_createCompressionContext(
@@ -166,6 +169,15 @@ namespace Joveler.Compression.LZ4
             uint version);
         internal LZ4F_createCompressionContext CreateFrameCompressContext;
 
+        /// <summary>
+        /// A created compression context can be employed multiple times for consecutive streaming operations.
+        /// Once all streaming compression jobs are completed,
+        /// the state object can be released using LZ4F_freeCompressionContext().
+        /// </summary>
+        /// <remarks>
+        /// Note1 : LZ4F_freeCompressionContext() is always successful. Its return value can be ignored.
+        /// Note2 : LZ4F_freeCompressionContext() works fine with NULL input pointers (do nothing).
+        /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_freeCompressionContext(IntPtr cctx);
         internal LZ4F_freeCompressionContext FreeFrameCompressContext;
@@ -210,13 +222,21 @@ namespace Joveler.Compression.LZ4
         internal LZ4F_compressBound FrameCompressBound;
 
         /// <summary>
-        ///  When data must be generated and sent immediately, without waiting for a block to be completely filled,
-        ///  it's possible to call LZ4_flush(). It will immediately compress any data buffered within cctx.
-        /// `dstCapacity` must be large enough to ensure the operation will be successful.
-        /// `cOptPtr` is optional : it's possible to provide NULL, all options will be set to default.
+        /// LZ4F_compressUpdate() can be called repetitively to compress as much data as necessary.
         /// </summary>
+        /// <remarks>
+        /// Important rule: dstCapacity MUST be large enough to ensure operation success even in worst case situations.
+        /// This value is provided by LZ4F_compressBound().
+        /// If this condition is not respected, LZ4F_compress() will fail (result is an errorCode).
+        /// After an error, the state is left in a UB state, and must be re-initialized or freed.
+        /// If previously an uncompressed block was written, buffered data is flushed
+        /// before appending compressed data is continued.
+        /// </remarks>
+        /// <param name="cOptPtr">
+        /// is optional : NULL can be provided, in which case all options are set to default.
+        /// </param>
         /// <return>
-        /// number of bytes written into dstBuffer (it can be zero, which means there was no data stored within cctx)
+        /// number of bytes written into `dstBuffer` (it can be zero, meaning input data was just buffered).
         /// or an error code if it fails (which can be tested using LZ4F_isError())
         /// </return>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -275,15 +295,16 @@ namespace Joveler.Compression.LZ4
 
         #region FrameDecompress
         /// <summary>
-        ///  Create an LZ4F_dctx object, to track all decompression operations.
-        ///  The version provided MUST be LZ4F_VERSION.
-        ///  The function provides a pointer to an allocated and initialized LZ4F_dctx object.
-        ///  The result is an errorCode, which can be tested using LZ4F_isError().
-        ///  dctx memory can be released using LZ4F_freeDecompressionContext();
+        /// Create an LZ4F_dctx object, to track all decompression operations.
         /// </summary>
+        /// <param name="cctxPtr">
+        /// MUST be valid.
+        /// </param>
+        /// <param name="version">
+        /// MUST be LZ4F_VERSION.
+        /// </param>
         /// <returns>
-        /// The result of LZ4F_freeDecompressionContext() is indicative of the current state of decompressionContext when being released.
-        /// That is, it should be == 0 if decompression has been completed fully and correctly.
+        /// The @return is an errorCode, which can be tested using LZ4F_isError().
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_createDecompressionContext(
@@ -291,6 +312,14 @@ namespace Joveler.Compression.LZ4
             uint version);
         internal LZ4F_createDecompressionContext CreateFrameDecompressContext;
 
+        /// <summary>
+        /// dctx memory can be released using LZ4F_freeDecompressionContext();
+        /// </summary>
+        /// <param name="dctx"></param>
+        /// <returns>
+        /// Result of LZ4F_freeDecompressionContext() indicates current state of decompressionContext when being released.
+        /// That is, it should be == 0 if decompression has been completed fully and correctly.
+        /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate UIntPtr LZ4F_freeDecompressionContext(IntPtr dctx);
         internal LZ4F_freeDecompressionContext FreeFrameDecompressContext;
@@ -314,7 +343,7 @@ namespace Joveler.Compression.LZ4
         /// This function extracts frame parameters (max blockSize, dictID, etc.).
         /// </summary>
         /// <remarks>
-        /// Its usage is optional: user can call LZ4F_decompress() directly.
+        /// Its usage is optional: user can also invoke LZ4F_decompress() directly.
         ///
         /// Extracted information will fill an existing LZ4F_frameInfo_t structure.
         /// This can be useful for allocation and dictionary identification purposes.

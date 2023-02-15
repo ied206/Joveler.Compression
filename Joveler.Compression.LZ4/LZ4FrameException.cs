@@ -28,14 +28,12 @@
 */
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 
 namespace Joveler.Compression.LZ4
 {
     [Serializable]
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class LZ4FrameException : Exception
     {
         public ulong ReturnCode { get; set; }

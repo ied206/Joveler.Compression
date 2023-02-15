@@ -105,7 +105,7 @@ namespace Joveler.Compression.XZ.Checksum
             _crc64.Append(array, ibStart, cbSize);
         }
 
-#if NETSTANDARD2_1
+#if NETCOREAPP
         protected override void HashCore(ReadOnlySpan<byte> source)
         {
             _crc64.Append(source);
