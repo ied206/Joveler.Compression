@@ -9,7 +9,7 @@
 
     <PackageId>Joveler.Compression.XZ</PackageId>
     <Title>Joveler.Compression.XZ</Title>
-    <Version>4.2.0</Version>
+    <Version>4.2.1</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>XZ Utils (liblzma) pinvoke library for .NET.
@@ -22,7 +22,8 @@ Supports Windows, Linux and macOS.</Description>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageReleaseNotes>- Support xz-utils 5.4.1.
-- Target .NET Framework 4.6 instead of deprecated 4.5.1.</PackageReleaseNotes>
+- Target .NET Framework 4.6 instead of deprecated 4.5.1.
+- Fix .NET Framework build script path issue.</PackageReleaseNotes>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
@@ -88,7 +89,7 @@ Supports Windows, Linux and macOS.</Description>
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
     <!-- Build Script for .NET Framework -->
-    <None Include="Joveler.Compression.XZ.netfx.targets" Pack="true" PackagePath="build\net451\Joveler.Compression.XZ.targets" />
+    <None Include="Joveler.Compression.XZ.netfx.targets" Pack="true" PackagePath="build\net46\Joveler.Compression.XZ.targets" />
     <!-- Native Library -->
     <None Include="runtimes\win-x86\native\*.dll" Pack="true" PackagePath="runtimes\win-x86\native" />
     <None Include="runtimes\win-x64\native\*.dll" Pack="true" PackagePath="runtimes\win-x64\native" />

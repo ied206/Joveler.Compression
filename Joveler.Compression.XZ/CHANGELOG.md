@@ -2,6 +2,12 @@
 
 ## v4.x
 
+### v4.2.1
+
+Released in 2023-02-16
+
+- Fix .NET Framework build script path issue.
+
 ### v4.2.0
 
 Released in 2023-02-16
