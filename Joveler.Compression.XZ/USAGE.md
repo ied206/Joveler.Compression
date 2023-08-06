@@ -10,7 +10,7 @@ You must call `XZInit.GlobalInit()` before using Joveler.Compression.XZ. Please 
 
 **WARNING**: The caller process and callee library must have the same architecture!
 
-#### On .NET Core
+#### On .NET/.NET Core
 
 ```cs
 public static void InitNativeLibrary()
@@ -89,39 +89,25 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.4.1`. They will be copied into the build directory at build time.
+Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.4.3`. They will be copied into the build directory at build time.
 
-#### On .NET Standard & .NET Core
+#### On .NET/.NET Core & .NET Standard
 
-| Platform             | Binary                                       | License       | Note          |
-|----------------------|----------------------------------------------|---------------|---------------|
-| Windows x86          | `$(OutDir)\runtimes\win-x86\liblzma.dll`     | Public Domain | Universal CRT |
-| Windows x64          | `$(OutDir)\runtimes\win-x64\liblzma.dll`     | Public Domain | Universal CRT |
-| Windows arm64        | `$(OutDir)\runtimes\win-arm64\liblzma.dll`   | Public Domain | Universal CRT |
-| Ubuntu 20.04 x64     | `$(OutDir)\runtimes\linux-x64\liblzma.so`    | Public Domain | glibc         |
-| Debian 11 armhf      | `$(OutDir)\runtimes\linux-arm\liblzma.so`    | Public Domain | glibc         |
-| Debian 11 arm64      | `$(OutDir)\runtimes\linux-arm64\liblzma.so`  | Public Domain | glibc         |
-| macOS Big Sur x64    | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`   | Public Domain | libSystem     |
-| macOS Ventura arm64  | `$(OutDir)\runtimes\osx-arm64\liblzma.dylib` | Public Domain | libSystem     |
-
-- Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copy of the package-embedded binary.
-
-#### For .NET Standard 2.0+
-
-| Platform      | Binary                                      | Note                     |
-|---------------|---------------------------------------------|--------------------------|
-| Windows x86   | `$(OutDir)\runtimes\win-x86\liblzma.dll`    | Official binary          |
-| Windows x64   | `$(OutDir)\runtimes\win-x64\liblzma.dll`    | Official binary          |
-| Windows arm64 | `$(OutDir)\runtimes\win-arm64\liblzma.dll`  | Compiled with MSVC 2019  |
-| Linux x64     | `$(OutDir)\runtimes\linux-x64\liblzma.so`   | Compiled in Ubuntu 18.04 |
-| Linux armhf   | `$(OutDir)\runtimes\linux-arm\liblzma.so`   | Compiled in Debian 10    |
-| Linux arm64   | `$(OutDir)\runtimes\linux-arm64\liblzma.so` | Compiled in Debian 10    |
-| macOS x64     | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`  | Compiled in Catalina     |
+| Platform              | Binary                                       | License       | C Runtime     |
+|-----------------------|----------------------------------------------|---------------|---------------|
+| Windows x86           | `$(OutDir)\runtimes\win-x86\liblzma.dll`     | Public Domain | Universal CRT |
+| Windows x64           | `$(OutDir)\runtimes\win-x64\liblzma.dll`     | Public Domain | Universal CRT |
+| Windows arm64         | `$(OutDir)\runtimes\win-arm64\liblzma.dll`   | Public Domain | Universal CRT |
+| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\liblzma.so`    | Public Domain | glibc         |
+| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\liblzma.so`    | Public Domain | glibc         |
+| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\liblzma.so`  | Public Domain | glibc         |
+| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`   | Public Domain | libSystem     |
+| macOS Monterey arm64  | `$(OutDir)\runtimes\osx-arm64\liblzma.dylib` | Public Domain | libSystem     |
 
 - Bundled Windows binaires now target [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) for better interopability with MSVC.
     - .NET Core/.NET 5+ runs on UCRT, so no action is required in most cases.
     - If you encounter a dependency issue on Windows Vista, 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
-- If you call `XZInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
+- If you call `XZInit.GlobalInit()` without the `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
 - Linux binaries are not portable. They may not work on your distribution.
     - You may call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
@@ -166,7 +152,7 @@ You can tune xz compress options with this class.
 
 | Property | Summary |
 |----------|---------|
-| Level | Compression level. The Default is `ZLibCompLevel.Default` (6). |
+| Level | Compression level. The Default is `LzmaCompLevel.Default` (6). |
 | ExtremeFlag | Use a slower variant to get a little bit better compression ratio hopefully. |
 | BufferSize | Size of the internal buffer. The default is 1MB. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the xz stream object. |
@@ -202,7 +188,7 @@ It may contain more advanced options.
 
 **NOTE**: You must use threaded compression to let xz-utils decompress in parallel, even if you are using only 1 thread. 
 
-**WARNING**: If possible, always check the available system memory. Modern CPUs have a lot of cores, and each thread will allocate its buffer.
+**WARNING**: If possible, always check the available system memory. Modern CPUs have a lot of cores, and each thread will allocate its own buffer.
 
 **WARNING**: In multi-threaded compression, each thread may allocate more memory than the single-thread mode, including compressing in 1 thread. xz-utils aggressively buffers input and output in parallel compression. Use `XZInit.EncoderMemUsage()` to check the exact memory requirement for your config.
 
@@ -309,7 +295,7 @@ switch (XZInit.Lib.PlatformBitness)
 {
     case DynLoader.PlatformBitness.Bit32:
         threadOpts.MemlimitThreading = Math.Min(XZHardware.PhysMem() / 4, 1400U << 20);
-        break;
+        break;s
     case DynLoader.PlatformBitness.Bit64:
         threadOpts.MemlimitThreading = XZHardware.PhysMem() / 4;
         break;
@@ -327,11 +313,9 @@ using (XZStream zs = new XZStream(fsComp, decompOpts, threadOpts))
 
 `Crc32Checksum` is the class designed to compute CRC32 checksum.
 
-- Use `Append()` method to compute the checksum.  
-- Use `Checksum` property to get the checksum value.
-- Use `Reset()` method to reset `Checksum` property.
-
-**NOTE**: xz-utils provides about twice faster CRC32 implementation than zlib, in my benchmark with [Joveler.Compression.ZLib](https://www.nuget.org/packages/Joveler.Compression.ZLib).
+- Use the `Append()` method to compute the checksum.  
+- Use the `Checksum` property to get the checksum value.
+- Use the `Reset()` method to reset the `Checksum` property.
 
 ### Examples
 
@@ -379,9 +363,9 @@ It inherits and implements [HashAlgorithm](https://docs.microsoft.com/en-US/dotn
 
 `Crc64Checksum` is the class designed to compute CRC64 checksum.
 
-Use `Append()` method to compute the checksum.  
-Use `Checksum` property to get the checksum value.
-Use `Reset()` method to reset `Checksum` property.
+Use the `Append()` method to compute the checksum.  
+Use the `Checksum` property to get the checksum value.
+Use the `Reset()` method to reset the `Checksum` property.
 
 ### Examples
 
@@ -420,6 +404,6 @@ using (FileStream fs = new FileStream("read.txt", FileMode.Open))
 
 ## Crc64Algorithm
 
-`Crc64Algorithm` is the class designed to compute CRC64 checksum.
+`Crc64Algorithm` is the class designed to compute the CRC64 checksum.
 
 It inherits and implements [HashAlgorithm](https://docs.microsoft.com/en-US/dotnet/api/system.security.cryptography.hashalgorithm).

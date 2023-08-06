@@ -77,7 +77,7 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
     if [ "$BUILD_MODE" = "lib" ]; then
         CONFIGURE_ARGS="--enable-shared --disable-xz"
     elif [ "$BUILD_MODE" = "exe" ]; then
-        CONFIGURE_ARGS="--disable-shared"
+        CONFIGURE_ARGS="--disable-shared CFLAGS=-Os"
     fi
     
     make clean
