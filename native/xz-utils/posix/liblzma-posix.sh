@@ -46,14 +46,14 @@ DEST_DIR="${BASE_DIR}/build"
 mkdir -p "${DEST_DIR}"
 
 # Compile liblzma, xz
-BUILD_MODES=( "lib" "exe" )
+BUILD_MODES=( "exe" "lib" )
 pushd "${SRCDIR}" > /dev/null
 for BUILD_MODE in "${BUILD_MODES[@]}"; do
     CONFIGURE_ARGS=""
     if [ "$BUILD_MODE" = "lib" ]; then
         CONFIGURE_ARGS="--enable-shared --disable-xz"
     elif [ "$BUILD_MODE" = "exe" ]; then
-        CONFIGURE_ARGS="--disable-shared"
+        CONFIGURE_ARGS="--disable-shared CFLAGS=-Os"
     fi
     
     make clean
@@ -79,13 +79,13 @@ popd > /dev/null
 
 # Strip a binary
 pushd "${DEST_DIR}" > /dev/null
-ls -lh "${DEST_LIB}"
-${STRIP} "${DEST_LIB}"
-ls -lh "${DEST_LIB}"
+ls -lh "${DEST_LIB}" "${DEST_EXE}"
+${STRIP} "${DEST_LIB}" "${DEST_EXE}"
+ls -lh "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_LIB}"
+${CHECKDEP} "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
 

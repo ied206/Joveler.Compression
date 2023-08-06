@@ -28,6 +28,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Joveler.Compression.XZ.Tests
 {
@@ -106,37 +107,16 @@ namespace Joveler.Compression.XZ.Tests
             return libPath;
         }
 
+        #region LogEnvironment
         [TestMethod]
-        public void LogRuntimeInfo()
+        public void LogEnvironment()
         {
-            string platform = "unknown";
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                platform = "win";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                platform = "linux";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                platform = "osx";
-
-            string arch = "unknown";
-            switch (RuntimeInformation.ProcessArchitecture)
-            {
-                case Architecture.X86:
-                    arch = "x86";
-                    break;
-                case Architecture.X64:
-                    arch = "x64";
-                    break;
-                case Architecture.Arm:
-                    arch = "arm";
-                    break;
-                case Architecture.Arm64:
-                    arch = "arm64";
-                    break;
-            }
-
-            Console.WriteLine($"Platform = {platform}");
-            Console.WriteLine($"Arch     = {arch}");
+            StringBuilder b = new StringBuilder();
+            b.AppendLine($"OS = {RuntimeInformation.OSDescription} {RuntimeInformation.OSArchitecture}");
+            b.AppendLine($"Dotnet Runtime = {RuntimeInformation.FrameworkDescription} {RuntimeInformation.ProcessArchitecture}");
+            Console.WriteLine(b.ToString());
         }
+        #endregion
     }
 
     public static class TestHelper
