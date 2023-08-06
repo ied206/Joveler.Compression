@@ -5,6 +5,7 @@
 ## Features
 
 - XZStream, the stream for [.xz file format](https://tukaani.org/xz/xz-file-format.txt).
+- Fast native implementation of CRC32 and CRC64 checksums.
 
 ## Usage
 
@@ -38,15 +39,7 @@ Please refer the [project homepage](https://github.com/ied206/Joveler.Compressio
 | macOS    | x64          | Yes    |
 |          | arm64        | Yes    |
 
-#### Tested linux distributions
-
-| Architecture  | Distribution | Note |
-|---------------|--------------|------|
-| x64           | Ubuntu 20.04 | Tested on AppVeyor CI |
-| armhf         | Debian 11    | Emulated on QEMU      |
-| arm64         | Debian 11    | Emulated on QEMU      |
-
 ### Supported XZ Utils version
 
-- 5.4.1 (Included)
+- 5.4.3 (Included)
 
