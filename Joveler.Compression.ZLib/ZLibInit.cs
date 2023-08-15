@@ -23,6 +23,7 @@
 */
 
 using System;
+using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
@@ -35,8 +36,54 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region GlobalInit, GlobalCleanup
-        public static void GlobalInit() => Manager.GlobalInit();
-        public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
+        /// <summary>
+        /// Init system-default zlib native library.
+        /// On Windows, calling this will cause an exception.
+        /// </summary>
+        public static void GlobalInit() => GlobalInit(null);
+        /// <summary>
+        /// Init supplied zlib native library.
+        /// <para>On Windows, using <see cref="GlobalInit(string libPath, bool isZLibWapi)"/> instead is recommended.</para>
+        /// <para>On Windows x86, whether to use stdcall/cdecl symbol would be guessed by dll filename.</para>
+        /// </summary>
+        /// <param name="libPath">
+        /// The path of the zlib native library file.
+        /// </param>
+        public static void GlobalInit(string libPath)
+        {
+            ZLibLoadData loadData = new ZLibLoadData();
+
+            // Crude stdcall guess logic for backward compatibility.
+            // On Windows, using GlobalInit(libPath, isZLibWapi) is recommended.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                if (libPath.StartsWith("zlibwapi", StringComparison.OrdinalIgnoreCase))
+                    loadData.IsWindowsX86Stdcall = true;
+                else if (libPath.StartsWith("zlib1", StringComparison.OrdinalIgnoreCase))
+                    loadData.IsWindowsX86Stdcall = false;
+            }
+
+            Manager.GlobalInit(libPath, loadData);
+        }
+
+        /// <summary>
+        /// Init supplied zlib native library, with explicit stdcall/cdecl flag.
+        /// </summary>
+        /// <param name="libPath">
+        /// The path of the zlib native library file.
+        /// </param>
+        /// <param name="isZLibWapi">
+        /// Set it to true for zlibwapi.dll (stdcall). Set it to false for zlib1.dll (cdecl).
+        /// <para>This flag is effective only on Windows x86.</para>
+        /// </param>
+        public static void GlobalInit(string libPath, bool isZLibWapi)
+        {
+            ZLibLoadData loadData = new ZLibLoadData()
+            {
+                IsWindowsX86Stdcall = isZLibWapi,
+            };
+            Manager.GlobalInit(libPath, loadData);
+        }
         public static void GlobalCleanup() => Manager.GlobalCleanup();
         #endregion
 

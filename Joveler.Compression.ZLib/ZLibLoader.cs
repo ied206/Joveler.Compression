@@ -35,7 +35,7 @@ namespace Joveler.Compression.ZLib
 {
     internal class ZLibLoadData
     {
-        public bool IsX86WindowsStdcall { get; set; }
+        public bool IsWindowsX86Stdcall { get; set; }
     }
 
     internal class ZLibLoader : DynLoaderBase
@@ -80,7 +80,7 @@ namespace Joveler.Compression.ZLib
                 return;
 
             // Use stdcall only if `IsX86WindowsStdcall` is active on Windows x86 platform.
-            UseStdcall = loadData.IsX86WindowsStdcall &&
+            UseStdcall = loadData.IsWindowsX86Stdcall &&
                 RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && 
                 RuntimeInformation.ProcessArchitecture == Architecture.X86;
         }
