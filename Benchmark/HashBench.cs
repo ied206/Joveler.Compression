@@ -134,7 +134,7 @@ namespace Benchmark
             crc32.Update(compData);
             return crc32.Digest();
         }
-        
+
         // InvertedTomato.Crc is the slowest, and ships unoptimized binaries.
         // Disable for awhile to avoid BenchmarkDotNet's unoptimized run error.
 #if INVERTEDTOMATO_CRC_EANBLE

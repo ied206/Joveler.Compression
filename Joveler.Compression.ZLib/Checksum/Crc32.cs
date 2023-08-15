@@ -23,6 +23,7 @@
 */
 
 using System;
+using System.Drawing;
 using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
@@ -64,7 +65,10 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                return ZLibInit.Lib.Crc32(checksum, bufPtr, (uint)count);
+                if (ZLibInit.Lib.UseStdcall)
+                    return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)count);
+                else
+                    return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)count);
             }
         }
 
@@ -73,7 +77,10 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                return ZLibInit.Lib.Crc32(checksum, bufPtr, (uint)span.Length);
+                if (ZLibInit.Lib.UseStdcall)
+                    return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)span.Length);
+                else
+                    return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)span.Length);
             }
         }
         #endregion

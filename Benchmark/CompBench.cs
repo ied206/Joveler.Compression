@@ -261,7 +261,7 @@ namespace Benchmark
                 {
                     Level = XZLevelDict[Level],
                     LeaveOpen = true,
-                };    
+                };
 
                 Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
                 {

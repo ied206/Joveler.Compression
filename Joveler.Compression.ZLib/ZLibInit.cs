@@ -22,6 +22,8 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
+using System;
+
 namespace Joveler.Compression.ZLib
 {
     #region ZLibInit
@@ -49,7 +51,11 @@ namespace Joveler.Compression.ZLib
         {
             Manager.EnsureLoaded();
 
-            return Lib.ZLibVersion();
+            if (Lib.UseStdcall)
+                return Lib.Stdcall.ZLibVersion();
+            else
+                return Lib.Cdecl.ZLibVersion();
+
         }
         #endregion
     }

@@ -172,7 +172,11 @@ namespace Joveler.Compression.ZLib
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
 
-                        ZLibRet ret = ZLibInit.Lib.L32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
+                        ZLibRet ret;
+                        if (ZLibInit.Lib.UseStdcall)
+                            ret = ZLibInit.Lib.SL32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
+                        else
+                            ret = ZLibInit.Lib.CL32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
@@ -218,7 +222,11 @@ namespace Joveler.Compression.ZLib
                         _zs32 = new ZStreamL32();
                         _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
 
-                        ZLibRet ret = ZLibInit.Lib.L32.InflateInit(_zs32, windowBits);
+                        ZLibRet ret;
+                        if (ZLibInit.Lib.UseStdcall)
+                            ret = ZLibInit.Lib.SL32.InflateInit(_zs32, windowBits);
+                        else
+                            ret = ZLibInit.Lib.CL32.InflateInit(_zs32, windowBits);
                         ZLibException.CheckReturnValue(ret, _zs32);
                         break;
                     }
@@ -263,9 +271,20 @@ namespace Joveler.Compression.ZLib
                             if (_zs32 != null)
                             {
                                 if (_mode == Mode.Compress)
-                                    ZLibInit.Lib.L32.DeflateEnd(_zs32);
+                                {
+                                    if (ZLibInit.Lib.UseStdcall)
+                                        ZLibInit.Lib.SL32.DeflateEnd(_zs32);
+                                    else
+                                        ZLibInit.Lib.CL32.DeflateEnd(_zs32);
+                                }
                                 else
-                                    ZLibInit.Lib.L32.InflateEnd(_zs32);
+                                {
+                                    if (ZLibInit.Lib.UseStdcall)
+                                        ZLibInit.Lib.SL32.InflateEnd(_zs32);
+                                    else
+                                        ZLibInit.Lib.CL32.InflateEnd(_zs32);
+                                }
+                                    
                                 _zsPin.Free();
                                 _zs32 = null;
                             }
@@ -346,7 +365,11 @@ namespace Joveler.Compression.ZLib
                                 uint outCount = _zs32.AvailOut;
 
                                 // flush method for inflate has no effect
-                                ZLibRet ret = ZLibInit.Lib.L32.Inflate(_zs32, ZLibFlush.NoFlush);
+                                ZLibRet ret;
+                                if (ZLibInit.Lib.UseStdcall)
+                                    ret = ZLibInit.Lib.SL32.Inflate(_zs32, ZLibFlush.NoFlush);
+                                else
+                                    ret = ZLibInit.Lib.CL32.Inflate(_zs32, ZLibFlush.NoFlush);
 
                                 _workBufPos += (int)(inCount - _zs32.AvailIn);
                                 readSize += (int)(outCount - _zs32.AvailOut);
@@ -445,7 +468,11 @@ namespace Joveler.Compression.ZLib
                             while (_zs32.AvailIn != 0)
                             {
                                 uint outCount = _zs32.AvailOut;
-                                ZLibRet ret = ZLibInit.Lib.L32.Deflate(_zs32, ZLibFlush.NoFlush);
+                                ZLibRet ret;
+                                if (ZLibInit.Lib.UseStdcall)
+                                    ret = ZLibInit.Lib.SL32.Deflate(_zs32, ZLibFlush.NoFlush);
+                                else
+                                    ret = ZLibInit.Lib.CL32.Deflate(_zs32, ZLibFlush.NoFlush);
                                 _workBufPos += (int)(outCount - _zs32.AvailOut);
 
                                 if (_zs32.AvailOut == 0)
@@ -519,7 +546,10 @@ namespace Joveler.Compression.ZLib
                                 if (_zs32.AvailOut != 0)
                                 {
                                     uint outCount = _zs32.AvailOut;
-                                    ret = ZLibInit.Lib.L32.Deflate(_zs32, ZLibFlush.Finish);
+                                    if (ZLibInit.Lib.UseStdcall)
+                                        ret = ZLibInit.Lib.SL32.Deflate(_zs32, ZLibFlush.Finish);
+                                    else
+                                        ret = ZLibInit.Lib.CL32.Deflate(_zs32, ZLibFlush.Finish);
 
                                     _workBufPos += (int)(outCount - _zs32.AvailOut);
 
