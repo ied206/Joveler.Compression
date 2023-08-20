@@ -16,7 +16,7 @@
 The library provides the fast native implementation of DeflateStream, ZLibStream, GZipStream.
 It also supports fast calculation of CRC32 and Adler32 checksum.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (c) 2017-2021 Hajin Jang</Copyright>
+    <Copyright>Copyright (c) 2017-2023 Hajin Jang</Copyright>
     <PackageLicenseExpression>Zlib</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>

@@ -43,6 +43,13 @@ namespace Benchmark
             ["Best"] = Joveler.Compression.ZLib.ZLibCompLevel.BestCompression,
         };
 
+        public Dictionary<string, System.IO.Compression.CompressionLevel> BclZLibLevelDict = new Dictionary<string, System.IO.Compression.CompressionLevel>(StringComparer.Ordinal)
+        {
+            ["Fastest"] = System.IO.Compression.CompressionLevel.Fastest,
+            ["Default"] = System.IO.Compression.CompressionLevel.Optimal,
+            ["Best"] = System.IO.Compression.CompressionLevel.SmallestSize,
+        };
+
         public Dictionary<string, SharpCompress.Compressors.Deflate.CompressionLevel> ManagedZLibLevelDict = new Dictionary<string, SharpCompress.Compressors.Deflate.CompressionLevel>(StringComparer.Ordinal)
         {
             ["Fastest"] = SharpCompress.Compressors.Deflate.CompressionLevel.BestSpeed,
@@ -85,7 +92,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.All);
 
             ZstdLevelDict["Fatest"] = Joveler.Compression.Zstd.ZstdStream.MinCompressionLevel();
             ZstdLevelDict["Best"] = Joveler.Compression.Zstd.ZstdStream.MaxCompressionLevel();
@@ -169,7 +176,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
+        [BenchmarkCategory(BenchConfig.ZLibNg)]
         public double ZLib_Native()
         {
             long compLen;
@@ -184,6 +191,30 @@ namespace Benchmark
 
                 using (MemoryStream rms = new MemoryStream(rawData))
                 using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts))
+                {
+                    rms.CopyTo(zs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+
+            CompRatio = (double)compLen / rawData.Length;
+            return CompRatio;
+        }
+
+        [Benchmark]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public double ZLib_Bcl()
+        {
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                System.IO.Compression.CompressionLevel level = BclZLibLevelDict[Level];
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (System.IO.Compression.ZLibStream zs = new System.IO.Compression.ZLibStream(rms, level))
                 {
                     rms.CopyTo(zs);
                 }

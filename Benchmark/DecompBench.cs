@@ -36,7 +36,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.All);
 
             _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
@@ -106,7 +106,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
+        [BenchmarkCategory(BenchConfig.ZLibUp)]
         public long ZLib_Native()
         {
             Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
@@ -124,7 +124,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
+        [BenchmarkCategory(BenchConfig.ZLibUp)]
         public long ZLib_Managed()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];

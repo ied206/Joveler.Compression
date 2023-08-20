@@ -40,7 +40,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.XZ);
 
             _sampleDir = Program.SampleDir;
 

@@ -28,7 +28,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.ZLibNg | AlgorithmFlags.XZ);
 
             _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
@@ -88,7 +88,7 @@ namespace Benchmark
 
         #region Adler32
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
+        [BenchmarkCategory(BenchConfig.ZLibUp)]
         public uint Adler32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -99,7 +99,7 @@ namespace Benchmark
 
         #region CRC32
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
+        [BenchmarkCategory(BenchConfig.ZLibUp)]
         public uint CRC32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -117,7 +117,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
+        [BenchmarkCategory(BenchConfig.ZLibUp, BenchConfig.XZ)]
         public byte[] CRC32_ForceManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -126,7 +126,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
+        [BenchmarkCategory(BenchConfig.ZLibUp, BenchConfig.XZ)]
         public uint CRC32_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];

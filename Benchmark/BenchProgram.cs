@@ -14,11 +14,13 @@ namespace Benchmark
     public enum AlgorithmFlags
     {
         None = 0x0,
-        ZLib = 0x1,
-        XZ = 0x2,
-        LZ4 = 0x4,
-        Zstd = 0x8,
-        All = ZLib | XZ | LZ4 | Zstd,
+        ZLib = 0x2,
+        ZLibUp = 0x1,
+        ZLibNg = 0x2,
+        XZ = 0x4,
+        LZ4 = 0x8,
+        Zstd = 0x10,
+        All = ZLibUp | ZLibNg | XZ | LZ4 | Zstd,
     }
 
     public abstract class ParamOptions
@@ -44,6 +46,9 @@ namespace Benchmark
 
     [Verb("buffer", HelpText = "Benchmark buffer size")]
     public class BufferSizeBenchOptions : ParamOptions { }
+
+    [Verb("zlib-fork", HelpText = "Compare zlib forks")]
+    public class ZLibForkBenchOptions : ParamOptions { }
     #endregion
 
     #region Program
@@ -63,13 +68,20 @@ namespace Benchmark
         }
         #endregion
 
+        #region Static properties
+        private static AlgorithmFlags _initFlags = AlgorithmFlags.None;
+        #endregion
+
         #region Init and Cleanup
-        public static void NativeGlobalInit()
+        public static void NativeGlobalInit(AlgorithmFlags flags)
         {
+            _initFlags = flags;
+
             const string runtimes = "runtimes";
             const string native = "native";
 
-            string zlibPath = null;
+            string zlibNgCompatPath = null;
+            string zlibUpstreamPath = null;
             string xzPath = null;
             string lz4Path = null;
             string zstdPath = null;
@@ -82,7 +94,8 @@ namespace Benchmark
                     Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "win-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
-                zlibPath = Path.Combine(libDir, "zlibwapi.dll");
+                zlibNgCompatPath = Path.Combine(libDir, "zlib1.dll");
+                zlibUpstreamPath = Path.Combine(libDir, "zlibwapi-upstream.dll");
                 xzPath = Path.Combine(libDir, "liblzma.dll");
                 lz4Path = Path.Combine(libDir, "liblz4.dll");
                 zstdPath = Path.Combine(libDir, "libzstd.dll");
@@ -96,7 +109,8 @@ namespace Benchmark
                     Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "linux-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
-                zlibPath = Path.Combine(libDir, "libz.so");
+                zlibNgCompatPath = Path.Combine(libDir, "libz.so");
+                zlibUpstreamPath = Path.Combine(libDir, "libz-upstream.so");
                 xzPath = Path.Combine(libDir, "liblzma.so");
                 lz4Path = Path.Combine(libDir, "liblz4.so");
                 zstdPath = Path.Combine(libDir, "libzstd.so");
@@ -109,27 +123,42 @@ namespace Benchmark
                     Architecture.Arm64 => Path.Combine(BaseDir, runtimes, "osx-arm64", native),
                     _ => throw new PlatformNotSupportedException(),
                 };
-                zlibPath = Path.Combine(libDir, "libz.dylib");
+                zlibNgCompatPath = Path.Combine(libDir, "libz.dylib");
+                zlibUpstreamPath = Path.Combine(libDir, "libz-upstream.dylib");
                 xzPath = Path.Combine(libDir, "liblzma.dylib");
                 lz4Path = Path.Combine(libDir, "liblz4.dylib");
                 zstdPath = Path.Combine(libDir, "libzstd.dylib");
             }
 
-            if (zlibPath == null || xzPath == null || lz4Path == null)
+            if (zlibNgCompatPath == null || zlibUpstreamPath == null || 
+                xzPath == null || lz4Path == null)
                 throw new PlatformNotSupportedException();
 
-            Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibPath);
-            Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
-            Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path);
-            Joveler.Compression.Zstd.ZstdInit.GlobalInit(zstdPath);
+            // zlib-ng and zlib are mutually exclusive.
+            // Joveler.Compression.ZLib cannot load two or more zlib at once.
+            if (flags.HasFlag(AlgorithmFlags.ZLibNg))
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibNgCompatPath);
+            else if (flags.HasFlag(AlgorithmFlags.ZLibUp)) 
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibUpstreamPath);
+
+            if (flags.HasFlag(AlgorithmFlags.XZ))
+                Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
+            if (flags.HasFlag(AlgorithmFlags.LZ4))
+                Joveler.Compression.LZ4.LZ4Init.GlobalInit(lz4Path);
+            if (flags.HasFlag(AlgorithmFlags.Zstd))
+                Joveler.Compression.Zstd.ZstdInit.GlobalInit(zstdPath);
         }
 
         public static void NativeGlobalCleanup()
         {
-            Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
-            Joveler.Compression.XZ.XZInit.GlobalCleanup();
-            Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
-            Joveler.Compression.Zstd.ZstdInit.GlobalCleanup();
+            if (_initFlags.HasFlag(AlgorithmFlags.ZLibNg) || _initFlags.HasFlag(AlgorithmFlags.ZLibUp))
+                Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
+            if (_initFlags.HasFlag(AlgorithmFlags.XZ))
+                Joveler.Compression.XZ.XZInit.GlobalCleanup();
+            if (_initFlags.HasFlag(AlgorithmFlags.LZ4))
+                Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
+            if (_initFlags.HasFlag(AlgorithmFlags.Zstd))
+                Joveler.Compression.Zstd.ZstdInit.GlobalCleanup();
         }
         #endregion
 
@@ -148,13 +177,15 @@ namespace Benchmark
             });
 
             argParser.ParseArguments<AllBenchOptions,
-                CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions, HashBenchOptions, BufferSizeBenchOptions>(args)
+                CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions, 
+                HashBenchOptions, BufferSizeBenchOptions, ZLibForkBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
                 .WithParsed<DecompBenchOptions>(x => Opts = x)
                 .WithParsed<XZMultiOptionBenchOptions>(x => Opts = x)
                 .WithParsed<HashBenchOptions>(x => Opts = x)
                 .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
+                .WithParsed<ZLibForkBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
@@ -189,6 +220,10 @@ namespace Benchmark
                     break;
                 case BufferSizeBenchOptions _:
                     BenchmarkRunner.Run<BufferSizeBench>(config);
+                    break;
+                case ZLibForkBenchOptions _:
+                    BenchmarkRunner.Run<CorpusZLibUpBench>(config);
+                    BenchmarkRunner.Run<CorpusZLibNgBench>(config);
                     break;
             }
         }
