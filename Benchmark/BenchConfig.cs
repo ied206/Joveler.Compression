@@ -51,7 +51,14 @@ namespace Benchmark
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return false;
 
-            return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86:
+                case Architecture.X64:
+                    return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+                default:
+                    return false;
+            }
         }
     }
 }
