@@ -25,7 +25,7 @@ namespace Benchmark
 
     public abstract class ParamOptions
     {
-        [Option("algo", Default = AlgorithmFlags.All, HelpText = "Choose algorithms to benchmark | zlib,xz,lz4,all")]
+        [Option("algo", Default = AlgorithmFlags.All, HelpText = "Choose algorithms to benchmark | zlib,xz,lz4,zstd,all")]
         public AlgorithmFlags Algorithms { get; set; }
     }
 
@@ -55,8 +55,8 @@ namespace Benchmark
     public static class Program
     {
         #region Directories
-        public static string BaseDir => Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
-        public static string SampleDir => Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+        public static string BaseDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
+        public static string SampleDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
         #endregion
 
         #region PrintErrorAndExit
@@ -99,6 +99,9 @@ namespace Benchmark
                 xzPath = Path.Combine(libDir, "liblzma.dll");
                 lz4Path = Path.Combine(libDir, "liblz4.dll");
                 zstdPath = Path.Combine(libDir, "libzstd.dll");
+
+                Console.WriteLine(AppDomain.CurrentDomain.BaseDirectory);
+                Console.WriteLine(libDir);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
@@ -130,16 +133,16 @@ namespace Benchmark
                 zstdPath = Path.Combine(libDir, "libzstd.dylib");
             }
 
-            if (zlibNgCompatPath == null || zlibUpstreamPath == null || 
+            if (zlibNgCompatPath == null || zlibUpstreamPath == null ||
                 xzPath == null || lz4Path == null)
                 throw new PlatformNotSupportedException();
 
             // zlib-ng and zlib are mutually exclusive.
             // Joveler.Compression.ZLib cannot load two or more zlib at once.
             if (flags.HasFlag(AlgorithmFlags.ZLibNg))
-                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibNgCompatPath);
-            else if (flags.HasFlag(AlgorithmFlags.ZLibUp)) 
-                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibUpstreamPath);
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibNgCompatPath, false);
+            else if (flags.HasFlag(AlgorithmFlags.ZLibUp))
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibUpstreamPath, true);
 
             if (flags.HasFlag(AlgorithmFlags.XZ))
                 Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);
@@ -177,7 +180,7 @@ namespace Benchmark
             });
 
             argParser.ParseArguments<AllBenchOptions,
-                CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions, 
+                CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions,
                 HashBenchOptions, BufferSizeBenchOptions, ZLibForkBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
@@ -189,13 +192,7 @@ namespace Benchmark
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
-            // InvertedTomato.Crc is the slowest, and ships unoptimized binaries.
-            // Disable for awhile to avoid BenchmarkDotNet's unoptimized run error.
-#if INVERTEDTOMATO_CRC_EANBLE
-            ManualConfig config = DefaultConfig.Instance.WithOptions(ConfigOptions.DisableOptimizationsValidator);
-#else
             ManualConfig config = DefaultConfig.Instance.WithOptions(ConfigOptions.Default);
-#endif
 
             switch (Opts)
             {
@@ -205,6 +202,7 @@ namespace Benchmark
                     BenchmarkRunner.Run<XZMultiOptionBench>(config);
                     BenchmarkRunner.Run<HashBench>(config);
                     BenchmarkRunner.Run<BufferSizeBench>(config);
+                    BenchmarkRunner.Run<CorpusBench>(config);
                     break;
                 case CompBenchOptions _:
                     BenchmarkRunner.Run<CompBench>(config);
@@ -222,8 +220,7 @@ namespace Benchmark
                     BenchmarkRunner.Run<BufferSizeBench>(config);
                     break;
                 case ZLibForkBenchOptions _:
-                    BenchmarkRunner.Run<CorpusZLibUpBench>(config);
-                    BenchmarkRunner.Run<CorpusZLibNgBench>(config);
+                    BenchmarkRunner.Run<CorpusBench>(config);
                     break;
             }
         }

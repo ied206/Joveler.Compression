@@ -8,8 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.7" />
+    <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.7" />
     <PackageReference Include="Crc32.NET" Version="1.2.0" />
-    <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.5" />
+    <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.6" />
     <PackageReference Include="K4os.Hash.Crc" Version="1.1.4" />
     <PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
     <PackageReference Include="SharpCompress" Version="0.33.0" />
@@ -25,35 +26,35 @@
 
   <!-- Additional Native Library for zlib fork comparison -->
   <ItemGroup>
-    <None Include="runtimes\win-x86\native\*.dll">
+    <None Include="$(ProjectDir)runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\win-x64\native\*.dll">
-      <Link>runtimes\win-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
+    <None Include="$(ProjectDir)runtimes\win-x64\native\*.dll">
+      <Link>runtimes\win-x64\native\%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\win-arm64\native\*.dll">
+    <None Include="$(ProjectDir)runtimes\win-arm64\native\*.dll">
       <Link>runtimes\win-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\linux-x64\native\*.so">
+    <None Include="$(ProjectDir)runtimes\linux-x64\native\*.so">
       <Link>runtimes\linux-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\linux-arm\native\*.so">
+    <None Include="$(ProjectDir)runtimes\linux-arm\native\*.so">
       <Link>runtimes\linux-arm\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\linux-arm64\native\*.so">
+    <None Include="$(ProjectDir)runtimes\linux-arm64\native\*.so">
       <Link>runtimes\linux-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\osx-x64\native\*.dylib">
+    <None Include="$(ProjectDir)runtimes\osx-x64\native\*.dylib">
       <Link>runtimes\osx-x64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="runtimes\osx-arm64\native\*.dylib">
+    <None Include="$(ProjectDir)runtimes\osx-arm64\native\*.dylib">
       <Link>runtimes\osx-arm64\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

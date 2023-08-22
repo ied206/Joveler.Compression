@@ -42,7 +42,7 @@ namespace Joveler.Compression.ZLib
     {
         #region Constructor
         public ZLibLoader() : base()
-        { 
+        {
         }
         #endregion
 
@@ -81,7 +81,7 @@ namespace Joveler.Compression.ZLib
 
             // Use stdcall only if `IsX86WindowsStdcall` is active on Windows x86 platform.
             UseStdcall = loadData.IsWindowsX86Stdcall &&
-                RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && 
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
                 RuntimeInformation.ProcessArchitecture == Architecture.X86;
         }
         #endregion

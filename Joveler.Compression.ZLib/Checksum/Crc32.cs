@@ -23,7 +23,6 @@
 */
 
 using System;
-using System.Drawing;
 using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum

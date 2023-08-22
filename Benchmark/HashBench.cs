@@ -88,7 +88,7 @@ namespace Benchmark
 
         #region Adler32
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLibUp)]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public uint Adler32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -99,7 +99,7 @@ namespace Benchmark
 
         #region CRC32
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLibUp)]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public uint CRC32_ZLibNative()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -117,7 +117,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLibUp, BenchConfig.XZ)]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
         public byte[] CRC32_ForceManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -126,7 +126,7 @@ namespace Benchmark
         }
 
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLibUp, BenchConfig.XZ)]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
         public uint CRC32_K4osManaged()
         {
             byte[] compData = SrcFiles[SrcFileName];

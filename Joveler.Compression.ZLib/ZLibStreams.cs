@@ -284,7 +284,7 @@ namespace Joveler.Compression.ZLib
                                     else
                                         ZLibInit.Lib.CL32.InflateEnd(_zs32);
                                 }
-                                    
+
                                 _zsPin.Free();
                                 _zs32 = null;
                             }

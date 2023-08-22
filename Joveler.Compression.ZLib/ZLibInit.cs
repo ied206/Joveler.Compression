@@ -23,6 +23,7 @@
 */
 
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
@@ -40,7 +41,7 @@ namespace Joveler.Compression.ZLib
         /// Init system-default zlib native library.
         /// On Windows, calling this will cause an exception.
         /// </summary>
-        public static void GlobalInit() => GlobalInit(null);
+        public static void GlobalInit() => GlobalInit(null, false);
         /// <summary>
         /// Init supplied zlib native library.
         /// <para>On Windows, using <see cref="GlobalInit(string libPath, bool isZLibWapi)"/> instead is recommended.</para>
@@ -49,6 +50,8 @@ namespace Joveler.Compression.ZLib
         /// <param name="libPath">
         /// The path of the zlib native library file.
         /// </param>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [Obsolete($"Provided for backward compatibility only. Use GlobalInit(string libPath, bool isStdcall) instead.")]
         public static void GlobalInit(string libPath)
         {
             ZLibLoadData loadData = new ZLibLoadData();
@@ -72,15 +75,15 @@ namespace Joveler.Compression.ZLib
         /// <param name="libPath">
         /// The path of the zlib native library file.
         /// </param>
-        /// <param name="isZLibWapi">
+        /// <param name="isStdcall">
         /// Set it to true for zlibwapi.dll (stdcall). Set it to false for zlib1.dll (cdecl).
         /// <para>This flag is effective only on Windows x86.</para>
         /// </param>
-        public static void GlobalInit(string libPath, bool isZLibWapi)
+        public static void GlobalInit(string libPath, bool isStdcall)
         {
             ZLibLoadData loadData = new ZLibLoadData()
             {
-                IsWindowsX86Stdcall = isZLibWapi,
+                IsWindowsX86Stdcall = isStdcall,
             };
             Manager.GlobalInit(libPath, loadData);
         }

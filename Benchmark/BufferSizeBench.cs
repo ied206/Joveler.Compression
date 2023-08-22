@@ -161,7 +161,7 @@ namespace Benchmark
 
         #region ZLib
         [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLibUp)]
+        [BenchmarkCategory(BenchConfig.ZLib)]
         public void ZLib()
         {
             Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions()
