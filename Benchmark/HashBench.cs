@@ -72,6 +72,9 @@ namespace Benchmark
             GlobalSetup();
         }
 
+        [GlobalSetup]
+        public void ManagedSetup() => GlobalSetup();
+
         [GlobalCleanup]
         public void GlobalCleanup()
         {
