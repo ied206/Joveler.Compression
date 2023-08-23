@@ -9,17 +9,27 @@ namespace Benchmark
     [Config(typeof(BenchConfig))]
     public class DecompBench
     {
+        #region Fields and Properties
         private string _sampleDir;
         private string _destDir;
+        #endregion
 
+        #region Parameterization
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
         public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
         {
-            "Banner.bmp",
-            "Banner.svg",
-            "Type4.txt",
+            "Banner.bmp", // From PEBakery EncodedFile tests
+            "Banner.svg", // From PEBakery EncodedFile tests
+            "Type4.txt", // From PEBakery EncodedFile tests
+            "bible_en_utf8.txt", // From Canterbury Corpus
+            "bible_kr_cp949.txt", // Public Domain (개역한글)
+            "bible_kr_utf8.txt", // Public Domain (개역한글)
+            "bible_kr_utf16le.txt", // Public Domain (개역한글)
+            "ooffice.dll", // From silesia corpus
+            "reymont.pdf", // From silesia corpus
+            "world192.txt", // From Canterbury corpus
         };
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
@@ -32,12 +42,11 @@ namespace Benchmark
             "Default",
             "Best",
         };
+        #endregion
 
-        [GlobalSetup]
-        public void GlobalSetup()
+        #region Setup and Cleanup
+        private void GlobalSetup()
         {
-            Program.NativeGlobalInit();
-
             _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
 
             _destDir = Path.GetTempFileName();
@@ -63,6 +72,53 @@ namespace Benchmark
             }
         }
 
+        [GlobalSetup(Targets = new string[] { nameof(ZLibNgNativeJoveler) })]
+        public void ZLibNgSetup()
+        {
+            Program.NativeGlobalInit(AlgorithmFlags.ZLibNg);
+
+            GlobalSetup();
+        }
+
+        [GlobalSetup(Targets = new string[] { nameof(ZLibUpNativeJoveler) })]
+        public void ZLibUpSetup()
+        {
+            Program.NativeGlobalInit(AlgorithmFlags.ZLibUp);
+
+            GlobalSetup();
+        }
+
+        [GlobalSetup(Targets = new string[] { nameof(XZSingleNativeJoveler), nameof(XZMultiNativeJoveler) })]
+        public void XZSetup()
+        {
+            Program.NativeGlobalInit(AlgorithmFlags.XZ);
+
+            GlobalSetup();
+        }
+
+
+        [GlobalSetup(Targets = new string[] { nameof(LZ4NativeJoveler) })]
+        public void LZ4Setup()
+        {
+            Program.NativeGlobalInit(AlgorithmFlags.LZ4);
+
+            GlobalSetup();
+        }
+
+        [GlobalSetup(Targets = new string[] { nameof(ZstdNativeJoveler) })]
+        public void ZstdSetup()
+        {
+            Program.NativeGlobalInit(AlgorithmFlags.Zstd);
+
+            GlobalSetup();
+        }
+
+        [GlobalSetup]
+        public void ManagedSetup()
+        {
+            GlobalSetup();
+        }
+
         [GlobalCleanup]
         public void GlobalCleanup()
         {
@@ -70,44 +126,10 @@ namespace Benchmark
                 Directory.Delete(_destDir);
             Program.NativeGlobalCleanup();
         }
+        #endregion
 
-        [Benchmark]
-        [BenchmarkCategory(BenchConfig.LZ4)]
-        public long LZ4_Native()
-        {
-            Joveler.Compression.LZ4.LZ4FrameDecompressOptions decompOpts = new Joveler.Compression.LZ4.LZ4FrameDecompressOptions();
-
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
-            using MemoryStream ms = new MemoryStream();
-            using (MemoryStream rms = new MemoryStream(compData))
-            using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, decompOpts))
-            {
-                zs.CopyTo(ms);
-            }
-
-            ms.Flush();
-            return ms.Length;
-        }
-
-        [Benchmark]
-        [BenchmarkCategory(BenchConfig.LZ4)]
-        public long LZ4_Managed()
-        {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
-            using MemoryStream ms = new MemoryStream();
-            using (MemoryStream rms = new MemoryStream(compData))
-            using (K4os.Compression.LZ4.Streams.LZ4DecoderStream zs = K4os.Compression.LZ4.Streams.LZ4Stream.Decode(rms, 0))
-            {
-                zs.CopyTo(ms);
-            }
-
-            ms.Flush();
-            return ms.Length;
-        }
-
-        [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZLib)]
-        public long ZLib_Native()
+        #region Benchmark - zlib
+        public long ZLibNativeJoveler()
         {
             Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
 
@@ -123,9 +145,39 @@ namespace Benchmark
             return ms.Length;
         }
 
-        [Benchmark]
+        [Benchmark(Description = "zlib-ng (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.ZLib)]
-        public long ZLib_Managed()
+        public long ZLibNgNativeJoveler()
+        {
+            return ZLibNativeJoveler();
+        }
+
+        [Benchmark(Description = "zlib (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public long ZLibUpNativeJoveler()
+        {
+            return ZLibNativeJoveler();
+        }
+
+        [Benchmark(Description = "zlib (n_BCL)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public long ZLibNativeBcl()
+        {
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
+            using MemoryStream ms = new MemoryStream();
+            using (MemoryStream rms = new MemoryStream(compData))
+            using (System.IO.Compression.ZLibStream zs = new System.IO.Compression.ZLibStream(rms, System.IO.Compression.CompressionMode.Decompress, true))
+            {
+                zs.CopyTo(ms);
+            }
+
+            ms.Flush();
+            return ms.Length;
+        }
+
+        [Benchmark(Description = "zlib (m_SharpCompress)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public long ZLibManagedSharpCompress()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
             using MemoryStream ms = new MemoryStream();
@@ -138,10 +190,12 @@ namespace Benchmark
             ms.Flush();
             return ms.Length;
         }
+        #endregion
 
-        [Benchmark]
+        #region Benchmark - xz-utils
+        [Benchmark(Description = "xz (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.XZ)]
-        public long XZ_Native_Single()
+        public long XZSingleNativeJoveler()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();
@@ -156,9 +210,9 @@ namespace Benchmark
             return ms.Length;
         }
 
-        [Benchmark]
+        [Benchmark(Description = "xz-T0 (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.XZ)]
-        public long XZ_Native_Multi()
+        public long XZMultiNativeJoveler()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();
@@ -177,9 +231,9 @@ namespace Benchmark
             return ms.Length;
         }
 
-        [Benchmark]
+        [Benchmark(Description = "xz (m_SharpCompress)")]
         [BenchmarkCategory(BenchConfig.XZ)]
-        public long XZ_Managed()
+        public long XZManagedSharpCompress()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
             using MemoryStream ms = new MemoryStream();
@@ -192,10 +246,48 @@ namespace Benchmark
             ms.Flush();
             return ms.Length;
         }
+        #endregion
 
-        [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZSTD)]
-        public long ZSTD_Native()
+        #region Benchmark - lz4
+        [Benchmark(Description = "lz4 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.LZ4)]
+        public long LZ4NativeJoveler()
+        {
+            Joveler.Compression.LZ4.LZ4FrameDecompressOptions decompOpts = new Joveler.Compression.LZ4.LZ4FrameDecompressOptions();
+
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
+            using MemoryStream ms = new MemoryStream();
+            using (MemoryStream rms = new MemoryStream(compData))
+            using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, decompOpts))
+            {
+                zs.CopyTo(ms);
+            }
+
+            ms.Flush();
+            return ms.Length;
+        }
+
+        [Benchmark(Description = "lz4 (m_K4os)")]
+        [BenchmarkCategory(BenchConfig.LZ4)]
+        public long LZ4ManagedK4os()
+        {
+            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
+            using MemoryStream ms = new MemoryStream();
+            using (MemoryStream rms = new MemoryStream(compData))
+            using (K4os.Compression.LZ4.Streams.LZ4DecoderStream zs = K4os.Compression.LZ4.Streams.LZ4Stream.Decode(rms, 0))
+            {
+                zs.CopyTo(ms);
+            }
+
+            ms.Flush();
+            return ms.Length;
+        }
+        #endregion
+
+        #region Benchmark - zstd
+        [Benchmark(Description = "zstd (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.Zstd)]
+        public long ZstdNativeJoveler()
         {
             Joveler.Compression.Zstd.ZstdDecompressOptions decompOpts = new Joveler.Compression.Zstd.ZstdDecompressOptions();
 
@@ -213,9 +305,9 @@ namespace Benchmark
             }
         }
 
-        [Benchmark]
-        [BenchmarkCategory(BenchConfig.ZSTD)]
-        public long ZSTD_Managed()
+        [Benchmark(Description = "zstd (m_ZstdSharp)")]
+        [BenchmarkCategory(BenchConfig.Zstd)]
+        public long ZstdManagedZstdSharp()
         {
             byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zst"];
             using (MemoryStream ms = new MemoryStream())
@@ -230,6 +322,7 @@ namespace Benchmark
                 return ms.Length;
             }
         }
+        #endregion
     }
     #endregion
 }

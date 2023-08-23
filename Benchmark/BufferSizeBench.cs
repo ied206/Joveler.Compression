@@ -39,7 +39,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.All);
 
             // Populate _srcData
             int medianSize = BufferSizes[BufferSizes.Count / 2];

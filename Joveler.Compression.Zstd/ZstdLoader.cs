@@ -179,7 +179,7 @@ namespace Joveler.Compression.Zstd
         }
         #endregion
 
-        #region libzstd Function Pointer
+        #region libzstd Function Pointers
         #region Version - VersionNumber, VersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint ZSTD_versionNumber();

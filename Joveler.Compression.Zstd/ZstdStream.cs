@@ -477,28 +477,6 @@ namespace Joveler.Compression.Zstd
                             _decompSrcIdx = DecompressComplete;
                             break;
                         }
-
-                        /* 'Joveler.Compression.Zstd (netstandard2.0)' 프로젝트에서 병합되지 않은 변경 내용
-                        이전:
-                                            }
-
-                                            // Setup InBuffer
-                        이후:
-                                            }
-
-                                            // Setup InBuffer
-                        */
-
-                        /* 'Joveler.Compression.Zstd (netcoreapp3.1)' 프로젝트에서 병합되지 않은 변경 내용
-                        이전:
-                                            }
-
-                                            // Setup InBuffer
-                        이후:
-                                            }
-
-                                            // Setup InBuffer
-                        */
                     }
 
                     // Setup InBuffer
