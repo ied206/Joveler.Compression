@@ -5,7 +5,7 @@ using System.IO;
 
 namespace Benchmark
 {
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(ParamOrderConfig))]
     public class HashBench
     {
         #region Fields and Properties
@@ -14,19 +14,7 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
-        {
-            "Banner.bmp", // From PEBakery EncodedFile tests
-            "Banner.svg", // From PEBakery EncodedFile tests
-            "Type4.txt", // From PEBakery EncodedFile tests
-            "bible_en_utf8.txt", // From Canterbury Corpus
-            "bible_kr_cp949.txt", // Public Domain (개역한글)
-            "bible_kr_utf8.txt", // Public Domain (개역한글)
-            "bible_kr_utf16le.txt", // Public Domain (개역한글)
-            "ooffice.dll", // From silesia corpus
-            "reymont.pdf", // From silesia corpus
-            "world192.txt", // From Canterbury corpus
-        };
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         #endregion
 
@@ -63,7 +51,7 @@ namespace Benchmark
 
             GlobalSetup();
         }
-        
+
         [GlobalSetup(Targets = new string[] { nameof(CRC32_XZNativeJoveler), nameof(CRC64_XZNativeJoveler) })]
         public void XZSetup()
         {
@@ -83,31 +71,47 @@ namespace Benchmark
         #endregion
 
         #region xxHash32
-#pragma warning disable IDE1006 // 명명 스타일
         [Benchmark(Description = "xxHash32 (m_K4os)")]
-        [BenchmarkCategory(BenchConfig.LZ4)]
-        public uint xxHash32_ManagedK4os()
+        [BenchmarkCategory(BenchConfig.LZ4, BenchConfig.Zstd)]
+        public uint XZxHash32_ManagedK4os()
         {
             byte[] compData = SrcFiles[SrcFileName];
             K4os.Hash.xxHash.XXH32 xxh32 = new K4os.Hash.xxHash.XXH32();
             xxh32.Update(compData);
             return xxh32.Digest();
         }
-#pragma warning restore IDE1006 // 명명 스타일
+
+        [Benchmark(Description = "xxHash32 (m_BCL)")]
+        [BenchmarkCategory(BenchConfig.LZ4, BenchConfig.Zstd)]
+        public byte[] XxHash32_ManagedBCL()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            System.IO.Hashing.XxHash32 xxh32 = new System.IO.Hashing.XxHash32();
+            xxh32.Append(compData);
+            return xxh32.GetCurrentHash();
+        }
         #endregion
 
         #region xxHash64
-#pragma warning disable IDE1006 // 명명 스타일
         [Benchmark(Description = "xxHash64 (m_K4os)")]
-        [BenchmarkCategory(BenchConfig.LZ4)]
-        public ulong xxHash64_ManagedK4os()
+        [BenchmarkCategory(BenchConfig.LZ4, BenchConfig.Zstd)]
+        public ulong XxHash64_ManagedK4os()
         {
             byte[] compData = SrcFiles[SrcFileName];
             K4os.Hash.xxHash.XXH64 xxh64 = new K4os.Hash.xxHash.XXH64();
             xxh64.Update(compData);
             return xxh64.Digest();
         }
-#pragma warning restore IDE1006 // 명명 스타일
+
+        [Benchmark(Description = "xxHash64 (m_BCL)")]
+        [BenchmarkCategory(BenchConfig.LZ4, BenchConfig.Zstd)]
+        public byte[] XxHash64_ManagedBCL()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            System.IO.Hashing.XxHash64 xxh64 = new System.IO.Hashing.XxHash64();
+            xxh64.Append(compData);
+            return xxh64.GetCurrentHash();
+        }
         #endregion
 
         #region Adler32
@@ -128,7 +132,6 @@ namespace Benchmark
         #endregion
 
         #region CRC32
-        
         private uint CRC32_ZLibNativeJoveler()
         {
             byte[] compData = SrcFiles[SrcFileName];
@@ -171,6 +174,16 @@ namespace Benchmark
             crc32.Update(compData);
             return crc32.Digest();
         }
+
+        [Benchmark(Description = "crc32 (m_BCL)")]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
+        public byte[] CRC32_ManagedBCL()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            System.IO.Hashing.Crc32 crc32 = new System.IO.Hashing.Crc32();
+            crc32.Append(compData);
+            return crc32.GetCurrentHash();
+        }
         #endregion
 
         #region CRC64
@@ -181,6 +194,16 @@ namespace Benchmark
             byte[] compData = SrcFiles[SrcFileName];
             Joveler.Compression.XZ.Checksum.Crc64Checksum crc64 = new Joveler.Compression.XZ.Checksum.Crc64Checksum();
             return crc64.Append(compData);
+        }
+
+        [Benchmark(Description = "crc64 (m_BCL)")]
+        [BenchmarkCategory(BenchConfig.ZLib, BenchConfig.XZ)]
+        public byte[] CRC64_ManagedBCL()
+        {
+            byte[] compData = SrcFiles[SrcFileName];
+            System.IO.Hashing.Crc64 crc64 = new System.IO.Hashing.Crc64();
+            crc64.Append(compData);
+            return crc64.GetCurrentHash();
         }
         #endregion
     }

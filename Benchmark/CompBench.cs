@@ -6,7 +6,7 @@ using System.IO;
 namespace Benchmark
 {
     #region CompBench
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(CompRatioConfig))]
     public class CompBench
     {
         #region Fields and Properties
@@ -18,19 +18,10 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
-        {
-            "Banner.bmp", // From PEBakery EncodedFile tests
-            "Banner.svg", // From PEBakery EncodedFile tests
-            "Type4.txt", // From PEBakery EncodedFile tests
-            "bible_en_utf8.txt", // From Canterbury Corpus
-            "bible_kr_cp949.txt", // Public Domain (개역한글)
-            "bible_kr_utf8.txt", // Public Domain (개역한글)
-            "bible_kr_utf16le.txt", // Public Domain (개역한글)
-            "ooffice.dll", // From silesia corpus
-            "reymont.pdf", // From silesia corpus
-            "world192.txt", // From Canterbury corpus
-        };
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
+        /// <summary>
+        /// Cache raw source files to memory to minimize I/O bottleneck.
+        /// </summary>
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         // Levels
@@ -286,15 +277,10 @@ namespace Benchmark
             return (double)compLen / rawData.Length;
         }
 
-        [Benchmark(Description = "xz-T0 (n_Joveler)")]
+        [Benchmark(Description = "xz-T1 (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.XZ)]
         public double XZMultiNativeJoveler()
         {
-            // LZMA2 threaded compression with -9 option takes a lot of memory.
-            // To prevent memory starvation, skip threaded -9 compression.
-            if (Level.Equals("Best", StringComparison.OrdinalIgnoreCase))
-                return 0;
-
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
@@ -306,9 +292,11 @@ namespace Benchmark
                     LeaveOpen = true,
                 };
 
+                // LZMA2 threaded compression with -9 option takes a lot of memory.
+                // To prevent memory starvation and make test results consistent, test only 1 threads.
                 Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
                 {
-                    Threads = Environment.ProcessorCount,
+                    Threads = 1,
                 };
 
                 using (MemoryStream rms = new MemoryStream(rawData))

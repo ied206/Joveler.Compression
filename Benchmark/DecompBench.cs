@@ -6,7 +6,7 @@ using System.IO;
 namespace Benchmark
 {
     #region DecompBench
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(ParamOrderConfig))]
     public class DecompBench
     {
         #region Fields and Properties
@@ -18,19 +18,10 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
-        {
-            "Banner.bmp", // From PEBakery EncodedFile tests
-            "Banner.svg", // From PEBakery EncodedFile tests
-            "Type4.txt", // From PEBakery EncodedFile tests
-            "bible_en_utf8.txt", // From Canterbury Corpus
-            "bible_kr_cp949.txt", // Public Domain (개역한글)
-            "bible_kr_utf8.txt", // Public Domain (개역한글)
-            "bible_kr_utf16le.txt", // Public Domain (개역한글)
-            "ooffice.dll", // From silesia corpus
-            "reymont.pdf", // From silesia corpus
-            "world192.txt", // From Canterbury corpus
-        };
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
+        /// <summary>
+        /// Cache raw source files to memory to minimize I/O bottleneck.
+        /// </summary>
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         // Levels
@@ -95,7 +86,6 @@ namespace Benchmark
 
             GlobalSetup();
         }
-
 
         [GlobalSetup(Targets = new string[] { nameof(LZ4NativeJoveler) })]
         public void LZ4Setup()

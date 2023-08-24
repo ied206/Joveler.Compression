@@ -5,7 +5,7 @@ using System.IO;
 
 namespace Benchmark
 {
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(ParamOrderConfig))]
     public class BufferSizeBench
     {
         #region Fields and Properties

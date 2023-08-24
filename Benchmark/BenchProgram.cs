@@ -47,8 +47,8 @@ namespace Benchmark
     [Verb("buffer", HelpText = "Benchmark buffer size")]
     public class BufferSizeBenchOptions : ParamOptions { }
 
-    [Verb("zlib-fork", HelpText = "Compare zlib forks")]
-    public class ZLibForkBenchOptions : ParamOptions { }
+    [Verb("conf-test", HelpText = "Test BenchConfig")]
+    public class ConfTestBenchOptions : ParamOptions { }
     #endregion
 
     #region Program
@@ -181,14 +181,14 @@ namespace Benchmark
 
             argParser.ParseArguments<AllBenchOptions,
                 CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions,
-                HashBenchOptions, BufferSizeBenchOptions, ZLibForkBenchOptions>(args)
+                HashBenchOptions, BufferSizeBenchOptions, ConfTestBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
                 .WithParsed<DecompBenchOptions>(x => Opts = x)
                 .WithParsed<XZMultiOptionBenchOptions>(x => Opts = x)
                 .WithParsed<HashBenchOptions>(x => Opts = x)
                 .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
-                .WithParsed<ZLibForkBenchOptions>(x => Opts = x)
+                .WithParsed<ConfTestBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
@@ -202,7 +202,6 @@ namespace Benchmark
                     BenchmarkRunner.Run<XZMultiOptionBench>(config);
                     BenchmarkRunner.Run<HashBench>(config);
                     BenchmarkRunner.Run<BufferSizeBench>(config);
-                    BenchmarkRunner.Run<CorpusBench>(config);
                     break;
                 case CompBenchOptions _:
                     BenchmarkRunner.Run<CompBench>(config);
@@ -219,8 +218,8 @@ namespace Benchmark
                 case BufferSizeBenchOptions _:
                     BenchmarkRunner.Run<BufferSizeBench>(config);
                     break;
-                case ZLibForkBenchOptions _:
-                    BenchmarkRunner.Run<CorpusBench>(config);
+                case ConfTestBenchOptions _:
+                    BenchmarkRunner.Run<ConfigTestBench>();
                     break;
             }
         }
