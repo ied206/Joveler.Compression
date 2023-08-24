@@ -154,6 +154,7 @@ namespace Benchmark
             if (levelVal is not string levelStr)
                 return $"[{levelKey}] not found";
 
+
             // Set parameters to benchmark instances
             PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
             srcFileNameProp.SetValue(instance, srcFileNameStr);
@@ -161,7 +162,10 @@ namespace Benchmark
             levelProp.SetValue(instance, levelStr);
 
             // Run a benchmark ourselves and record return value
-            return descriptor.WorkloadMethod.Invoke(instance, null).ToString();
+            object ret = descriptor.WorkloadMethod.Invoke(instance, null);
+            if (ret is not double retVal)
+                return $"[{ret.GetType().Name}] is not a dobule";
+            return retVal.ToString("0.00");
         }
 
         public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)

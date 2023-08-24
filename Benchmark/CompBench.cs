@@ -1,4 +1,6 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿// #define SHORT_TEST
+
+using BenchmarkDotNet.Attributes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +9,9 @@ namespace Benchmark
 {
     #region CompBench
     [Config(typeof(CompRatioConfig))]
+#if SHORT_TEST
+    [ShortRunJob]
+#endif
     public class CompBench
     {
         #region Fields and Properties
@@ -18,7 +23,15 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
+#if SHORT_TEST
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>()
+        {
+            "Type4.txt"
+        };
+#else
         public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
+#endif
+
         /// <summary>
         /// Cache raw source files to memory to minimize I/O bottleneck.
         /// </summary>
@@ -27,12 +40,20 @@ namespace Benchmark
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
+#if SHORT_TEST
+        public IReadOnlyList<string> Levels { get; set; } = new string[]
+        {
+            "Default",
+        };
+#else
         public IReadOnlyList<string> Levels { get; set; } = new string[]
         {
             "Fastest",
             "Default",
             "Best",
         };
+#endif
+
 
         // ZLibCompLevel
         public Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel> NativeZLibLevelDict = new Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel>(StringComparer.Ordinal)
@@ -87,12 +108,12 @@ namespace Benchmark
             ["Default"] = 3,
             ["Best"] = 22,
         };
-        #endregion
+#endregion
 
         #region Setup and Cleanup
         private void GlobalSetup()
         {
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+            _sampleDir = Program.SampleDir;
 
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
@@ -409,5 +430,5 @@ namespace Benchmark
         }
         #endregion
     }
-    #endregion
+#endregion
 }

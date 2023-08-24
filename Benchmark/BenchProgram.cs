@@ -55,6 +55,9 @@ namespace Benchmark
     public static class Program
     {
         #region Directories
+        /// <summary>
+        /// Used in real benchmarks
+        /// </summary>
         public static string BaseDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
         public static string SampleDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
         #endregion
@@ -73,9 +76,31 @@ namespace Benchmark
         #endregion
 
         #region Init and Cleanup
+        public static void SetGlobalDir()
+        {
+            const string runtimes = "runtimes";
+
+            /// Paths used in real benchmarks
+            BaseDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
+            SampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+
+            string runtimeRootDir = Path.Combine(BaseDir, runtimes);
+            if (!Directory.Exists(runtimeRootDir))
+            { // Paths used in summary/results
+                // CompRatioConfig has return value collecting column. It runs at result print time.
+                BaseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
+                SampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Samples"));
+            }
+        }
+
         public static void NativeGlobalInit(AlgorithmFlags flags)
         {
+            // Unload any native library that has been loaded.
+            NativeGlobalCleanup();
+
             _initFlags = flags;
+
+            SetGlobalDir();
 
             const string runtimes = "runtimes";
             const string native = "native";
@@ -99,9 +124,6 @@ namespace Benchmark
                 xzPath = Path.Combine(libDir, "liblzma.dll");
                 lz4Path = Path.Combine(libDir, "liblz4.dll");
                 zstdPath = Path.Combine(libDir, "libzstd.dll");
-
-                Console.WriteLine(AppDomain.CurrentDomain.BaseDirectory);
-                Console.WriteLine(libDir);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
@@ -154,6 +176,7 @@ namespace Benchmark
 
         public static void NativeGlobalCleanup()
         {
+            Console.WriteLine($"{nameof(NativeGlobalCleanup)}, {_initFlags}");
             if (_initFlags.HasFlag(AlgorithmFlags.ZLibNg) || _initFlags.HasFlag(AlgorithmFlags.ZLibUp))
                 Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
             if (_initFlags.HasFlag(AlgorithmFlags.XZ))
@@ -162,6 +185,8 @@ namespace Benchmark
                 Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
             if (_initFlags.HasFlag(AlgorithmFlags.Zstd))
                 Joveler.Compression.Zstd.ZstdInit.GlobalCleanup();
+
+            _initFlags = AlgorithmFlags.None;
         }
         #endregion
 
