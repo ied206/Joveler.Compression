@@ -26,7 +26,7 @@ namespace Benchmark
 #if SHORT_TEST
         public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>()
         {
-            "Type4.txt"
+            "Banner.svg"
         };
 #else
         public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);

@@ -176,7 +176,6 @@ namespace Benchmark
 
         public static void NativeGlobalCleanup()
         {
-            Console.WriteLine($"{nameof(NativeGlobalCleanup)}, {_initFlags}");
             if (_initFlags.HasFlag(AlgorithmFlags.ZLibNg) || _initFlags.HasFlag(AlgorithmFlags.ZLibUp))
                 Joveler.Compression.ZLib.ZLibInit.GlobalCleanup();
             if (_initFlags.HasFlag(AlgorithmFlags.XZ))
