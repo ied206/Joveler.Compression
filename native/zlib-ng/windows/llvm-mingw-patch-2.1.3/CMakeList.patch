@@ -1,0 +1,18 @@
+diff --git a/zlib-ng-2.1.3/CMakeLists.txt b/zlib-ng-2.1.3-mod/CMakeLists.txt
+index 420a5c7..c97c496 100644
+--- a/zlib-ng-2.1.3/CMakeLists.txt
++++ b/zlib-ng-2.1.3-mod/CMakeLists.txt
+@@ -250,7 +250,12 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+         endif()
+     endif()
+     if(MINGW)
+-        list(APPEND WARNFLAGS_DISABLE -Wno-pedantic-ms-format)
++        # llvm-mingw does not support '-Wno-pedantic-ms-format'.
++        if (CMAKE_C_COMPILER_ID MATCHES "GNU")
++            list(APPEND WARNFLAGS_DISABLE -Wno-pedantic-ms-format)
++        endif()
++        
++        set(CMAKE_SHARED_LIBRARY_PREFIX "")
+     endif()
+ else()
+     if(WITH_NATIVE_INSTRUCTIONS)

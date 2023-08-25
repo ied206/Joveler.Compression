@@ -2,11 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Benchmark
 {
     #region DecompBench
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(ParamOrderConfig))]
     public class DecompBench
     {
         #region Fields and Properties
@@ -18,36 +19,22 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
-        {
-            "Banner.bmp", // From PEBakery EncodedFile tests
-            "Banner.svg", // From PEBakery EncodedFile tests
-            "Type4.txt", // From PEBakery EncodedFile tests
-            "bible_en_utf8.txt", // From Canterbury Corpus
-            "bible_kr_cp949.txt", // Public Domain (개역한글)
-            "bible_kr_utf8.txt", // Public Domain (개역한글)
-            "bible_kr_utf16le.txt", // Public Domain (개역한글)
-            "ooffice.dll", // From silesia corpus
-            "reymont.pdf", // From silesia corpus
-            "world192.txt", // From Canterbury corpus
-        };
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
+        /// <summary>
+        /// Cache raw source files to memory to minimize I/O bottleneck.
+        /// </summary>
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
-        public IReadOnlyList<string> Levels { get; set; } = new string[]
-        {
-            "Fastest",
-            "Default",
-            "Best",
-        };
+        public IReadOnlyList<string> Levels { get; set; } = new List<string>(BenchSamples.Levels);
         #endregion
 
         #region Setup and Cleanup
         private void GlobalSetup()
         {
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+            _sampleDir = Program.SampleDir;
 
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
@@ -66,7 +53,7 @@ namespace Benchmark
                             fs.CopyTo(ms);
                         }
 
-                        SrcFiles[$"{level}_{srcFileName}{ext}"] = ms.ToArray();
+                        SrcFiles[CompFileKey(level, srcFileName, ext)] = ms.ToArray();
                     }
                 }
             }
@@ -95,7 +82,6 @@ namespace Benchmark
 
             GlobalSetup();
         }
-
 
         [GlobalSetup(Targets = new string[] { nameof(LZ4NativeJoveler) })]
         public void LZ4Setup()
@@ -128,12 +114,20 @@ namespace Benchmark
         }
         #endregion
 
+        #region Util
+        public static string CompFileKey(string level, string srcFileName, string ext)
+        {
+            ext = ext.Trim('.');
+            return $"{level}_{srcFileName}.{ext}";
+        }
+        #endregion
+
         #region Benchmark - zlib
         public long ZLibNativeJoveler()
         {
             Joveler.Compression.ZLib.ZLibDecompressOptions decompOpts = new Joveler.Compression.ZLib.ZLibDecompressOptions();
 
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zz")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(rms, decompOpts))
@@ -163,7 +157,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.ZLib)]
         public long ZLibNativeBcl()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zz")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (System.IO.Compression.ZLibStream zs = new System.IO.Compression.ZLibStream(rms, System.IO.Compression.CompressionMode.Decompress, true))
@@ -179,7 +173,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.ZLib)]
         public long ZLibManagedSharpCompress()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zz")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (SharpCompress.Compressors.Deflate.ZlibStream zs = new SharpCompress.Compressors.Deflate.ZlibStream(rms, SharpCompress.Compressors.CompressionMode.Decompress))
@@ -197,7 +191,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.XZ)]
         public long XZSingleNativeJoveler()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
             using MemoryStream ms = new MemoryStream();
             Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
             using (MemoryStream rms = new MemoryStream(compData))
@@ -210,16 +204,18 @@ namespace Benchmark
             return ms.Length;
         }
 
-        [Benchmark(Description = "xz-T0 (n_Joveler)")]
+        [Benchmark(Description = "xz-T1 (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.XZ)]
         public long XZMultiNativeJoveler()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
             using MemoryStream ms = new MemoryStream();
             Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
             Joveler.Compression.XZ.XZThreadedDecompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedDecompressOptions()
             {
-                Threads = Environment.ProcessorCount,
+                // LZMA2 threaded compression with -9 option takes a lot of memory.
+                // To prevent memory starvation and make test results consistent, test only 1 threads.
+                Threads = 1,
             };
             using (MemoryStream rms = new MemoryStream(compData))
             using (Joveler.Compression.XZ.XZStream zs = new Joveler.Compression.XZ.XZStream(rms, decompOpts, threadOpts))
@@ -235,7 +231,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.XZ)]
         public long XZManagedSharpCompress()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.xz"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (SharpCompress.Compressors.Xz.XZStream zs = new SharpCompress.Compressors.Xz.XZStream(rms))
@@ -255,7 +251,7 @@ namespace Benchmark
         {
             Joveler.Compression.LZ4.LZ4FrameDecompressOptions decompOpts = new Joveler.Compression.LZ4.LZ4FrameDecompressOptions();
 
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "lz4")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (Joveler.Compression.LZ4.LZ4FrameStream zs = new Joveler.Compression.LZ4.LZ4FrameStream(rms, decompOpts))
@@ -271,7 +267,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.LZ4)]
         public long LZ4ManagedK4os()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.lz4"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "lz4")];
             using MemoryStream ms = new MemoryStream();
             using (MemoryStream rms = new MemoryStream(compData))
             using (K4os.Compression.LZ4.Streams.LZ4DecoderStream zs = K4os.Compression.LZ4.Streams.LZ4Stream.Decode(rms, 0))
@@ -291,7 +287,7 @@ namespace Benchmark
         {
             Joveler.Compression.Zstd.ZstdDecompressOptions decompOpts = new Joveler.Compression.Zstd.ZstdDecompressOptions();
 
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zst"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zst")];
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(compData))
@@ -309,7 +305,7 @@ namespace Benchmark
         [BenchmarkCategory(BenchConfig.Zstd)]
         public long ZstdManagedZstdSharp()
         {
-            byte[] compData = SrcFiles[$"{Level}_{SrcFileName}.zst"];
+            byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zst")];
             using (MemoryStream ms = new MemoryStream())
             {
                 using (MemoryStream rms = new MemoryStream(compData))

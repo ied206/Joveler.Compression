@@ -47,14 +47,17 @@ namespace Benchmark
     [Verb("buffer", HelpText = "Benchmark buffer size")]
     public class BufferSizeBenchOptions : ParamOptions { }
 
-    [Verb("zlib-fork", HelpText = "Compare zlib forks")]
-    public class ZLibForkBenchOptions : ParamOptions { }
+    [Verb("conf-test", HelpText = "Test BenchConfig")]
+    public class ConfTestBenchOptions : ParamOptions { }
     #endregion
 
     #region Program
     public static class Program
     {
         #region Directories
+        /// <summary>
+        /// Used in real benchmarks
+        /// </summary>
         public static string BaseDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
         public static string SampleDir { get; private set; } = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
         #endregion
@@ -73,9 +76,31 @@ namespace Benchmark
         #endregion
 
         #region Init and Cleanup
+        public static void SetGlobalDir()
+        {
+            const string runtimes = "runtimes";
+
+            /// Paths used in real benchmarks
+            BaseDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
+            SampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+
+            string runtimeRootDir = Path.Combine(BaseDir, runtimes);
+            if (!Directory.Exists(runtimeRootDir))
+            { // Paths used in summary/results
+                // CompRatioConfig has return value collecting column. It runs at result print time.
+                BaseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
+                SampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Samples"));
+            }
+        }
+
         public static void NativeGlobalInit(AlgorithmFlags flags)
         {
+            // Unload any native library that has been loaded.
+            NativeGlobalCleanup();
+
             _initFlags = flags;
+
+            SetGlobalDir();
 
             const string runtimes = "runtimes";
             const string native = "native";
@@ -99,9 +124,6 @@ namespace Benchmark
                 xzPath = Path.Combine(libDir, "liblzma.dll");
                 lz4Path = Path.Combine(libDir, "liblz4.dll");
                 zstdPath = Path.Combine(libDir, "libzstd.dll");
-
-                Console.WriteLine(AppDomain.CurrentDomain.BaseDirectory);
-                Console.WriteLine(libDir);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
@@ -162,6 +184,8 @@ namespace Benchmark
                 Joveler.Compression.LZ4.LZ4Init.GlobalCleanup();
             if (_initFlags.HasFlag(AlgorithmFlags.Zstd))
                 Joveler.Compression.Zstd.ZstdInit.GlobalCleanup();
+
+            _initFlags = AlgorithmFlags.None;
         }
         #endregion
 
@@ -181,14 +205,14 @@ namespace Benchmark
 
             argParser.ParseArguments<AllBenchOptions,
                 CompBenchOptions, DecompBenchOptions, XZMultiOptionBenchOptions,
-                HashBenchOptions, BufferSizeBenchOptions, ZLibForkBenchOptions>(args)
+                HashBenchOptions, BufferSizeBenchOptions, ConfTestBenchOptions>(args)
                 .WithParsed<AllBenchOptions>(x => Opts = x)
                 .WithParsed<CompBenchOptions>(x => Opts = x)
                 .WithParsed<DecompBenchOptions>(x => Opts = x)
                 .WithParsed<XZMultiOptionBenchOptions>(x => Opts = x)
                 .WithParsed<HashBenchOptions>(x => Opts = x)
                 .WithParsed<BufferSizeBenchOptions>(x => Opts = x)
-                .WithParsed<ZLibForkBenchOptions>(x => Opts = x)
+                .WithParsed<ConfTestBenchOptions>(x => Opts = x)
                 .WithNotParsed(PrintErrorAndExit);
             Debug.Assert(Opts != null, $"{nameof(Opts)} != null");
 
@@ -202,7 +226,6 @@ namespace Benchmark
                     BenchmarkRunner.Run<XZMultiOptionBench>(config);
                     BenchmarkRunner.Run<HashBench>(config);
                     BenchmarkRunner.Run<BufferSizeBench>(config);
-                    BenchmarkRunner.Run<CorpusBench>(config);
                     break;
                 case CompBenchOptions _:
                     BenchmarkRunner.Run<CompBench>(config);
@@ -219,8 +242,8 @@ namespace Benchmark
                 case BufferSizeBenchOptions _:
                     BenchmarkRunner.Run<BufferSizeBench>(config);
                     break;
-                case ZLibForkBenchOptions _:
-                    BenchmarkRunner.Run<CorpusBench>(config);
+                case ConfTestBenchOptions _:
+                    BenchmarkRunner.Run<ConfigTestBench>();
                     break;
             }
         }
