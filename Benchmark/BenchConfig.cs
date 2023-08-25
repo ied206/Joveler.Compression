@@ -18,6 +18,7 @@ using System.Security.Principal;
 
 namespace Benchmark
 {
+    #region (Base) BenchConfig
     public class BenchConfig : ManualConfig
     {
         public const string ZLib = nameof(ZLib);
@@ -62,6 +63,7 @@ namespace Benchmark
             AddFilter(new AnyCategoriesFilter(categories.ToArray()));
         }
 
+#if ENABLE_MEMORY_PROFILER
         private static bool IsAdminPrivilege()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -76,8 +78,11 @@ namespace Benchmark
                     return false;
             }
         }
+#endif
     }
+    #endregion
 
+    #region ParamOrderConfig
     public class ParamOrderer : IOrderer
     {
         public bool SeparateLogicalGroups => true;
@@ -120,7 +125,9 @@ namespace Benchmark
             Orderer = new ParamOrderer();
         }
     }
+    #endregion
 
+    #region CompRatioConfig
     public class CompRatioColumn : IColumn
     {
         public string Id { get; private set; } = $"{nameof(CompRatioColumn)}.CompRatio";
@@ -154,7 +161,6 @@ namespace Benchmark
             if (levelVal is not string levelStr)
                 return $"[{levelKey}] not found";
 
-
             // Set parameters to benchmark instances
             PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
             srcFileNameProp.SetValue(instance, srcFileNameStr);
@@ -165,7 +171,7 @@ namespace Benchmark
             object ret = descriptor.WorkloadMethod.Invoke(instance, null);
             if (ret is not double retVal)
                 return $"[{ret.GetType().Name}] is not a dobule";
-            return retVal.ToString("0.00");
+            return retVal.ToString("0.000");
         }
 
         public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)
@@ -184,14 +190,10 @@ namespace Benchmark
         }
     }
 
-
-
     public class CompRatioConfig : BenchConfig
     {
         public CompRatioConfig() : base()
         {
-            WithOptions(ConfigOptions.Default);
-
             // Orderder
             Orderer = new ParamOrderer();
 
@@ -199,4 +201,5 @@ namespace Benchmark
             AddColumn(new CompRatioColumn());
         }
     }
+    #endregion
 }

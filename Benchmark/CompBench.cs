@@ -46,12 +46,7 @@ namespace Benchmark
             "Default",
         };
 #else
-        public IReadOnlyList<string> Levels { get; set; } = new string[]
-        {
-            "Fastest",
-            "Default",
-            "Best",
-        };
+        public IReadOnlyList<string> Levels { get; set; } = new List<string>(BenchSamples.Levels);
 #endif
 
 
@@ -165,7 +160,7 @@ namespace Benchmark
             GlobalSetup();
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(ZstdNativeJoveler) })]
+        [GlobalSetup(Targets = new string[] { nameof(ZstdSingleNativeJoveler), nameof(ZstdMultiNativeJoveler) })]
         public void ZstdSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.Zstd);
@@ -385,7 +380,7 @@ namespace Benchmark
         #region Benchmark - zstd
         [Benchmark(Description = "zstd (m_Joveler)")]
         [BenchmarkCategory(BenchConfig.Zstd)]
-        public double ZstdNativeJoveler()
+        public double ZstdSingleNativeJoveler()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -394,6 +389,34 @@ namespace Benchmark
                 Joveler.Compression.Zstd.ZstdCompressOptions compOpts = new Joveler.Compression.Zstd.ZstdCompressOptions
                 {
                     CompressionLevel = ZstdLevelDict[Level],
+                    MTWorkers = 0,
+                    LeaveOpen = true,
+                };
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.Zstd.ZstdStream zs = new Joveler.Compression.Zstd.ZstdStream(ms, compOpts))
+                {
+                    rms.CopyTo(zs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+            return (double)compLen / rawData.Length;
+        }
+
+        [Benchmark(Description = "zstd-T1 (m_Joveler)")]
+        [BenchmarkCategory(BenchConfig.Zstd)]
+        public double ZstdMultiNativeJoveler()
+        {
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Joveler.Compression.Zstd.ZstdCompressOptions compOpts = new Joveler.Compression.Zstd.ZstdCompressOptions
+                {
+                    CompressionLevel = ZstdLevelDict[Level],
+                    MTWorkers = 1,
                     LeaveOpen = true,
                 };
 
