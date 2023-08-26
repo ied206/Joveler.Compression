@@ -70,7 +70,6 @@ namespace Benchmark
         private string _sampleDir;
         private const string ModeCompress = "Compress";
         private const string ModeDecompress = "Decompress";
-        private const string Level = "Default";
 
         // BufferSizes
         [ParamsSource(nameof(BufferSizes))]
@@ -107,10 +106,8 @@ namespace Benchmark
         #endregion
 
         #region Startup and Cleanup
-        public void GlobalSetup()
+        public void GlobalSetup(AlgorithmFlags flags)
         {
-            Program.NativeGlobalInit(AlgorithmFlags.All);
-
             _sampleDir = Program.SampleDir;
 
             foreach (string srcFileName in SrcFileNames)
@@ -128,16 +125,25 @@ namespace Benchmark
                 }
 
                 // Load compressed files to decompress
-                foreach (string ext in new string[] { ".zz", ".xz", ".lz4", ".zst" })
+                List<string> decompExts = new List<string>(4);
+                if (flags.HasFlag(AlgorithmFlags.ZLibUp) || flags.HasFlag(AlgorithmFlags.ZLibNg))
+                    decompExts.Add(".zz");
+                else if (flags.HasFlag(AlgorithmFlags.XZ))
+                    decompExts.Add(".xz");
+                else if (flags.HasFlag(AlgorithmFlags.LZ4))
+                    decompExts.Add(".lz4");
+                else if (flags.HasFlag(AlgorithmFlags.Zstd))
+                    decompExts.Add(".zst");
+                foreach (string ext in decompExts)
                 {
-                    string srcCompFile = Path.Combine(_sampleDir, Level, srcFileName + ext);
+                    string srcCompFile = Path.Combine(_sampleDir, "Default", srcFileName + ext);
                     using MemoryStream ms = new MemoryStream();
                     using (FileStream fs = new FileStream(srcCompFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
                         fs.CopyTo(ms);
                     }
 
-                    SrcFiles[CompFileKey(Level, srcFileName, ext)] = ms.ToArray();
+                    SrcFiles[CompFileKey(srcFileName, ext)] = ms.ToArray();
                 }
             }
         }
@@ -146,16 +152,14 @@ namespace Benchmark
         public void ZLibNgSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.ZLibNg);
-
-            GlobalSetup();
+            GlobalSetup(AlgorithmFlags.ZLibNg);
         }
 
         [GlobalSetup(Targets = new string[] { nameof(XZSingleNativeJoveler), nameof(XZMultiNativeJoveler) })]
         public void XZSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.XZ);
-
-            GlobalSetup();
+            GlobalSetup(AlgorithmFlags.XZ);
         }
 
 
@@ -163,22 +167,20 @@ namespace Benchmark
         public void LZ4Setup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.LZ4);
-
-            GlobalSetup();
+            GlobalSetup(AlgorithmFlags.LZ4);
         }
 
         [GlobalSetup(Targets = new string[] { nameof(ZstdSingleNativeJoveler), nameof(ZstdMultiNativeJoveler) })]
         public void ZstdSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.Zstd);
-
-            GlobalSetup();
+            GlobalSetup(AlgorithmFlags.Zstd);
         }
 
         [GlobalSetup]
         public void ManagedSetup()
         {
-            GlobalSetup();
+            GlobalSetup(AlgorithmFlags.All);
         }
 
         [GlobalCleanup]
@@ -189,10 +191,10 @@ namespace Benchmark
         #endregion
 
         #region Util
-        public static string CompFileKey(string level, string srcFileName, string ext)
+        public static string CompFileKey(string srcFileName, string ext)
         {
             ext = ext.Trim('.');
-            return $"{level}_{srcFileName}.{ext}";
+            return $"{srcFileName}.{ext}";
         }
         #endregion
 
@@ -234,7 +236,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zz")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "zz")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
@@ -289,7 +291,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "xz")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
@@ -356,7 +358,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "xz")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
@@ -411,7 +413,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "lz4")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "lz4")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
@@ -467,7 +469,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zstd")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "zst")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
@@ -521,7 +523,7 @@ namespace Benchmark
                 };
 
                 long rawLen;
-                byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "zstd")];
+                byte[] compData = SrcFiles[CompFileKey(SrcFileName, "zst")];
                 using (MemoryStream ms = new MemoryStream())
                 {
                     using (MemoryStream rms = new MemoryStream(compData))
