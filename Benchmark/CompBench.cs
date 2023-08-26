@@ -1,12 +1,63 @@
 ﻿// #define SHORT_TEST
 
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 
 namespace Benchmark
 {
+    #region CompRatioColumn
+    public class CompRatioColumn : ReturnValueColumn
+    {
+        public override string Id { get; protected set; } = $"{nameof(CompRatioColumn)}.CompRatio";
+        public override string ColumnName { get; protected set; } = "CompRatio";
+        public override string Legend => $"Compression ratio of the configured algorithm.";
+
+        public CompRatioColumn()
+        {
+        }
+
+
+        public override bool LoadParams(object instance, BenchmarkCase benchmarkCase)
+        {
+            const string srcFileNameKey = nameof(CompBench.SrcFileName);
+            const string levelKey = nameof(CompBench.Level);
+
+            Descriptor descriptor = benchmarkCase.Descriptor;
+
+            // Get parameters from benchmarkCase
+            object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
+            object levelVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(levelKey, StringComparison.Ordinal)).Value;
+            if (srcFileNameVal is not string srcFileNameStr)
+                return false;
+            if (levelVal is not string levelStr)
+                return false;
+
+            // Set parameters to benchmark instances
+            PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
+            srcFileNameProp.SetValue(instance, srcFileNameStr);
+            PropertyInfo levelProp = descriptor.Type.GetProperty(levelKey);
+            levelProp.SetValue(instance, levelStr);
+            return true;
+        }
+
+        public override string ParseReturnObject(object ret) => ParseDouble(ret);
+    }
+
+    public class CompRatioConfig : BenchConfig
+    {
+        public CompRatioConfig() : base()
+        {
+            // Columns
+            AddColumn(new CompRatioColumn());
+        }
+    }
+    #endregion
+
     #region CompBench
     [Config(typeof(CompRatioConfig))]
 #if SHORT_TEST
@@ -103,7 +154,7 @@ namespace Benchmark
             ["Default"] = 3,
             ["Best"] = 22,
         };
-#endregion
+        #endregion
 
         #region Setup and Cleanup
         private void GlobalSetup()
@@ -453,5 +504,5 @@ namespace Benchmark
         }
         #endregion
     }
-#endregion
+    #endregion
 }

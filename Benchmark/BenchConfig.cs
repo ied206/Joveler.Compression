@@ -12,9 +12,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Principal;
 
 namespace Benchmark
 {
@@ -127,19 +124,19 @@ namespace Benchmark
     }
     #endregion
 
-    #region CompRatioConfig
-    public class CompRatioColumn : IColumn
+    #region ReturnValueColumn
+    public abstract class ReturnValueColumn : IColumn
     {
-        public string Id { get; private set; } = $"{nameof(CompRatioColumn)}.CompRatio";
-        public string ColumnName { get; private set; } = "CompRatio";
+        public virtual string Id { get; protected set; } = $"{nameof(ReturnValueColumn)}.Return";
+        public virtual string ColumnName { get; protected set; } = "Return";
+        public virtual string Legend => $"Return value of the benchmark case.";
         public bool AlwaysShow => true;
         public ColumnCategory Category => ColumnCategory.Custom;
         public int PriorityInCategory => 0;
         public bool IsNumeric => true;
         public UnitType UnitType => UnitType.Size;
-        public string Legend => $"Compression ratio of the configured algorithm";
 
-        public CompRatioColumn()
+        public ReturnValueColumn()
         {
         }
 
@@ -150,55 +147,28 @@ namespace Benchmark
             object instance = Activator.CreateInstance(descriptor.Type);
             descriptor.GlobalSetupMethod?.Invoke(instance, Array.Empty<object>());
 
-            const string srcFileNameKey = nameof(CompBench.SrcFileName);
-            const string levelKey = nameof(CompBench.Level);
-
-            // Get parameters from benchmarkCase
-            object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
-            object levelVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(levelKey, StringComparison.Ordinal)).Value;
-            if (srcFileNameVal is not string srcFileNameStr)
-                return $"[{srcFileNameKey}] not found";
-            if (levelVal is not string levelStr)
-                return $"[{levelKey}] not found";
-
-            // Set parameters to benchmark instances
-            PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
-            srcFileNameProp.SetValue(instance, srcFileNameStr);
-            PropertyInfo levelProp = descriptor.Type.GetProperty(levelKey);
-            levelProp.SetValue(instance, levelStr);
+            // Get parameters from benchmarkCase & Set parameters to benchmark instances
+            if (!LoadParams(instance, benchmarkCase))
+                return "Param load failed";
 
             // Run a benchmark ourselves and record return value
             object ret = descriptor.WorkloadMethod.Invoke(instance, null);
+            return ParseReturnObject(ret);
+        }
+
+        public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style) => GetValue(summary, benchmarkCase);
+
+        public bool IsAvailable(Summary summary) => true;
+        public bool IsDefault(Summary summary, BenchmarkCase benchmarkCase) => false;
+
+        public abstract bool LoadParams(object instance, BenchmarkCase benchmarkCase);
+        public abstract string ParseReturnObject(object ret);
+
+        protected static string ParseDouble(object ret)
+        {
             if (ret is not double retVal)
                 return $"[{ret.GetType().Name}] is not a dobule";
             return retVal.ToString("0.000");
-        }
-
-        public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)
-        {
-            return GetValue(summary, benchmarkCase);
-        }
-
-        public bool IsAvailable(Summary summary)
-        {
-            return true;
-        }
-
-        public bool IsDefault(Summary summary, BenchmarkCase benchmarkCase)
-        {
-            return false;
-        }
-    }
-
-    public class CompRatioConfig : BenchConfig
-    {
-        public CompRatioConfig() : base()
-        {
-            // Orderder
-            Orderer = new ParamOrderer();
-
-            // Columns
-            AddColumn(new CompRatioColumn());
         }
     }
     #endregion

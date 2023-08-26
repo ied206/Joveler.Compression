@@ -1,11 +1,69 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 
 namespace Benchmark
 {
-    [Config(typeof(CompRatioConfig))]
+    #region BufferRatioColumn
+    public class BufferRatioColumn : ReturnValueColumn
+    {
+        public override string Id { get; protected set; } = $"{nameof(BufferRatioColumn)}.CompRatio";
+        public override string ColumnName { get; protected set; } = "CompRatio";
+        public override string Legend => $"Compression ratio of the configured algorithm.";
+
+        public BufferRatioColumn()
+        {
+        }
+
+
+        public override bool LoadParams(object instance, BenchmarkCase benchmarkCase)
+        {
+            const string bufferSizeKey = nameof(BufferSizeBench.BufferSize);
+            const string srcFileNameKey = nameof(BufferSizeBench.SrcFileName);
+            const string modeKey = nameof(BufferSizeBench.Mode);
+
+            Descriptor descriptor = benchmarkCase.Descriptor;
+
+            // Get parameters from benchmarkCase
+            object bufferSizeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(bufferSizeKey, StringComparison.Ordinal)).Value;
+            object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
+            object modeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(modeKey, StringComparison.Ordinal)).Value;
+            if (bufferSizeVal is not string bufferSizeStr)
+                return false;
+            if (srcFileNameVal is not string srcFileNameStr)
+                return false;
+            if (modeVal is not string modeStr)
+                return false;
+
+            // Set parameters to benchmark instances
+            PropertyInfo bufferSizeProp = descriptor.Type.GetProperty(bufferSizeKey);
+            bufferSizeProp.SetValue(instance, bufferSizeStr);
+            PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
+            srcFileNameProp.SetValue(instance, srcFileNameStr);
+            PropertyInfo modeProp = descriptor.Type.GetProperty(modeKey);
+            modeProp.SetValue(instance, modeStr);
+            return true;
+        }
+
+        public override string ParseReturnObject(object ret) => ParseDouble(ret);
+    }
+
+    public class BufferRatioConfig : BenchConfig
+    {
+        public BufferRatioConfig() : base()
+        {
+            // Columns
+            AddColumn(new CompRatioColumn());
+        }
+    }
+    #endregion
+
+    #region BufferSizeBench
+    [Config(typeof(BufferRatioConfig))]
     public class BufferSizeBench
     {
         #region Fields and Properties
@@ -67,7 +125,7 @@ namespace Benchmark
                     }
 
                     SrcFiles[srcFileName] = ms.ToArray();
-                }                
+                }
 
                 // Load compressed files to decompress
                 foreach (string ext in new string[] { ".zz", ".xz", ".lz4", ".zst" })
@@ -187,7 +245,7 @@ namespace Benchmark
 
                     ms.Flush();
                     rawLen = ms.Position;
-                }                
+                }
                 return (double)compData.Length / rawLen;
             }
         }
@@ -480,4 +538,5 @@ namespace Benchmark
         }
         #endregion
     }
+    #endregion
 }

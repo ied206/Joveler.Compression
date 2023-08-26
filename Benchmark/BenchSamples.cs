@@ -32,5 +32,5 @@ namespace Benchmark
             "Default",
             "Best",
         };
-}
+    }
 }
