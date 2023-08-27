@@ -111,12 +111,7 @@ namespace Joveler.Compression.ZLib
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
-#if ZLIB_INHERIT_CALL
         private ZStreamBase _zs;
-#else
-        private ZStreamDirectL32 _zs32;
-        private ZStreamDirectL64 _zs64;
-#endif
         private GCHandle _zsPin;
 
         private readonly int _bufferSize = DefaultBufferSize;
@@ -144,7 +139,7 @@ namespace Joveler.Compression.ZLib
         |   ZLib |    4194304 |  3,532.8 us |  10.05 us |   8.91 us |
          */
         internal const int DefaultBufferSize = 256 * 1024;
-#endregion
+        #endregion
 
         #region Constructor
         /// <summary>
@@ -168,7 +163,6 @@ namespace Joveler.Compression.ZLib
             int formatWindowBits = CheckFormatWindowBits(compOpts.WindowBits, _mode, format);
             CheckMemLevel(compOpts.MemLevel);
 
-#if ZLIB_INHERIT_CALL
             switch (ZLibInit.Lib.PlatformLongSize)
             {
                 case PlatformLongSize.Long32:
@@ -188,37 +182,6 @@ namespace Joveler.Compression.ZLib
 
             ZLibRet ret = ZLibInit.Lib.NativeAbi.DeflateInit(_zs, compOpts.Level, formatWindowBits, compOpts.MemLevel);
             ZLibException.CheckReturnValue(ret, _zs);
-#else
-            // Prepare and init ZStream
-            switch (ZLibInit.Lib.PlatformLongSize)
-            {
-                case PlatformLongSize.Long32:
-                    {
-                        _zs32 = new ZStreamDirectL32();
-                        _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
-
-                        ZLibRet ret;
-                        if (ZLibInit.Lib.UseStdcall)
-                            ret = ZLibInit.Lib.SL32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
-                        else
-                            ret = ZLibInit.Lib.CL32.DeflateInit(_zs32, compOpts.Level, formatWindowBits, compOpts.MemLevel);
-                        ZLibException.CheckReturnValue(ret, _zs32);
-                        break;
-                    }
-                case PlatformLongSize.Long64:
-                    {
-                        _zs64 = new ZStreamDirectL64();
-                        _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
-
-                        ZLibRet ret = ZLibInit.Lib.L64.DeflateInit(_zs64, compOpts.Level, formatWindowBits, compOpts.MemLevel);
-                        ZLibException.CheckReturnValue(ret, _zs64);
-                        break;
-                    }
-                default:
-                    throw new PlatformNotSupportedException();
-            }
-#endif
-
         }
 
         /// <summary>
@@ -241,7 +204,6 @@ namespace Joveler.Compression.ZLib
             _workBuf = new byte[_bufferSize];
             int windowBits = CheckFormatWindowBits(decompOpts.WindowBits, _mode, format);
 
-#if ZLIB_INHERIT_CALL
             // Prepare and init ZStream
             switch (ZLibInit.Lib.PlatformLongSize)
             {
@@ -262,37 +224,6 @@ namespace Joveler.Compression.ZLib
 
             ZLibRet ret = ZLibInit.Lib.NativeAbi.InflateInit(_zs, windowBits);
             ZLibException.CheckReturnValue(ret, _zs);
-#else
-            // Prepare and init ZStream
-            switch (ZLibInit.Lib.PlatformLongSize)
-            {
-                case PlatformLongSize.Long32:
-                    {
-                        _zs32 = new ZStreamDirectL32();
-                        _zsPin = GCHandle.Alloc(_zs32, GCHandleType.Pinned);
-
-                        ZLibRet ret;
-                        if (ZLibInit.Lib.UseStdcall)
-                            ret = ZLibInit.Lib.SL32.InflateInit(_zs32, windowBits);
-                        else
-                            ret = ZLibInit.Lib.CL32.InflateInit(_zs32, windowBits);
-                        ZLibException.CheckReturnValue(ret, _zs32);
-                        break;
-                    }
-                case PlatformLongSize.Long64:
-                    {
-                        _zs64 = new ZStreamDirectL64();
-                        _zsPin = GCHandle.Alloc(_zs64, GCHandleType.Pinned);
-
-                        ZLibRet ret = ZLibInit.Lib.L64.InflateInit(_zs64, windowBits);
-                        ZLibException.CheckReturnValue(ret, _zs64);
-                        break;
-                    }
-                default:
-                    throw new PlatformNotSupportedException();
-            }
-#endif
-
         }
         #endregion
 
@@ -315,53 +246,9 @@ namespace Joveler.Compression.ZLib
                     BaseStream = null;
                 }
 
-#if ZLIB_INHERIT_CALL
                 ZLibInit.Lib.NativeAbi.DeflateEnd(_zs);
                 _zsPin.Free();
                 _zs = null;
-#else
-                switch (ZLibInit.Lib.PlatformLongSize)
-                {
-                    case PlatformLongSize.Long32:
-                        {
-                            if (_zs32 != null)
-                            {
-                                if (_mode == Mode.Compress)
-                                {
-                                    if (ZLibInit.Lib.UseStdcall)
-                                        ZLibInit.Lib.SL32.DeflateEnd(_zs32);
-                                    else
-                                        ZLibInit.Lib.CL32.DeflateEnd(_zs32);
-                                }
-                                else
-                                {
-                                    if (ZLibInit.Lib.UseStdcall)
-                                        ZLibInit.Lib.SL32.InflateEnd(_zs32);
-                                    else
-                                        ZLibInit.Lib.CL32.InflateEnd(_zs32);
-                                }
-
-                                _zsPin.Free();
-                                _zs32 = null;
-                            }
-                            break;
-                        }
-                    case PlatformLongSize.Long64:
-                        {
-                            if (_zs64 != null)
-                            {
-                                if (_mode == Mode.Compress)
-                                    ZLibInit.Lib.L64.DeflateEnd(_zs64);
-                                else
-                                    ZLibInit.Lib.L64.InflateEnd(_zs64);
-                                _zsPin.Free();
-                                _zs64 = null;
-                            }
-                            break;
-                        }
-                }
-#endif
-
 
                 _disposed = true;
             }
@@ -399,7 +286,6 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = _workBuf) // [In] Compressed
             fixed (byte* writePtr = span) // [Out] Will-be-decompressed
             {
-#if ZLIB_INHERIT_CALL
                 _zs.NextIn = readPtr + _workBufPos;
                 _zs.NextOut = writePtr;
                 _zs.AvailOut = (uint)span.Length;
@@ -433,90 +319,6 @@ namespace Joveler.Compression.ZLib
 
                     ZLibException.CheckReturnValue(ret, _zs);
                 }
-#else
-                switch (ZLibInit.Lib.PlatformLongSize)
-                {
-                    case PlatformLongSize.Long32:
-                        {
-                            _zs32.NextIn = readPtr + _workBufPos;
-                            _zs32.NextOut = writePtr;
-                            _zs32.AvailOut = (uint)span.Length;
-
-                            while (0 < _zs32.AvailOut)
-                            {
-                                if (_zs32.AvailIn == 0)
-                                { // Compressed Data is no longer available in array, so read more from _stream
-                                    int baseReadSize = BaseStream.Read(_workBuf, 0, _workBuf.Length);
-
-                                    _workBufPos = 0;
-                                    _zs32.NextIn = readPtr;
-                                    _zs32.AvailIn = (uint)baseReadSize;
-                                    TotalIn += baseReadSize;
-                                }
-
-                                uint inCount = _zs32.AvailIn;
-                                uint outCount = _zs32.AvailOut;
-
-                                // flush method for inflate has no effect
-                                ZLibRet ret;
-                                if (ZLibInit.Lib.UseStdcall)
-                                    ret = ZLibInit.Lib.SL32.Inflate(_zs32, ZLibFlush.NoFlush);
-                                else
-                                    ret = ZLibInit.Lib.CL32.Inflate(_zs32, ZLibFlush.NoFlush);
-
-                                _workBufPos += (int)(inCount - _zs32.AvailIn);
-                                readSize += (int)(outCount - _zs32.AvailOut);
-
-                                if (ret == ZLibRet.StreamEnd)
-                                {
-                                    _workBufPos = ReadDone; // magic for StreamEnd
-                                    break;
-                                }
-
-                                ZLibException.CheckReturnValue(ret, _zs32);
-                            }
-                        }
-                        break;
-                    case PlatformLongSize.Long64:
-                        {
-                            _zs64.NextIn = readPtr + _workBufPos;
-                            _zs64.NextOut = writePtr;
-                            _zs64.AvailOut = (uint)span.Length;
-
-                            while (0 < _zs64.AvailOut)
-                            {
-                                if (_zs64.AvailIn == 0)
-                                { // Compressed Data is no longer available in array, so read more from _stream
-                                    int baseReadSize = BaseStream.Read(_workBuf, 0, _workBuf.Length);
-
-                                    _workBufPos = 0;
-                                    _zs64.NextIn = readPtr;
-                                    _zs64.AvailIn = (uint)baseReadSize;
-                                    TotalIn += baseReadSize;
-                                }
-
-                                uint inCount = _zs64.AvailIn;
-                                uint outCount = _zs64.AvailOut;
-
-                                // flush method for inflate has no effect
-                                ZLibRet ret = ZLibInit.Lib.L64.Inflate(_zs64, ZLibFlush.NoFlush);
-
-                                _workBufPos += (int)(inCount - _zs64.AvailIn);
-                                readSize += (int)(outCount - _zs64.AvailOut);
-
-                                if (ret == ZLibRet.StreamEnd)
-                                {
-                                    _workBufPos = ReadDone; // magic for StreamEnd
-                                    break;
-                                }
-
-                                ZLibException.CheckReturnValue(ret, _zs64);
-                            }
-                        }
-                        break;
-                }
-#endif
-
             }
 
             TotalOut += readSize;
@@ -551,7 +353,6 @@ namespace Joveler.Compression.ZLib
             fixed (byte* readPtr = span) // [In] Compressed
             fixed (byte* writePtr = _workBuf) // [Out] Will-be-decompressed
             {
-#if ZLIB_INHERIT_CALL
                 _zs.NextIn = readPtr;
                 _zs.AvailIn = (uint)span.Length;
                 _zs.NextOut = writePtr + _workBufPos;
@@ -575,69 +376,6 @@ namespace Joveler.Compression.ZLib
 
                     ZLibException.CheckReturnValue(ret, _zs);
                 }
-#else
-                switch (ZLibInit.Lib.PlatformLongSize)
-                {
-                    case PlatformLongSize.Long32:
-                        {
-                            _zs32.NextIn = readPtr;
-                            _zs32.AvailIn = (uint)span.Length;
-                            _zs32.NextOut = writePtr + _workBufPos;
-                            _zs32.AvailOut = (uint)(_workBuf.Length - _workBufPos);
-
-                            while (_zs32.AvailIn != 0)
-                            {
-                                uint outCount = _zs32.AvailOut;
-                                ZLibRet ret;
-                                if (ZLibInit.Lib.UseStdcall)
-                                    ret = ZLibInit.Lib.SL32.Deflate(_zs32, ZLibFlush.NoFlush);
-                                else
-                                    ret = ZLibInit.Lib.CL32.Deflate(_zs32, ZLibFlush.NoFlush);
-                                _workBufPos += (int)(outCount - _zs32.AvailOut);
-
-                                if (_zs32.AvailOut == 0)
-                                {
-                                    BaseStream.Write(_workBuf, 0, _workBuf.Length);
-                                    TotalOut += _workBuf.Length;
-
-                                    _workBufPos = 0;
-                                    _zs32.NextOut = writePtr;
-                                    _zs32.AvailOut = (uint)_workBuf.Length;
-                                }
-
-                                ZLibException.CheckReturnValue(ret, _zs32);
-                            }
-                            break;
-                        }
-                    case PlatformLongSize.Long64:
-                        {
-                            _zs64.NextIn = readPtr;
-                            _zs64.AvailIn = (uint)span.Length;
-                            _zs64.NextOut = writePtr + _workBufPos;
-                            _zs64.AvailOut = (uint)(_workBuf.Length - _workBufPos);
-
-                            while (_zs64.AvailIn != 0)
-                            {
-                                uint outCount = _zs64.AvailOut;
-                                ZLibRet ret = ZLibInit.Lib.L64.Deflate(_zs64, ZLibFlush.NoFlush);
-                                _workBufPos += (int)(outCount - _zs64.AvailOut);
-
-                                if (_zs64.AvailOut == 0)
-                                {
-                                    BaseStream.Write(_workBuf, 0, _workBuf.Length);
-                                    TotalOut += _workBuf.Length;
-
-                                    _workBufPos = 0;
-                                    _zs64.NextOut = writePtr;
-                                    _zs64.AvailOut = (uint)_workBuf.Length;
-                                }
-
-                                ZLibException.CheckReturnValue(ret, _zs64);
-                            }
-                            break;
-                        }
-                }
-#endif
             }
         }
 
@@ -652,7 +390,6 @@ namespace Joveler.Compression.ZLib
 
             fixed (byte* writePtr = _workBuf)
             {
-#if ZLIB_INHERIT_CALL
                 _zs.NextIn = (byte*)0;
                 _zs.AvailIn = 0;
                 _zs.NextOut = writePtr + _workBufPos;
@@ -679,77 +416,6 @@ namespace Joveler.Compression.ZLib
                     _zs.NextOut = writePtr;
                     _zs.AvailOut = (uint)_workBuf.Length;
                 }
-#else
-                switch (ZLibInit.Lib.PlatformLongSize)
-                {
-                    case PlatformLongSize.Long32:
-                        {
-                            _zs32.NextIn = (byte*)0;
-                            _zs32.AvailIn = 0;
-                            _zs32.NextOut = writePtr + _workBufPos;
-                            _zs32.AvailOut = (uint)(_workBuf.Length - _workBufPos);
-
-                            ZLibRet ret = ZLibRet.Ok;
-                            while (ret != ZLibRet.StreamEnd)
-                            {
-                                if (_zs32.AvailOut != 0)
-                                {
-                                    uint outCount = _zs32.AvailOut;
-                                    if (ZLibInit.Lib.UseStdcall)
-                                        ret = ZLibInit.Lib.SL32.Deflate(_zs32, ZLibFlush.Finish);
-                                    else
-                                        ret = ZLibInit.Lib.CL32.Deflate(_zs32, ZLibFlush.Finish);
-
-                                    _workBufPos += (int)(outCount - _zs32.AvailOut);
-
-                                    if (ret != ZLibRet.StreamEnd && ret != ZLibRet.Ok)
-                                        throw new ZLibException(ret, _zs32.LastErrorMsg);
-                                }
-
-                                BaseStream.Write(_workBuf, 0, _workBufPos);
-                                TotalOut += _workBufPos;
-
-                                _workBufPos = 0;
-                                _zs32.NextOut = writePtr;
-                                _zs32.AvailOut = (uint)_workBuf.Length;
-                            }
-
-                            break;
-                        }
-                    case PlatformLongSize.Long64:
-                        {
-                            _zs64.NextIn = (byte*)0;
-                            _zs64.AvailIn = 0;
-                            _zs64.NextOut = writePtr + _workBufPos;
-                            _zs64.AvailOut = (uint)(_workBuf.Length - _workBufPos);
-
-                            ZLibRet ret = ZLibRet.Ok;
-                            while (ret != ZLibRet.StreamEnd)
-                            {
-                                if (_zs64.AvailOut != 0)
-                                {
-                                    uint outCount = _zs64.AvailOut;
-                                    ret = ZLibInit.Lib.L64.Deflate(_zs64, ZLibFlush.Finish);
-
-                                    _workBufPos += (int)(outCount - _zs64.AvailOut);
-
-                                    if (ret != ZLibRet.StreamEnd && ret != ZLibRet.Ok)
-                                        throw new ZLibException(ret, _zs64.LastErrorMsg);
-                                }
-
-                                BaseStream.Write(_workBuf, 0, _workBufPos);
-                                TotalOut += _workBufPos;
-
-                                _workBufPos = 0;
-                                _zs64.NextOut = writePtr;
-                                _zs64.AvailOut = (uint)_workBuf.Length;
-                            }
-
-                            break;
-                        }
-                }
-#endif
-
             }
 
             BaseStream.Flush();
@@ -799,7 +465,7 @@ namespace Joveler.Compression.ZLib
                 }
             }
         }
-#endregion
+        #endregion
 
         #region (internal, private) Check Arguments
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -856,7 +522,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-#endregion
+    #endregion
 
     #region ZLibStream
     /// <inheritdoc />

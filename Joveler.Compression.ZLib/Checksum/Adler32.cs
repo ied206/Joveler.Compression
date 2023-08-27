@@ -64,15 +64,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-#if ZLIB_INHERIT_CALL
                 return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)count);
-#else
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Adler32(checksum, bufPtr, (uint)count);
-                else
-                    return ZLibInit.Lib.Cdecl.Adler32(checksum, bufPtr, (uint)count);
-#endif
-
             }
         }
 
@@ -81,20 +73,12 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-#if ZLIB_INHERIT_CALL
                 return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
-#else
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Adler32(checksum, bufPtr, (uint)span.Length);
-                else
-                    return ZLibInit.Lib.Cdecl.Adler32(checksum, bufPtr, (uint)span.Length);
-#endif
-
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 
     #region Adler32Algorithm
     public sealed class Adler32Algorithm : HashAlgorithm
