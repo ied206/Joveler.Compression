@@ -57,7 +57,7 @@ namespace Benchmark
         public BufferRatioConfig() : base()
         {
             // Columns
-            AddColumn(new CompRatioColumn());
+            AddColumn(new BufferRatioColumn());
         }
     }
     #endregion
