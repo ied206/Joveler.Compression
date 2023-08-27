@@ -30,12 +30,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 
 namespace Joveler.Compression.XZ
 {
     #region StreamOptions
-    public class XZCompressOptions
+    public sealed class XZCompressOptions
     {
         /// <summary>
         /// Select a compression preset level. 
@@ -96,7 +95,7 @@ namespace Joveler.Compression.XZ
     /// <remarks>
     /// IT IS HIGHLY RECOMMENDED TO SET memlimitThreading AND memlimitStop YOURSELF.
     /// </remarks>
-    public class XZThreadedCompressOptions
+    public sealed class XZThreadedCompressOptions
     {
         /// <summary>
         /// Maximum uncompressed size of a Block.

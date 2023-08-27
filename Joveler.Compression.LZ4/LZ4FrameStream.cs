@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@ namespace Joveler.Compression.LZ4
     /// <remarks>
     /// Default value is based on default value of lz4 cli
     /// </remarks>
-    public class LZ4FrameCompressOptions
+    public sealed class LZ4FrameCompressOptions
     {
         /// <summary>
         /// 0: default (fast mode); values > LZ4CompLevel.Level12 count as LZ4CompLevel.Level12; values < 0 trigger "fast acceleration"
@@ -97,7 +97,7 @@ namespace Joveler.Compression.LZ4
     /// <summary>
     /// Decompress options for LZ4FrameStream
     /// </summary>
-    public class LZ4FrameDecompressOptions
+    public sealed class LZ4FrameDecompressOptions
     {
         /// <summary>
         /// disable checksum calculation and verification, even when one is present in frame, to save CPU time.
@@ -117,7 +117,7 @@ namespace Joveler.Compression.LZ4
 
     #region LZ4FrameStream
     // ReSharper disable once InconsistentNaming
-    public class LZ4FrameStream : Stream
+    public sealed class LZ4FrameStream : Stream
     {
         #region enum Mode
         private enum Mode

@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-2023 Hajin Jang
 
     zlib license
 
@@ -37,7 +37,7 @@ using System.Runtime.InteropServices;
 namespace Joveler.Compression.ZLib
 {
     #region StreamOptions
-    public class ZLibCompressOptions
+    public sealed class ZLibCompressOptions
     {
         /// <summary>
         /// Compression level. The Default is `ZLibCompLevel.Default`.
@@ -68,7 +68,7 @@ namespace Joveler.Compression.ZLib
         public bool LeaveOpen { get; set; } = false;
     }
 
-    public class ZLibDecompressOptions
+    public sealed class ZLibDecompressOptions
     {
         /// <summary>
         /// The base two logarithm of the window size (the size of the history buffer).  
@@ -125,7 +125,6 @@ namespace Joveler.Compression.ZLib
         // Const
         private const int ReadDone = -1;
 
-
         // Default Buffer Size
         /* Benchmark - 256K is the fatest.
         AMD Ryzen 5 3600 / .NET Core 3.1.13 / Windows 10.0.19042 x64 / zlib 1.2.11
@@ -157,7 +156,7 @@ namespace Joveler.Compression.ZLib
             _leaveOpen = compOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
             _workBuf = new byte[_bufferSize];
-            int formatWindowBits = CheckFormatWindowBits(compOpts.WindowBits, _mode, format);
+            int formatWindowBits = ProcessFormatWindowBits(compOpts.WindowBits, _mode, format);
             CheckMemLevel(compOpts.MemLevel);
 
             switch (ZLibInit.Lib.PlatformLongSize)
@@ -193,7 +192,7 @@ namespace Joveler.Compression.ZLib
             _leaveOpen = decompOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(decompOpts.BufferSize);
             _workBuf = new byte[_bufferSize];
-            int windowBits = CheckFormatWindowBits(decompOpts.WindowBits, _mode, format);
+            int windowBits = ProcessFormatWindowBits(decompOpts.WindowBits, _mode, format);
 
             // Prepare and init ZStream
             switch (ZLibInit.Lib.PlatformLongSize)
@@ -481,7 +480,7 @@ namespace Joveler.Compression.ZLib
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int CheckFormatWindowBits(ZLibWindowBits windowBits, Mode mode, Format format)
+        private static int ProcessFormatWindowBits(ZLibWindowBits windowBits, Mode mode, Format format)
         {
             if (!Enum.IsDefined(typeof(ZLibWindowBits), windowBits))
                 throw new ArgumentOutOfRangeException(nameof(windowBits));
