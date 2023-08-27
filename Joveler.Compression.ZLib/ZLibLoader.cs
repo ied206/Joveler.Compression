@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-2023 Hajin Jang
 
     zlib license
 
@@ -33,15 +33,28 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
+    internal class ZLibLoadData
+    {
+        public bool IsWindowsX86Stdcall { get; set; }
+    }
+
     internal class ZLibLoader : DynLoaderBase
     {
         #region Constructor
-        public ZLibLoader() : base() { }
+        public ZLibLoader() : base()
+        {
+        }
         #endregion
 
-        #region LP64 and LLP64
-        internal L32d L32 = new L32d();
+        #region cdecl and stdcall, LP64 and LLP64
+        internal CdeclL32d CL32 = new CdeclL32d();
+        internal StdcallL32d SL32 = new StdcallL32d();
         internal L64d L64 = new L64d();
+
+        internal StdcallNoLong Stdcall = new StdcallNoLong();
+        internal CdeclNoLong Cdecl = new CdeclNoLong();
+
+        internal bool UseStdcall { get; private set; } = true;
         #endregion
 
         #region (override) DefaultLibFileName
@@ -60,28 +73,59 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
+        #region HandleLoadData
+        protected override void HandleLoadData(object data)
+        {
+            if (data is not ZLibLoadData loadData)
+                return;
+
+            // Use stdcall only if `IsX86WindowsStdcall` is active on Windows x86 platform.
+            UseStdcall = loadData.IsWindowsX86Stdcall &&
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                RuntimeInformation.ProcessArchitecture == Architecture.X86;
+        }
+        #endregion
+
         #region LoadFunctions, ResetFunctions
         protected override void LoadFunctions()
         {
-            L32.Lib = this;
+            CL32.Lib = this;
+            SL32.Lib = this;
             L64.Lib = this;
 
             switch (PlatformLongSize)
             {
-                case PlatformLongSize.Long32:
-                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
-                    L32.DeflateInit2 = GetFuncPtr<L32d.deflateInit2_>(nameof(L32d.deflateInit2_));
-                    L32.Deflate = GetFuncPtr<L32d.deflate>(nameof(L32d.deflate));
-                    L32.DeflateEnd = GetFuncPtr<L32d.deflateEnd>(nameof(L32d.deflateEnd));
-                    #endregion
+                case PlatformLongSize.Long32: // cdecl/stdcall branch required
+                    if (UseStdcall)
+                    {
+                        #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                        SL32.DeflateInit2 = GetFuncPtr<StdcallL32d.deflateInit2_>(nameof(StdcallL32d.deflateInit2_));
+                        SL32.Deflate = GetFuncPtr<StdcallL32d.deflate>(nameof(StdcallL32d.deflate));
+                        SL32.DeflateEnd = GetFuncPtr<StdcallL32d.deflateEnd>(nameof(StdcallL32d.deflateEnd));
+                        #endregion
 
-                    #region Inflate - InflateInit2, Inflate, InflateEnd
-                    L32.InflateInit2 = GetFuncPtr<L32d.inflateInit2_>(nameof(L32d.inflateInit2_));
-                    L32.Inflate = GetFuncPtr<L32d.inflate>(nameof(L32d.inflate));
-                    L32.InflateEnd = GetFuncPtr<L32d.inflateEnd>(nameof(L32d.inflateEnd));
-                    #endregion
+                        #region Inflate - InflateInit2, Inflate, InflateEnd
+                        SL32.InflateInit2 = GetFuncPtr<StdcallL32d.inflateInit2_>(nameof(StdcallL32d.inflateInit2_));
+                        SL32.Inflate = GetFuncPtr<StdcallL32d.inflate>(nameof(StdcallL32d.inflate));
+                        SL32.InflateEnd = GetFuncPtr<StdcallL32d.inflateEnd>(nameof(StdcallL32d.inflateEnd));
+                        #endregion
+                    }
+                    else
+                    {
+                        #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                        CL32.DeflateInit2 = GetFuncPtr<CdeclL32d.deflateInit2_>(nameof(CdeclL32d.deflateInit2_));
+                        CL32.Deflate = GetFuncPtr<CdeclL32d.deflate>(nameof(CdeclL32d.deflate));
+                        CL32.DeflateEnd = GetFuncPtr<CdeclL32d.deflateEnd>(nameof(CdeclL32d.deflateEnd));
+                        #endregion
+
+                        #region Inflate - InflateInit2, Inflate, InflateEnd
+                        CL32.InflateInit2 = GetFuncPtr<CdeclL32d.inflateInit2_>(nameof(CdeclL32d.inflateInit2_));
+                        CL32.Inflate = GetFuncPtr<CdeclL32d.inflate>(nameof(CdeclL32d.inflate));
+                        CL32.InflateEnd = GetFuncPtr<CdeclL32d.inflateEnd>(nameof(CdeclL32d.inflateEnd));
+                        #endregion
+                    }
                     break;
-                case PlatformLongSize.Long64:
+                case PlatformLongSize.Long64: // Calling convention designation ignored
                     #region Deflate - DeflateInit2, Deflate, DeflateEnd
                     L64.DeflateInit2 = GetFuncPtr<L64d.deflateInit2_>(nameof(L64d.deflateInit2_));
                     L64.Deflate = GetFuncPtr<L64d.deflate>(nameof(L64d.deflate));
@@ -96,34 +140,65 @@ namespace Joveler.Compression.ZLib
                     break;
             }
 
-            #region Checksum - Adler32, Crc32
-            Adler32 = GetFuncPtr<adler32>(nameof(adler32));
-            Crc32 = GetFuncPtr<crc32>(nameof(crc32));
-            #endregion
+            if (UseStdcall)
+            {
+                #region Checksum - Adler32, Crc32
+                Stdcall.Adler32 = GetFuncPtr<StdcallNoLong.adler32>(nameof(StdcallNoLong.adler32));
+                Stdcall.Crc32 = GetFuncPtr<StdcallNoLong.crc32>(nameof(StdcallNoLong.crc32));
+                #endregion
 
-            #region Version - ZLibVersion
-            ZLibVersionPtr = GetFuncPtr<zlibVersion>(nameof(zlibVersion));
-            #endregion
+                #region Version - ZLibVersion
+                Stdcall.ZLibVersionPtr = GetFuncPtr<StdcallNoLong.zlibVersion>(nameof(StdcallNoLong.zlibVersion));
+                #endregion
+            }
+            else
+            {
+                #region Checksum - Adler32, Crc32
+                Cdecl.Adler32 = GetFuncPtr<CdeclNoLong.adler32>(nameof(CdeclNoLong.adler32));
+                Cdecl.Crc32 = GetFuncPtr<CdeclNoLong.crc32>(nameof(CdeclNoLong.crc32));
+                #endregion
+
+                #region Version - ZLibVersion
+                Cdecl.ZLibVersionPtr = GetFuncPtr<CdeclNoLong.zlibVersion>(nameof(CdeclNoLong.zlibVersion));
+                #endregion
+            }
         }
 
         protected override void ResetFunctions()
         {
             switch (PlatformLongSize)
             {
-                case PlatformLongSize.Long32:
-                    #region Deflate - DeflateInit2, Deflate, DeflateEnd
-                    L32.DeflateInit2 = null;
-                    L32.Deflate = null;
-                    L32.DeflateEnd = null;
-                    #endregion
+                case PlatformLongSize.Long32: // cdecl/stdcall branch required
+                    if (UseStdcall)
+                    {
+                        #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                        SL32.DeflateInit2 = null;
+                        SL32.Deflate = null;
+                        SL32.DeflateEnd = GetFuncPtr<StdcallL32d.deflateEnd>(nameof(StdcallL32d.deflateEnd));
+                        #endregion
 
-                    #region Inflate - InflateInit2, Inflate, InflateEnd
-                    L32.InflateInit2 = null;
-                    L32.Inflate = null;
-                    L32.InflateEnd = null;
-                    #endregion
+                        #region Inflate - InflateInit2, Inflate, InflateEnd
+                        SL32.InflateInit2 = null;
+                        SL32.Inflate = null;
+                        SL32.InflateEnd = null;
+                        #endregion
+                    }
+                    else
+                    {
+                        #region Deflate - DeflateInit2, Deflate, DeflateEnd
+                        CL32.DeflateInit2 = null;
+                        CL32.Deflate = null;
+                        CL32.DeflateEnd = null;
+                        #endregion
+
+                        #region Inflate - InflateInit2, Inflate, InflateEnd
+                        CL32.InflateInit2 = null;
+                        CL32.Inflate = null;
+                        CL32.InflateEnd = null;
+                        #endregion
+                    }
                     break;
-                case PlatformLongSize.Long64:
+                case PlatformLongSize.Long64: // Calling convention designation ignored
                     #region Deflate - DeflateInit2, Deflate, DeflateEnd
                     L64.DeflateInit2 = null;
                     L64.Deflate = null;
@@ -138,14 +213,28 @@ namespace Joveler.Compression.ZLib
                     break;
             }
 
-            #region Checksum - Adler32, Crc32
-            Adler32 = null;
-            Crc32 = null;
-            #endregion
+            if (UseStdcall)
+            {
+                #region Checksum - Adler32, Crc32
+                Stdcall.Adler32 = null;
+                Stdcall.Crc32 = null;
+                #endregion
 
-            #region Version - ZLibVersion
-            ZLibVersionPtr = null;
-            #endregion
+                #region Version - ZLibVersion
+                Stdcall.ZLibVersionPtr = null;
+                #endregion
+            }
+            else
+            {
+                #region Checksum - Adler32, Crc32
+                Cdecl.Adler32 = null;
+                Cdecl.Crc32 = null;
+                #endregion
+
+                #region Version - ZLibVersion
+                Cdecl.ZLibVersionPtr = null;
+                #endregion
+            }
         }
         #endregion
 
@@ -155,7 +244,7 @@ namespace Joveler.Compression.ZLib
             public ZLibLoader Lib { get; internal set; }
 
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflateInit2_(
                 ZStreamL64 strm,
                 ZLibCompLevel level,
@@ -169,25 +258,26 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet DeflateInit(ZStreamL64 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                string zlibVer = Lib.ZLibVersion();
+                // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
+                string zlibVer = Lib.Cdecl.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
                         ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL64>());
             }
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
             internal deflate Deflate;
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflateEnd(
                 ZStreamL64 strm);
             internal deflateEnd DeflateEnd;
             #endregion
 
             #region Inflate - InflateInit2, Inflate, InflateEnd
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflateInit2_(
                 ZStreamL64 strm,
                 int windowBits,
@@ -197,29 +287,31 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet InflateInit(ZStreamL64 strm, int windowBits)
             {
-                string zlibVer = Lib.ZLibVersion();
+                // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
+                string zlibVer = Lib.Cdecl.ZLibVersion();
                 return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL64>());
             }
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
             internal inflate Inflate;
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflateEnd(
                 ZStreamL64 strm);
             internal inflateEnd InflateEnd;
             #endregion
         }
 
-        internal class L32d
+        internal class CdeclL32d
         {
+            private const CallingConvention CallConv = CallingConvention.Cdecl;
             public ZLibLoader Lib { get; internal set; }
 
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateInit2_(
                 ZStreamL32 strm,
                 ZLibCompLevel level,
@@ -233,25 +325,25 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet DeflateInit(ZStreamL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                string zlibVer = Lib.ZLibVersion();
+                string zlibVer = Lib.Cdecl.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
                         ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
             }
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
             internal deflate Deflate;
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
                 ZStreamL32 strm);
             internal deflateEnd DeflateEnd;
             #endregion
 
             #region Inflate - InflateInit2, Inflate, InflateEnd
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateInit2_(
                 ZStreamL32 strm,
                 int windowBits,
@@ -261,44 +353,144 @@ namespace Joveler.Compression.ZLib
 
             internal ZLibRet InflateInit(ZStreamL32 strm, int windowBits)
             {
-                string zlibVer = Lib.ZLibVersion();
+                string zlibVer = Lib.Cdecl.ZLibVersion();
                 return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
             }
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
             internal inflate Inflate;
 
-            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateEnd(ZStreamL32 strm);
             internal inflateEnd InflateEnd;
             #endregion
         }
 
-        #region Checksum - Adler32, Crc32
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal unsafe delegate uint adler32(
-            uint adler,
-            byte* buf,
-            uint len);
-        internal adler32 Adler32;
+        internal class StdcallL32d
+        {
+            private const CallingConvention CallConv = CallingConvention.Cdecl;
+            public ZLibLoader Lib { get; internal set; }
 
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal unsafe delegate uint crc32(
-            uint crc,
-            byte* buf,
-            uint len);
-        internal crc32 Crc32;
-        #endregion
+            #region Deflate - DeflateInit2, Deflate, DeflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet deflateInit2_(
+                ZStreamL32 strm,
+                ZLibCompLevel level,
+                ZLibCompMethod method,
+                int windowBits,
+                ZLibMemLevel memLevel,
+                ZLibCompStrategy strategy,
+                [MarshalAs(UnmanagedType.LPStr)] string version,
+                int stream_size);
+            internal deflateInit2_ DeflateInit2;
 
-        #region Version - ZLibVersion
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal delegate IntPtr zlibVersion();
-        private zlibVersion ZLibVersionPtr;
-        internal string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
-        #endregion
+            internal ZLibRet DeflateInit(ZStreamL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            {
+                string zlibVer = Lib.Stdcall.ZLibVersion();
+                return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet deflate(
+                ZStreamL32 strm,
+                ZLibFlush flush);
+            internal deflate Deflate;
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet deflateEnd(
+                ZStreamL32 strm);
+            internal deflateEnd DeflateEnd;
+            #endregion
+
+            #region Inflate - InflateInit2, Inflate, InflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet inflateInit2_(
+                ZStreamL32 strm,
+                int windowBits,
+                [MarshalAs(UnmanagedType.LPStr)] string version,
+                int stream_size);
+            internal inflateInit2_ InflateInit2;
+
+            internal ZLibRet InflateInit(ZStreamL32 strm, int windowBits)
+            {
+                string zlibVer = Lib.Stdcall.ZLibVersion();
+                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet inflate(
+                ZStreamL32 strm,
+                ZLibFlush flush);
+            internal inflate Inflate;
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet inflateEnd(ZStreamL32 strm);
+            internal inflateEnd InflateEnd;
+            #endregion
+        }
+
+        internal class StdcallNoLong
+        {
+            private const CallingConvention CallConv = CallingConvention.Cdecl;
+
+            #region Checksum - Adler32, Crc32
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint adler32(
+                uint adler,
+                byte* buf,
+                uint len);
+            internal adler32 Adler32;
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint crc32(
+                uint crc,
+                byte* buf,
+                uint len);
+            internal crc32 Crc32;
+            #endregion
+
+            #region Version - ZLibVersion
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate IntPtr zlibVersion();
+            internal zlibVersion ZLibVersionPtr;
+            internal string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
+            #endregion
+        }
+
+        internal class CdeclNoLong
+        {
+            private const CallingConvention CallConv = CallingConvention.Cdecl;
+
+            #region Checksum - Adler32, Crc32
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint adler32(
+                uint adler,
+                byte* buf,
+                uint len);
+            internal adler32 Adler32;
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint crc32(
+                uint crc,
+                byte* buf,
+                uint len);
+            internal crc32 Crc32;
+            #endregion
+
+            #region Version - ZLibVersion
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate IntPtr zlibVersion();
+            internal zlibVersion ZLibVersionPtr;
+            internal string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
+            #endregion
+        }
+
+
+
         #endregion
     }
 }

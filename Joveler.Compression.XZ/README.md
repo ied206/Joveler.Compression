@@ -43,7 +43,7 @@ Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packag
 
 ### Supported XZ Utils version
 
-- 5.4.3 (Included)
+- 5.4.4 (Included)
 
 ## Usage
 

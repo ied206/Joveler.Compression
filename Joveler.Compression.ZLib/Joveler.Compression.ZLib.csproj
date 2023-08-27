@@ -16,7 +16,7 @@
 The library provides the fast native implementation of DeflateStream, ZLibStream, GZipStream.
 It also supports fast calculation of CRC32 and Adler32 checksum.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (c) 2017-2021 Hajin Jang</Copyright>
+    <Copyright>Copyright (c) 2017-2023 Hajin Jang</Copyright>
     <PackageLicenseExpression>Zlib</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -28,7 +28,7 @@ Supports Windows, Linux and macOS.</Description>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.1.1" />
+    <PackageReference Include="Joveler.DynLoader" Version="2.2.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6 -->
@@ -84,7 +84,7 @@ Supports Windows, Linux and macOS.</Description>
   <!-- NuGet Pacakge -->
   <ItemGroup>
     <!-- Nuget README -->
-    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md"/>
+    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
     <!-- Build Script for .NET Framework -->

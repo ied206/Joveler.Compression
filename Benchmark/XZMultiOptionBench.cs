@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Benchmark
 {
@@ -25,12 +24,12 @@ namespace Benchmark
             "Type4.txt",
         };
         public Dictionary<string, byte[]> SrcCompFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        public Dictionary<string, byte[]> SrcDecompFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);        
+        public Dictionary<string, byte[]> SrcDecompFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         // TimeOut (in milliseconds)
         [ParamsSource(nameof(TimeOutValues))]
         public uint TimeOutValue { get; set; }
-        public IReadOnlyList<uint> TimeOutValues { get; set; } = new uint[] 
+        public IReadOnlyList<uint> TimeOutValues { get; set; } = new uint[]
         {
             0,
             100,
@@ -41,7 +40,7 @@ namespace Benchmark
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Program.NativeGlobalInit();
+            Program.NativeGlobalInit(AlgorithmFlags.XZ);
 
             _sampleDir = Program.SampleDir;
 
@@ -74,7 +73,7 @@ namespace Benchmark
 
                     SrcDecompFiles[$"{srcFileName}.xz"] = ms.ToArray();
                 }
-                
+
             }
         }
 

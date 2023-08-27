@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Benchmark": {
+      "commandName": "Project",
+      "commandLineArgs": "conf-test"
+    }
+  }
+}

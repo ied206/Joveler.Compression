@@ -9,7 +9,7 @@
 
     <PackageId>Joveler.Compression.XZ</PackageId>
     <Title>Joveler.Compression.XZ</Title>
-    <Version>4.2.2</Version>
+    <Version>4.2.3</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>XZ Utils (liblzma) pinvoke library for .NET.
@@ -21,13 +21,13 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Update xz-utils to 5.4.3.</PackageReleaseNotes>
+    <PackageReleaseNotes>- Update xz-utils to 5.4.4.</PackageReleaseNotes>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.1.1" />
+    <PackageReference Include="Joveler.DynLoader" Version="2.2.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6 -->
@@ -83,7 +83,7 @@ Supports Windows, Linux and macOS.</Description>
   <!-- NuGet Pacakge -->
   <ItemGroup>
     <!-- Nuget README -->
-    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md"/>
+    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
     <!-- Build Script for .NET Framework -->

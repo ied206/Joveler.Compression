@@ -2,6 +2,12 @@
 
 ## v4.x
 
+### v4.2.3
+
+Released in 2023-08-27
+
+- Update xz-utils to 5.4.4.
+
 ### v4.2.2
 
 Released in 2023-08-06

@@ -51,7 +51,7 @@ namespace Joveler.Compression.ZLib.Tests
             SampleDir = Path.Combine(BaseDir, "Samples");
 
             string libPath = GetNativeLibPath();
-            ZLibInit.GlobalInit(libPath);
+            ZLibInit.GlobalInit(libPath, false);
         }
 
         [AssemblyCleanup]
@@ -96,7 +96,7 @@ namespace Joveler.Compression.ZLib.Tests
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(libDir, "zlibwapi.dll");
+                libPath = Path.Combine(libDir, "zlib1.dll");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 libPath = Path.Combine(libDir, "libz.so");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
