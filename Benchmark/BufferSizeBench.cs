@@ -32,7 +32,7 @@ namespace Benchmark
             object bufferSizeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(bufferSizeKey, StringComparison.Ordinal)).Value;
             object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
             object modeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(modeKey, StringComparison.Ordinal)).Value;
-            if (bufferSizeVal is not string bufferSizeStr)
+            if (bufferSizeVal is not int bufferSizeInt)
                 return false;
             if (srcFileNameVal is not string srcFileNameStr)
                 return false;
@@ -41,7 +41,7 @@ namespace Benchmark
 
             // Set parameters to benchmark instances
             PropertyInfo bufferSizeProp = descriptor.Type.GetProperty(bufferSizeKey);
-            bufferSizeProp.SetValue(instance, bufferSizeStr);
+            bufferSizeProp.SetValue(instance, bufferSizeInt);
             PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
             srcFileNameProp.SetValue(instance, srcFileNameStr);
             PropertyInfo modeProp = descriptor.Type.GetProperty(modeKey);
