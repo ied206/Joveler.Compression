@@ -71,9 +71,6 @@ public static void InitNativeLibrary()
         case Architecture.X64:
             arch = "x64";
             break;
-        case Architecture.Arm:
-            arch = "armhf";
-            break;
         case Architecture.Arm64:
             arch = "arm64";
             break;
@@ -89,7 +86,7 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.4.3`. They will be copied into the build directory at build time.
+Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.4.4`. They will be copied into the build directory at build time.
 
 #### On .NET/.NET Core & .NET Standard
 
@@ -290,7 +287,7 @@ XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
 };
 
 // Limit maximum memory liblzma is allowed to use.
-// The following values are taken from the xz CLI program code.
+// The following values are taken from the xz CLI program logic.
 switch (XZInit.Lib.PlatformBitness)
 {
     case DynLoader.PlatformBitness.Bit32:
