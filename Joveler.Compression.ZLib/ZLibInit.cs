@@ -100,12 +100,14 @@ namespace Joveler.Compression.ZLib
         public static string VersionString()
         {
             Manager.EnsureLoaded();
-
+#if ZLIB_INHERIT_CALL
+            return Lib.NativeAbi.ZLibVersion();
+#else
             if (Lib.UseStdcall)
                 return Lib.Stdcall.ZLibVersion();
             else
                 return Lib.Cdecl.ZLibVersion();
-
+#endif
         }
         #endregion
     }

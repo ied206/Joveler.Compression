@@ -55,7 +55,19 @@ namespace Joveler.Compression.ZLib
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckReturnValue(ZLibRet ret, ZStreamL32 zs = null)
+#if ZLIB_INHERIT_CALL
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamBase zs = null)
+        {
+            if (ret != ZLibRet.Ok)
+            {
+                if (zs == null)
+                    throw new ZLibException(ret);
+                else
+                    throw new ZLibException(ret, zs.LastErrorMsg);
+            }
+        }
+#else
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamDirectL32 zs = null)
         {
             if (ret != ZLibRet.Ok)
             {
@@ -66,7 +78,7 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        internal static void CheckReturnValue(ZLibRet ret, ZStreamL64 zs = null)
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamDirectL64 zs = null)
         {
             if (ret != ZLibRet.Ok)
             {
@@ -76,7 +88,7 @@ namespace Joveler.Compression.ZLib
                     throw new ZLibException(ret, zs.LastErrorMsg);
             }
         }
-
+#endif
         #region Serializable
         protected ZLibException(SerializationInfo info, StreamingContext ctx)
         {
@@ -92,5 +104,5 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-    #endregion
+#endregion
 }

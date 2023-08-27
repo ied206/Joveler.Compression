@@ -26,6 +26,9 @@ Supports Windows, Linux and macOS.</Description>
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <PropertyGroup>
+	<DefineConstants>$(DefineConstants);ZLIB_INHERIT_CALL</DefineConstants>
+  </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
     <PackageReference Include="Joveler.DynLoader" Version="2.2.0" />

@@ -38,7 +38,7 @@ namespace Joveler.Compression.ZLib
         public bool IsWindowsX86Stdcall { get; set; }
     }
 
-    internal class ZLibLoader : DynLoaderBase
+    internal partial class ZLibLoader : DynLoaderBase
     {
         #region Constructor
         public ZLibLoader() : base()
@@ -47,15 +47,20 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region cdecl and stdcall, LP64 and LLP64
+#if !ZLIB_INHERIT_CALL
         internal CdeclL32d CL32 = new CdeclL32d();
         internal StdcallL32d SL32 = new StdcallL32d();
         internal L64d L64 = new L64d();
 
         internal StdcallNoLong Stdcall = new StdcallNoLong();
         internal CdeclNoLong Cdecl = new CdeclNoLong();
+#else
+        internal ZLibNativeAbi NativeAbi;
+#endif
 
         internal bool UseStdcall { get; private set; } = true;
         #endregion
+
 
         #region (override) DefaultLibFileName
         protected override string DefaultLibFileName
@@ -86,6 +91,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
+#if !ZLIB_INHERIT_CALL
         #region LoadFunctions, ResetFunctions
         protected override void LoadFunctions()
         {
@@ -237,7 +243,38 @@ namespace Joveler.Compression.ZLib
             }
         }
         #endregion
+#else
+        #region LoadFunctions, ResetFunctions
+        protected override void LoadFunctions()
+        {
+            if (PlatformLongSize == PlatformLongSize.Long64)
+            {
+                NativeAbi = new ZLibNativeAbiL64(this);
+            }
+            else if (PlatformLongSize == PlatformLongSize.Long32)
+            {
+                if (UseStdcall)
+                    NativeAbi = new ZLibNativeAbiStdcallL32(this);
+                else
+                    NativeAbi = new ZLibNativeAbiCdeclL32(this);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException();
+            }
 
+            NativeAbi.LoadFunctions();
+        }
+
+        protected override void ResetFunctions()
+        {
+            NativeAbi.ResetFunctions();
+            NativeAbi = null;
+        }
+        #endregion
+#endif
+
+#if !ZLIB_INHERIT_CALL
         #region zlib Function Pointers
         internal class L64d
         {
@@ -246,7 +283,7 @@ namespace Joveler.Compression.ZLib
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflateInit2_(
-                ZStreamL64 strm,
+                ZStreamDirectL64 strm,
                 ZLibCompLevel level,
                 ZLibCompMethod method,
                 int windowBits,
@@ -256,51 +293,51 @@ namespace Joveler.Compression.ZLib
                 int stream_size);
             internal deflateInit2_ DeflateInit2;
 
-            internal ZLibRet DeflateInit(ZStreamL64 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            internal ZLibRet DeflateInit(ZStreamDirectL64 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = Lib.Cdecl.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL64>());
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamDirectL64>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflate(
-                ZStreamL64 strm,
+                ZStreamDirectL64 strm,
                 ZLibFlush flush);
             internal deflate Deflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet deflateEnd(
-                ZStreamL64 strm);
+                ZStreamDirectL64 strm);
             internal deflateEnd DeflateEnd;
             #endregion
 
             #region Inflate - InflateInit2, Inflate, InflateEnd
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflateInit2_(
-                ZStreamL64 strm,
+                ZStreamDirectL64 strm,
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal inflateInit2_ InflateInit2;
 
-            internal ZLibRet InflateInit(ZStreamL64 strm, int windowBits)
+            internal ZLibRet InflateInit(ZStreamDirectL64 strm, int windowBits)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = Lib.Cdecl.ZLibVersion();
-                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL64>());
+                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamDirectL64>());
             }
 
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflate(
-                ZStreamL64 strm,
+                ZStreamDirectL64 strm,
                 ZLibFlush flush);
             internal inflate Inflate;
 
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate ZLibRet inflateEnd(
-                ZStreamL64 strm);
+                ZStreamDirectL64 strm);
             internal inflateEnd InflateEnd;
             #endregion
         }
@@ -313,7 +350,7 @@ namespace Joveler.Compression.ZLib
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateInit2_(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibCompLevel level,
                 ZLibCompMethod method,
                 int windowBits,
@@ -323,48 +360,48 @@ namespace Joveler.Compression.ZLib
                 int stream_size);
             internal deflateInit2_ DeflateInit2;
 
-            internal ZLibRet DeflateInit(ZStreamL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            internal ZLibRet DeflateInit(ZStreamDirectL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 string zlibVer = Lib.Cdecl.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamDirectL32>());
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibFlush flush);
             internal deflate Deflate;
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
-                ZStreamL32 strm);
+                ZStreamDirectL32 strm);
             internal deflateEnd DeflateEnd;
             #endregion
 
             #region Inflate - InflateInit2, Inflate, InflateEnd
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateInit2_(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal inflateInit2_ InflateInit2;
 
-            internal ZLibRet InflateInit(ZStreamL32 strm, int windowBits)
+            internal ZLibRet InflateInit(ZStreamDirectL32 strm, int windowBits)
             {
                 string zlibVer = Lib.Cdecl.ZLibVersion();
-                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamDirectL32>());
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibFlush flush);
             internal inflate Inflate;
 
             [UnmanagedFunctionPointer(CallConv)]
-            internal delegate ZLibRet inflateEnd(ZStreamL32 strm);
+            internal delegate ZLibRet inflateEnd(ZStreamDirectL32 strm);
             internal inflateEnd InflateEnd;
             #endregion
         }
@@ -377,7 +414,7 @@ namespace Joveler.Compression.ZLib
             #region Deflate - DeflateInit2, Deflate, DeflateEnd
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateInit2_(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibCompLevel level,
                 ZLibCompMethod method,
                 int windowBits,
@@ -387,48 +424,48 @@ namespace Joveler.Compression.ZLib
                 int stream_size);
             internal deflateInit2_ DeflateInit2;
 
-            internal ZLibRet DeflateInit(ZStreamL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            internal ZLibRet DeflateInit(ZStreamDirectL32 strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 string zlibVer = Lib.Stdcall.ZLibVersion();
                 return DeflateInit2(strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamDirectL32>());
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibFlush flush);
             internal deflate Deflate;
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
-                ZStreamL32 strm);
+                ZStreamDirectL32 strm);
             internal deflateEnd DeflateEnd;
             #endregion
 
             #region Inflate - InflateInit2, Inflate, InflateEnd
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateInit2_(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
             internal inflateInit2_ InflateInit2;
 
-            internal ZLibRet InflateInit(ZStreamL32 strm, int windowBits)
+            internal ZLibRet InflateInit(ZStreamDirectL32 strm, int windowBits)
             {
                 string zlibVer = Lib.Stdcall.ZLibVersion();
-                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return InflateInit2(strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamDirectL32>());
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
-                ZStreamL32 strm,
+                ZStreamDirectL32 strm,
                 ZLibFlush flush);
             internal inflate Inflate;
 
             [UnmanagedFunctionPointer(CallConv)]
-            internal delegate ZLibRet inflateEnd(ZStreamL32 strm);
+            internal delegate ZLibRet inflateEnd(ZStreamDirectL32 strm);
             internal inflateEnd InflateEnd;
             #endregion
         }
@@ -488,9 +525,7 @@ namespace Joveler.Compression.ZLib
             internal string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
             #endregion
         }
-
-
-
         #endregion
+#endif
     }
 }

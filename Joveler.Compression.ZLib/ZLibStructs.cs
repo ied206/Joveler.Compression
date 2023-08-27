@@ -139,9 +139,247 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
+    #region ZStreamBase (inheritance)
+    [StructLayout(LayoutKind.Sequential)]
+    internal abstract unsafe class ZStreamBase
+    {
+        /// <summary>
+        /// next input byte
+        /// </summary>
+        public abstract byte* NextIn { get; set; }
+        /// <summary>
+        /// number of bytes available at next_in
+        /// </summary>
+        public abstract uint AvailIn { get; set; }
+        /// <summary>
+        /// total number of input bytes read so far
+        /// </summary>
+        public abstract uint TotalIn { get; set; }
+
+        /// <summary>
+        /// next output byte will go here
+        /// </summary>
+        public abstract byte* NextOut { get; set; }
+        /// <summary>
+        /// remaining free space at next_out
+        /// </summary>
+        public abstract uint AvailOut { get; set; }
+        /// <summary>
+        /// total number of bytes output so far
+        /// </summary>
+        public abstract uint TotalOut { get; set; }
+
+        /// <summary>
+        /// last error message, NULL if no error
+        /// </summary>
+        protected abstract IntPtr Msg { get; set; }
+        /// <summary>
+        /// last error message, NULL if no error
+        /// </summary>
+        public string LastErrorMsg => Marshal.PtrToStringAnsi(Msg);
+
+        /// <summary>
+        /// best guess about the data type: binary or text for deflate, or the decoding state for inflate
+        /// </summary>
+        public abstract ZLibDataType DataType { get; set; }
+        /// <summary>
+        /// Adler-32 or CRC-32 value of the uncompressed data
+        /// </summary>
+        public abstract uint Adler { get; set; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZStreamL32 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override uint TotalIn
+        {
+            get => _totalIn;
+            set => _totalIn = value;
+        }
+        private uint _totalIn = 0;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override uint TotalOut
+        {
+            get => _totalOut;
+            set => _totalOut = value;
+        }
+        private uint _totalOut = 0;
+
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => _adler;
+            set => _adler = value;
+        }
+        private uint _adler = 0;
+        /// <summary>
+        /// reserved for future use
+        /// </summary>
+        private readonly uint _reserved = 0;
+    }
+    #endregion
+
+    #region ZStream for 64bit long
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZStreamL64 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override uint TotalIn
+        {
+            get => (uint)_totalIn;
+            set => _totalIn = value;
+        }
+        private ulong _totalIn = 0;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override uint TotalOut
+        {
+            get => (uint)_totalOut;
+            set => _totalOut = value;
+        }
+        private ulong _totalOut = 0;
+
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => (uint)_adler;
+            set => _adler = value;
+        }
+        private ulong _adler = 0;
+        /// <summary>
+        /// reserved for future use
+        /// </summary>
+        private readonly ulong _reserved = 0;
+    }
+    #endregion
+
     #region ZStream for 32bit long
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe class ZStreamL32
+    internal unsafe class ZStreamDirectL32
     {
 #pragma warning disable 169
 #pragma warning disable IDE0044
@@ -213,7 +451,7 @@ namespace Joveler.Compression.ZLib
 
     #region ZStream for 64bit long
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe class ZStreamL64
+    internal unsafe class ZStreamDirectL64
     {
 #pragma warning disable 169
 #pragma warning disable IDE0044

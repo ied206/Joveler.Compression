@@ -64,10 +64,14 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
+#if ZLIB_INHERIT_CALL
+                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)count);
+#else
                 if (ZLibInit.Lib.UseStdcall)
                     return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)count);
                 else
                     return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)count);
+#endif
             }
         }
 
@@ -76,15 +80,20 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
+#if ZLIB_INHERIT_CALL
+                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)span.Length);
+#else
                 if (ZLibInit.Lib.UseStdcall)
                     return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)span.Length);
                 else
                     return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)span.Length);
+#endif
+
             }
         }
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 
     #region Crc32Algorithm
     public sealed class Crc32Algorithm : HashAlgorithm
