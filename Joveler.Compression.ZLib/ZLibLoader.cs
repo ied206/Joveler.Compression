@@ -52,7 +52,6 @@ namespace Joveler.Compression.ZLib
         internal bool UseStdcall { get; private set; } = true;
         #endregion
 
-
         #region (override) DefaultLibFileName
         protected override string DefaultLibFileName
         {

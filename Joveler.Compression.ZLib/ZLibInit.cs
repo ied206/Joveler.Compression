@@ -24,6 +24,7 @@
 
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
@@ -43,30 +44,78 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public static void GlobalInit() => GlobalInit(null, false);
         /// <summary>
-        /// Init supplied zlib native library.
-        /// <para>On Windows, using <see cref="GlobalInit(string libPath, bool isZLibWapi)"/> instead is recommended.</para>
+        /// (Deprecated) Init supplied zlib native library. Use <see cref="GlobalInit(string libPath, bool isZLibWapi)"/> instead.
         /// <para>On Windows x86, whether to use stdcall/cdecl symbol would be guessed by dll filename.</para>
+        /// <para>On Windows, calling this method will try convert filepath zlibwapi.dll to zlib1.dll if loading zlibwapi.dll has failed.</para>
         /// </summary>
         /// <param name="libPath">
         /// The path of the zlib native library file.
         /// </param>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete($"Provided for backward compatibility only. Use GlobalInit(string libPath, bool isStdcall) instead.")]
+        [Obsolete($"Provided for backward ABI compatibility only!\r\nUse GlobalInit(string libPath, bool isStdcall) instead.\r\nAlso, please read libray release note and update your native library filepath.")]
         public static void GlobalInit(string libPath)
         {
-            ZLibLoadData loadData = new ZLibLoadData();
-
-            // Crude stdcall guess logic for backward compatibility.
-            // On Windows, using GlobalInit(libPath, isZLibWapi) is recommended.
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            // Joveler.Compression.ZLib v4.x bundlded `zlibwapi.dll`.
+            // Joveler.Compression.ZLib v5.x will ship `zlib1.dll` instead.
+            // To accomodate users who will not update zlib init code snippet, add a compatibility shim.
+            // This shim is effective only on Windows target.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && libPath != null)
             {
-                if (libPath.StartsWith("zlibwapi", StringComparison.OrdinalIgnoreCase))
-                    loadData.IsWindowsX86Stdcall = true;
-                else if (libPath.StartsWith("zlib1", StringComparison.OrdinalIgnoreCase))
-                    loadData.IsWindowsX86Stdcall = false;
-            }
+                const string stdcallDllName = "zlibwapi.dll";
+                const string cdeclDllName = "zlib1.dll";
 
-            Manager.GlobalInit(libPath, loadData);
+                string dllDir = Path.GetDirectoryName(libPath);
+                string dllFileName = Path.GetFileName(libPath);
+
+                // Crude stdcall guess logic for backward compatibility.       
+                bool isZLibwapi = false;
+                if (dllFileName.Equals(stdcallDllName, StringComparison.OrdinalIgnoreCase))
+                    isZLibwapi = true;
+                else if (dllFileName.Equals(cdeclDllName, StringComparison.OrdinalIgnoreCase))
+                    isZLibwapi = false;
+
+                // If loading zlib with `zlibwapi.dll` failed, try reloading it with `zlib1.dll`.
+                try
+                {
+                    // First, try loading supplied path itself.
+                    ZLibLoadData loadData = new ZLibLoadData()
+                    {
+                        IsWindowsX86Stdcall = isZLibwapi,
+                    };
+                    Manager.GlobalInit(libPath, loadData);
+                }
+                catch (DllNotFoundException stdEx)
+                {
+                    // It seems user did not update init code snippet, and used "zlibwapi.dll".
+                    // Let's try loading it with `zlib1.dll` instead.
+                    if (isZLibwapi)
+                    {
+                        string cdeclDllPath;
+                        if (dllDir == null)
+                            cdeclDllPath = cdeclDllName;
+                        else
+                            cdeclDllPath = Path.Combine(dllDir, cdeclDllName);
+
+                        try
+                        {
+                            ZLibLoadData loadData = new ZLibLoadData()
+                            {
+                                IsWindowsX86Stdcall = false,
+                            };
+                            Manager.GlobalInit(cdeclDllPath, loadData);
+                        }
+                        catch (DllNotFoundException)
+                        {
+                            throw stdEx;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                ZLibLoadData loadData = new ZLibLoadData();
+                Manager.GlobalInit(libPath, loadData);
+            }
         }
 
         /// <summary>
@@ -104,5 +153,5 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-    #endregion
+#endregion
 }

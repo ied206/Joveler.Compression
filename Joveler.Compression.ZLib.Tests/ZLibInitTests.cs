@@ -24,6 +24,8 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -35,6 +37,35 @@ namespace Joveler.Compression.ZLib.Tests
         public void VersionTests()
         {
             Console.WriteLine(ZLibInit.VersionString());
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        public void LegacyInitCompatShim()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string libPath = TestSetup.GetNativeLibPath();
+                try
+                {
+                    string libDir = Path.GetDirectoryName(libPath);
+                    string newLibPath = Path.Combine(libDir, "zlibwapi.dll");
+                    Console.WriteLine($"First try libPath (DOES NOT EXIST): {newLibPath}");
+                    Console.WriteLine($"Second try libPath (DOES EXIST: {libPath}");
+
+                    ZLibInit.GlobalCleanup();
+                    // Supress Obsolete warning for compat shim testing
+#pragma warning disable CS0618
+                    ZLibInit.GlobalInit(newLibPath);
+#pragma warning restore CS0618
+                }
+                finally
+                {
+                    ZLibInit.GlobalCleanup();
+                    ZLibInit.GlobalInit(libPath, false);
+                }
+                
+            }
         }
     }
 }

@@ -60,7 +60,7 @@ namespace Joveler.Compression.ZLib.Tests
             ZLibInit.GlobalCleanup();
         }
 
-        private static string GetNativeLibPath()
+        public static string GetNativeLibPath()
         {
             string libDir = string.Empty;
 
