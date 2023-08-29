@@ -67,7 +67,7 @@ namespace Joveler.Compression.ZLib
                 string dllDir = Path.GetDirectoryName(libPath);
                 string dllFileName = Path.GetFileName(libPath);
 
-                // Crude stdcall guess logic for backward compatibility.       
+                // Crude stdcall guess logic for backward compatibility.
                 bool isZLibwapi = false;
                 if (dllFileName.Equals(stdcallDllName, StringComparison.OrdinalIgnoreCase))
                     isZLibwapi = true;
