@@ -8,15 +8,15 @@ LZ4 source can be obtained from [GitHub](https://github.com/lz4/lz4/releases).
 
 ## Windows - x86, x64, arm64
 
-### Perforamnce Optimized Build (-O3)
+**WARN**: lz4 implementation benefits a lot from code being cached into CPU. All build methods provided here build with size optimization.
 
-**WARN**: lz4 implementation benefits a lot from cached into CPU. -O3 build increases file DLL size about ~5x.
+### LLVM-mingw build
 
 Build with cmake, and use llvm-mingw.
 
-### Size Optimized Build (-Os)
+Run `lz4-clang-cmake.ps1` script with proper arguments.
 
-**WARN**: lz4 and xxhash implementation relies a lot on link time inlining. Applying size optimization may hurt the inlining.
+### MSVC Build
 
 Windows .dll files are compiled with size optimization.
 
@@ -47,8 +47,8 @@ Windows .dll files are compiled with size optimization.
 
 `-O3` build is much slower than `-Os` in the real world benchmark.
 
-- Compression: `Clang -O3` takes about ~3x times to operate.
-- Decompression: `Clang -O3` takes about ~3x times to operate.
+- Compression: `Clang -O3` takes about ~3x times to operate than `MSVC -Os` and `Clang -Os`.
+- Decompression: `Clang -O3` takes about ~3x times to operate than `MSVC -Os` and `Clang -Os`.
 
 #### Test Environment
 ```
@@ -83,7 +83,45 @@ AMD Ryzen 7 5800X, 1 CPU, 16 logical and 8 physical cores
 |        'lz4 (n_Joveler)' |  bible_en_utf8.txt | Fastest |   5,521.221 μs |    70.2738 μs |    62.2959 μs |
 |           'lz4 (m_K4os)' |  bible_en_utf8.txt | Fastest |   5,456.930 μs |    66.1838 μs |    61.9084 μs |
 
+
+#### `Clang -Os` build:
+
+- Compression
+
+|            Method |        SrcFileName |   Level |          Mean |        Error |       StdDev | CompRatio |
+|------------------ |------------------- |-------- |--------------:|-------------:|-------------:|----------:|
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt |    Best | 267,321.05 μs | 1,122.537 μs |   995.100 μs |     0.326 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt |    Best | 299,269.79 μs |   595.904 μs |   528.253 μs |     0.326 |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Default | 170,366.15 μs |   852.800 μs |   755.985 μs |     0.332 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Default | 181,571.25 μs |   300.562 μs |   281.145 μs |     0.332 |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Fastest |   9,458.57 μs |    26.206 μs |    23.231 μs |     0.487 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Fastest |  10,775.27 μs |    16.506 μs |    15.439 μs |     0.487 |
+
+- Decompression
+
+|            Method |        SrcFileName |   Level |          Mean |       Error |      StdDev |
+|-------------------|--------------------|---------|---------------|-------------|-------------|
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt |    Best | 5,586.132 μs | 106.3311 μs | 113.7730 μs |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt |    Best | 5,269.631 μs | 101.4746 μs | 124.6199 μs |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Default | 5,549.950 μs |  89.2034 μs |  83.4410 μs |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Default | 5,417.259 μs | 106.2162 μs | 122.3187 μs |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Fastest | 5,764.209 μs |  77.5546 μs |  68.7501 μs |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Fastest | 5,488.818 μs |  99.3807 μs |  92.9607 μs |
+
 #### `Clang -O3` build:
+
+- Compression
+
+|            Method |        SrcFileName |   Level |            Mean |        Error |       StdDev | CompRatio |
+|------------------ |------------------- |-------- |----------------:|-------------:|-------------:|----------:|
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt |    Best |   525,643.17 μs | 2,709.793 μs | 2,402.161 μs |     0.326 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt |    Best |   296,394.92 μs |   355.836 μs |   297.139 μs |     0.326 |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Default |   356,432.95 μs | 2,160.464 μs | 2,020.899 μs |     0.332 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Default |   181,279.57 μs |   193.452 μs |   171.490 μs |     0.332 |
+| 'lz4 (n_Joveler)' |  bible_en_utf8.txt | Fastest |    32,904.33 μs |   106.615 μs |    99.728 μs |     0.487 |
+|    'lz4 (m_K4os)' |  bible_en_utf8.txt | Fastest |    10,970.98 μs |   188.104 μs |   231.009 μs |     0.487 |
+
+- Decompression
 
 |            Method |        SrcFileName |   Level |          Mean |       Error |      StdDev |
 |-------------------|--------------------|---------|---------------|-------------|-------------|
