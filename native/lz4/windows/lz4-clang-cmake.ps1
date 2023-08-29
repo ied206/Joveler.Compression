@@ -84,7 +84,7 @@ foreach ($buildArch in $buildArches) {
     New-Item "${DestDir}" -ItemType Directory -ErrorAction SilentlyContinue
 
     # -------------------------------------------------------------------------
-    # Configure zlib-ng
+    # Configure lz4 (with -Os)
     # -------------------------------------------------------------------------
     Write-Output ""
     Write-Host "[*] Configure lz4" -ForegroundColor Yellow
@@ -95,16 +95,19 @@ foreach ($buildArch in $buildArches) {
         "-DLLVM_MINGW=${ToolchainDir}" `
         "-DCPACK_SOURCE_ZIP=OFF" `
         "-DCPACK_SOURCE_7Z=OFF" `
-        "-DCPACK_BINARY_NSIS=OFF"
+        "-DCPACK_BINARY_NSIS=OFF" ` 
+        "-DCMAKE_BUILD_TYPE=MinSizeRel" 
+    # Benchmark: MSVC -Os build is much faster than Clang -O3 build.
+    # It seems CMAKE_BUILD_TYPE must be denoted in configure time, not a build time.
     Pop-Location
 
     # -------------------------------------------------------------------------
-    # Build zlib-ng
+    # Build lz4
     # -------------------------------------------------------------------------
     Write-Output ""
-    Write-Host "[*] Build zlib-ng" -ForegroundColor Yellow
+    Write-Host "[*] Build lz4" -ForegroundColor Yellow
     Push-Location $BuildDir
-    cmake --build . --config Release --parallel "${Cores}"
+    cmake --build . --config MinSizeRel --parallel "${Cores}"
     Pop-Location
 
     # -------------------------------------------------------------------------

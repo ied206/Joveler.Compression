@@ -65,8 +65,11 @@ pushd "${BUILD_DIR}" > /dev/null
 cmake ../build/cmake -G "Unix Makefiles" \
     "-DCPACK_SOURCE_ZIP=OFF" \
     "-DCPACK_SOURCE_7Z=OFF" \
-    "-DCPACK_BINARY_NSIS=OFF"
-cmake --build . --config Release --parallel "${CORES}"
+    "-DCPACK_BINARY_NSIS=OFF" \
+    "-DCMAKE_BUILD_TYPE=MinSizeRel"
+# Benchmark: MSVC -Os build is much faster than Clang -O3 build.
+# It seems CMAKE_BUILD_TYPE must be denoted in configure time, not a build time.
+cmake --build . --config MinSizeRel --parallel "${CORES}"
 
 cp "${DEST_LIB}" "${DEST_DIR}/${DEST_LIB}"
 cp "${DEST_EXE}" "${DEST_DIR}/${DEST_EXE}"
