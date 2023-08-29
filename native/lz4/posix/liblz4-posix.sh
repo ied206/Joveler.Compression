@@ -14,7 +14,7 @@ if ! [[ -d "$1" ]]; then
     exit 1
 fi
 SRC_DIR=$1
-BUILD_DIR="${SRC_DIR}/build"
+BUILD_DIR="${SRC_DIR}/build-cmake"
 
 # Required dependencies: cmake
 # Debian/Ubuntu: sudo apt-get install cmake
