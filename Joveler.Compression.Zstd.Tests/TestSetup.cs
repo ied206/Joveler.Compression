@@ -118,6 +118,12 @@ namespace Joveler.Compression.Zstd.Tests
 
         #region LogEnvironment
         [TestMethod]
+        public void VersionString()
+        {
+            Console.WriteLine(ZstdInit.VersionString());
+        }
+
+        [TestMethod]
         public void LogEnvironment()
         {
             StringBuilder b = new StringBuilder();
