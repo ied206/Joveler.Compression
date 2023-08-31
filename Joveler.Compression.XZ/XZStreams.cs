@@ -595,6 +595,31 @@ namespace Joveler.Compression.XZ
                 _disposed = true;
             }
         }
+        /// <summary>
+        /// Cancel compression.
+        /// !!Attention:This stream cannot used after cancel.
+        /// </summary>
+        public void CancelCompress()
+        {
+            if (_mode != Mode.Compress)
+                throw new NotSupportedException($"{nameof(CancelCompress)}() not supported on decompression.");
+
+            if (_lzmaStream != null)
+            {
+                XZInit.Lib.LzmaEnd(_lzmaStream);
+                _lzmaStreamPin.Free();
+                _lzmaStream = null;
+            }
+
+            if (BaseStream != null)
+            {
+                if (!_leaveOpen)
+                    BaseStream.Dispose();
+                BaseStream = null;
+            }
+
+            _disposed = true;
+        }
         #endregion
 
         #region Stream Methods and Properties
