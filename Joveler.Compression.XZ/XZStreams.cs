@@ -295,7 +295,8 @@ namespace Joveler.Compression.XZ
     #region XZStreamBase
     /// <inheritdoc />
     /// <summary>
-    /// The stream to handle .xz file format.
+    /// The stream to handle xz-related file/stream format.
+    /// <para>This symbol can be changed anytime, consider this as not a part of public ABI!</para>
     /// </summary>
     public abstract class XZStreamBase : Stream
     {
@@ -332,6 +333,8 @@ namespace Joveler.Compression.XZ
         private readonly int _bufferSize = DefaultBufferSize;
         private int _workBufPos = 0;
         private readonly byte[] _workBuf;
+
+        private bool _isAborted = false;
 
         // Property
         public Stream BaseStream { get; private set; }
@@ -556,17 +559,21 @@ namespace Joveler.Compression.XZ
             {
                 if (_lzmaStream != null)
                 {
-                    if (_mode == Mode.Compress)
+                    if (_isAborted == false)
                     {
-                        Flush();
-                        FinishWrite();
-                    }
-                    else
-                    {
-                        _workBufPos = ReadDone;
+                        if (_mode == Mode.Compress)
+                        {
+                            Flush();
+                            FinishWrite();
+                        }
+                        else
+                        {
+                            _workBufPos = ReadDone;
+                        }
+
+                        FreeLzmaStream();
                     }
 
-                    XZInit.Lib.LzmaEnd(_lzmaStream);
                     _lzmaStreamPin.Free();
                     _lzmaStream = null;
                 }
@@ -580,6 +587,35 @@ namespace Joveler.Compression.XZ
 
                 _disposed = true;
             }
+        }
+        #endregion
+
+        #region LzmaStream management and Abort
+        private void FreeLzmaStream()
+        {
+            // lzma_end frees memory allocated for coder data structures.
+            // It must be called to avoid memory leak.
+            if (_lzmaStream != null)
+            { 
+                XZInit.Lib.LzmaEnd(_lzmaStream);
+            }
+        }
+
+        /// <summary>
+        /// Immediately aborts the current operation.
+        /// Internal XZ resources will be freed without flushing nor finalizing.
+        /// <para>The instance will not be able to perform any operations except disposing.</para>
+        /// <para>Data written to the BaseStream will become invalid, dispose it immediately.</para>
+        /// </summary>
+        public void Abort()
+        {
+            // Invalidate LzmaStream instance.
+            // After running this code, liblzma will refuse any operations via this LzmaStream object.
+            if (_isAborted)
+                return;
+            
+            FreeLzmaStream();
+            _isAborted = true;
         }
         #endregion
 
@@ -859,6 +895,8 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
+        
+
         #region GetProgress
         /// <summary>
         /// Get progress information of XZ stream.
@@ -887,6 +925,8 @@ namespace Joveler.Compression.XZ
             XZInit.Lib.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
         }
         #endregion
+
+
 
         #region Memory Usage (Decompression Only) - DISABLED
         // lzma_memusage() only works on per-thread basis.
