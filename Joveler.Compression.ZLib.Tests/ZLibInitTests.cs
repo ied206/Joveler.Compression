@@ -62,7 +62,7 @@ namespace Joveler.Compression.ZLib.Tests
                 finally
                 {
                     ZLibInit.GlobalCleanup();
-                    ZLibInit.GlobalInit(libPath, false);
+                    ZLibInit.GlobalInit(libPath, new ZLibInitOptions() { IsWindowsStdcall = false });
                 }
                 
             }

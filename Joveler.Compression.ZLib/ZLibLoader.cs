@@ -30,14 +30,10 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Joveler.Compression.ZLib
 {
-    internal class ZLibLoadData
-    {
-        public bool IsWindowsX86Stdcall { get; set; }
-    }
-
     internal class ZLibLoader : DynLoaderBase
     {
         #region Constructor
@@ -46,10 +42,17 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region cdecl and stdcall, LP64 and LLP64
+        #region Native ABI configurations
         internal ZLibNativeAbi NativeAbi;
 
-        internal bool UseStdcall { get; private set; } = true;
+        /// <summary>
+        /// Does the loaded native library use stdcall calling convention?
+        /// </summary>
+        internal bool UseStdcall { get; private set; } = false;
+        /// <summary>
+        /// Does the loaded native library was built to have zlib-ng 'modern' ABI?
+        /// </summary>
+        internal bool UseZLibNgModernAbi { get; private set; } = false;
         #endregion
 
         #region (override) DefaultLibFileName
@@ -57,12 +60,10 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-#if !NETFRAMEWORK
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     return "libz.so.1";
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     return "libz.dylib";
-#endif
                 throw new PlatformNotSupportedException();
             }
         }
@@ -71,33 +72,56 @@ namespace Joveler.Compression.ZLib
         #region HandleLoadData
         protected override void HandleLoadData(object data)
         {
-            if (data is not ZLibLoadData loadData)
+            if (data is not ZLibInitOptions initOpts)
                 return;
 
-            // Use stdcall only if `IsX86WindowsStdcall` is active on Windows x86 platform.
-            UseStdcall = loadData.IsWindowsX86Stdcall &&
+            // Use stdcall only if `IsWindowsStdcall` is active on Windows x86 platform.
+            UseStdcall = initOpts.IsWindowsStdcall &&
                 RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
                 RuntimeInformation.ProcessArchitecture == Architecture.X86;
+
+            UseZLibNgModernAbi = initOpts.IsZLibNgModernAbi;
         }
         #endregion
 
         #region LoadFunctions, ResetFunctions
         protected override void LoadFunctions()
         {
-            if (PlatformLongSize == PlatformLongSize.Long64)
+            if (UseZLibNgModernAbi)
             {
-                NativeAbi = new ZLibNativeAbiL64(this);
-            }
-            else if (PlatformLongSize == PlatformLongSize.Long32)
-            {
-                if (UseStdcall)
-                    NativeAbi = new ZLibNativeAbiStdcallL32(this);
+                if (PlatformLongSize == PlatformLongSize.Long64)
+                {
+                    NativeAbi = new ZLibNgNativeAbiL64(this);
+                }
+                else if (PlatformLongSize == PlatformLongSize.Long32)
+                {
+                    if (UseStdcall)
+                        NativeAbi = new ZLibNgNativeAbiStdcallL32(this);
+                    else
+                        NativeAbi = new ZLibNgNativeAbiCdeclL32(this);
+                }
                 else
-                    NativeAbi = new ZLibNativeAbiCdeclL32(this);
+                {
+                    throw new PlatformNotSupportedException();
+                }
             }
             else
             {
-                throw new PlatformNotSupportedException();
+                if (PlatformLongSize == PlatformLongSize.Long64)
+                {
+                    NativeAbi = new ZLibNativeAbiL64(this);
+                }
+                else if (PlatformLongSize == PlatformLongSize.Long32)
+                {
+                    if (UseStdcall)
+                        NativeAbi = new ZLibNativeAbiStdcallL32(this);
+                    else
+                        NativeAbi = new ZLibNativeAbiCdeclL32(this);
+                }
+                else
+                {
+                    throw new PlatformNotSupportedException();
+                }
             }
 
             NativeAbi.LoadFunctions();
@@ -107,6 +131,30 @@ namespace Joveler.Compression.ZLib
         {
             NativeAbi.ResetFunctions();
             NativeAbi = null;
+        }
+        #endregion
+
+        #region (static) Create a new ZStream object
+        internal ZStreamBase CreateZStream()
+        {
+            if (UseZLibNgModernAbi)
+            {
+                return PlatformLongSize switch
+                {
+                    PlatformLongSize.Long32 => new ZNgStreamL32(),
+                    PlatformLongSize.Long64 => new ZNgStreamL64(),
+                    _ => throw new PlatformNotSupportedException(),
+                };
+            }
+            else
+            {
+                return PlatformLongSize switch
+                {
+                    PlatformLongSize.Long32 => new ZStreamL32(),
+                    PlatformLongSize.Long64 => new ZStreamL64(),
+                    _ => throw new PlatformNotSupportedException(),
+                };
+            }
         }
         #endregion
 
@@ -145,10 +193,14 @@ namespace Joveler.Compression.ZLib
             #region Version - ZLibVersion
             public abstract string ZLibVersion();
             #endregion
+
+            #region CompileFlags
+            public abstract ulong ZLibCompileFlags();
+            #endregion
         }
         #endregion
 
-        #region NativeAbi Cdecl Base
+        #region zlib: NativeAbi - Cdecl Base
         internal abstract class ZLibNativeAbiCdecl : ZLibNativeAbi
         {
             protected const CallingConvention CallConv = CallingConvention.Cdecl;
@@ -206,7 +258,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region NativeAbi Stdcall Base
+        #region zlib: NativeAbi - Stdcall Base
         internal abstract class ZLibNativeAbiStdcall : ZLibNativeAbi
         {
             protected const CallingConvention CallConv = CallingConvention.StdCall;
@@ -264,7 +316,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region NativeAbi Long64 (x64, arm64)
+        #region zlib: NativeAbi Long64 (x64, arm64)
         internal sealed class ZLibNativeAbiL64 : ZLibNativeAbiCdecl
         {
             public ZLibNativeAbiL64(ZLibLoader lib) : base(lib)
@@ -282,6 +334,8 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));                
+
                 base.LoadFunctions();
             }
 
@@ -294,6 +348,8 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
 
                 base.ResetFunctions();
             }
@@ -373,10 +429,20 @@ namespace Joveler.Compression.ZLib
                 return InflateEndPtr((ZStreamL64)strm);
             }
             #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ulong zlibCompileFlags();
+            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
+            }
+            #endregion
         }
         #endregion
 
-        #region NativeAbi Long32 - Cdecl (arm, Windows x86 cdecl)
+        #region zlib: NativeAbi Long32 - Cdecl (arm, POSIX Windows x86 cdecl)
         internal sealed class ZLibNativeAbiCdeclL32 : ZLibNativeAbiCdecl
         {
             public ZLibNativeAbiCdeclL32(ZLibLoader lib) : base(lib)
@@ -394,6 +460,8 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
+
                 base.LoadFunctions();
             }
 
@@ -406,6 +474,8 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
 
                 base.ResetFunctions();
             }
@@ -485,10 +555,20 @@ namespace Joveler.Compression.ZLib
                 return InflateEndPtr((ZStreamL32)strm);
             }
             #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate uint zlibCompileFlags();
+            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
+            }
+            #endregion
         }
         #endregion
 
-        #region NativeAbi Long32 - Stdcall (Windows x86 stdcall)
+        #region zlib: NativeAbi Long32 - Stdcall (Windows x86 stdcall)
         internal sealed class ZLibNativeAbiStdcallL32 : ZLibNativeAbiStdcall
         {
             public ZLibNativeAbiStdcallL32(ZLibLoader lib) : base(lib)
@@ -506,6 +586,8 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
+
                 base.LoadFunctions();
             }
 
@@ -518,6 +600,8 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
 
                 base.ResetFunctions();
             }
@@ -595,6 +679,486 @@ namespace Joveler.Compression.ZLib
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
                 return InflateEndPtr((ZStreamL32)strm);
+            }
+            #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate uint zlibCompileFlags();
+            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
+            }
+            #endregion
+        }
+        #endregion
+
+        #region zlib-ng: NativeAbi - Cdecl Base
+        internal abstract class ZLibNgNativeAbiCdecl : ZLibNativeAbi
+        {
+            protected const CallingConvention CallConv = CallingConvention.Cdecl;
+
+            public ZLibNgNativeAbiCdecl(ZLibLoader lib) : base(lib)
+            {
+            }
+
+            #region Load and Reset Functions
+            public override void LoadFunctions()
+            {
+                Adler32Ptr = Lib.GetFuncPtr<zng_adler32>(nameof(zng_adler32));
+                Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
+                ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
+            }
+
+            public override void ResetFunctions()
+            {
+                Adler32Ptr = null;
+                Crc32Ptr = null;
+                ZLibNgVersionPtr = null;
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_adler32(
+                uint adler,
+                byte* buf,
+                uint len);
+            internal zng_adler32 Adler32Ptr;
+            public override unsafe uint Adler32(uint adler, byte* buf, uint len)
+            {
+                return Adler32Ptr(adler, buf, len);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_crc32(
+                uint crc,
+                byte* buf,
+                uint len);
+            internal zng_crc32 Crc32Ptr;
+            public override unsafe uint Crc32(uint crc, byte* buf, uint len)
+            {
+                return Crc32Ptr(crc, buf, len);
+            }
+            #endregion
+
+            #region Version - ZLibVersion
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate IntPtr zlibng_version();
+            internal zlibng_version ZLibNgVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibNgVersionPtr());
+            #endregion
+        }
+        #endregion
+
+        #region zlib-ng: NativeAbi - Stdcall Base
+        internal abstract class ZLibNgNativeAbiStdcall : ZLibNativeAbi
+        {
+            protected const CallingConvention CallConv = CallingConvention.StdCall;
+
+            public ZLibNgNativeAbiStdcall(ZLibLoader lib) : base(lib)
+            {
+            }
+
+            #region Load and Reset Functions
+            public override void LoadFunctions()
+            {
+                Adler32Ptr = Lib.GetFuncPtr<zng_adler32>(nameof(zng_adler32));
+                Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
+                ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
+            }
+
+            public override void ResetFunctions()
+            {
+                Adler32Ptr = null;
+                Crc32Ptr = null;
+                ZLibNgVersionPtr = null;
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_adler32(
+                uint adler,
+                byte* buf,
+                uint len);
+            internal zng_adler32 Adler32Ptr;
+            public override unsafe uint Adler32(uint adler, byte* buf, uint len)
+            {
+                return Adler32Ptr(adler, buf, len);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_crc32(
+                uint crc,
+                byte* buf,
+                uint len);
+            internal zng_crc32 Crc32Ptr;
+            public override unsafe uint Crc32(uint crc, byte* buf, uint len)
+            {
+                return Crc32Ptr(crc, buf, len);
+            }
+            #endregion
+
+            #region Version - ZLibVersion
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate IntPtr zlibng_version();
+            internal zlibng_version ZLibNgVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibNgVersionPtr());
+            #endregion
+        }
+        #endregion
+
+        #region zlib-ng: NativeAbi Long64 (x64, arm64)
+        internal sealed class ZLibNgNativeAbiL64 : ZLibNgNativeAbiCdecl
+        {
+            public ZLibNgNativeAbiL64(ZLibLoader lib) : base(lib)
+            {
+            }
+
+            #region Load and Reset Functions
+            public override void LoadFunctions()
+            {
+                DeflateInit2Ptr = Lib.GetFuncPtr<zng_deflateInit2>(nameof(zng_deflateInit2));
+                DeflatePtr = Lib.GetFuncPtr<zng_deflate>(nameof(zng_deflate));
+                DeflateEndPtr = Lib.GetFuncPtr<zng_deflateEnd>(nameof(zng_deflateEnd));
+
+                InflateInit2Ptr = Lib.GetFuncPtr<zng_inflateInit2>(nameof(zng_inflateInit2));
+                InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
+                InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
+
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
+
+                base.LoadFunctions();
+            }
+
+            public override void ResetFunctions()
+            {
+                DeflateInit2Ptr = null;
+                DeflatePtr = null;
+                DeflateEndPtr = null;
+
+                InflateInit2Ptr = null;
+                InflatePtr = null;
+                InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
+
+                base.ResetFunctions();
+            }
+            #endregion
+
+            #region Deflate - DeflateInit2, Deflate, DeflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateInit2(
+                ZNgStreamL64 strm,
+                ZLibCompLevel level,
+                ZLibCompMethod method,
+                int windowBits,
+                ZLibMemLevel memLevel,
+                ZLibCompStrategy strategy);
+            internal zng_deflateInit2 DeflateInit2Ptr;
+            public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            {
+                return DeflateInit2Ptr((ZNgStreamL64)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflate(
+                ZNgStreamL64 strm,
+                ZLibFlush flush);
+            internal zng_deflate DeflatePtr;
+            public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return DeflatePtr((ZNgStreamL64)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateEnd(
+                ZNgStreamL64 strm);
+            internal zng_deflateEnd DeflateEndPtr;
+            public override ZLibRet DeflateEnd(ZStreamBase strm)
+            {
+                return DeflateEndPtr((ZNgStreamL64)strm);
+            }
+            #endregion
+
+            #region Inflate - InflateInit2, Inflate, InflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateInit2(
+                ZNgStreamL64 strm,
+                int windowBits);
+            internal zng_inflateInit2 InflateInit2Ptr;
+            public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
+            {
+                string zlibVer = ZLibVersion();
+                return InflateInit2Ptr((ZNgStreamL64)strm, windowBits);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflate(
+                ZNgStreamL64 strm,
+                ZLibFlush flush);
+            internal zng_inflate InflatePtr;
+            public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return InflatePtr((ZNgStreamL64)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateEnd(
+                ZNgStreamL64 strm);
+            internal zng_inflateEnd InflateEndPtr;
+            public override ZLibRet InflateEnd(ZStreamBase strm)
+            {
+                return InflateEndPtr((ZNgStreamL64)strm);
+            }
+            #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ulong zng_zlibCompileFlags();
+            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
+            }
+            #endregion
+        }
+        #endregion
+
+        #region zlib-ng: NativeAbi Long32 - Cdecl (arm, POSIX x86, Windows x86 cdecl)
+        internal sealed class ZLibNgNativeAbiCdeclL32 : ZLibNgNativeAbiCdecl
+        {
+            public ZLibNgNativeAbiCdeclL32(ZLibLoader lib) : base(lib)
+            {
+            }
+
+            #region Load and Reset Functions
+            public override void LoadFunctions()
+            {
+                DeflateInit2Ptr = Lib.GetFuncPtr<zng_deflateInit2>(nameof(zng_deflateInit2));
+                DeflatePtr = Lib.GetFuncPtr<zng_deflate>(nameof(zng_deflate));
+                DeflateEndPtr = Lib.GetFuncPtr<zng_deflateEnd>(nameof(zng_deflateEnd));
+
+                InflateInit2Ptr = Lib.GetFuncPtr<zng_inflateInit2>(nameof(zng_inflateInit2));
+                InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
+                InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
+
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
+
+                base.LoadFunctions();
+            }
+
+            public override void ResetFunctions()
+            {
+                DeflateInit2Ptr = null;
+                DeflatePtr = null;
+                DeflateEndPtr = null;
+
+                InflateInit2Ptr = null;
+                InflatePtr = null;
+                InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
+
+                base.ResetFunctions();
+            }
+            #endregion
+
+            #region Deflate - DeflateInit2, Deflate, DeflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateInit2(
+                ZNgStreamL32 strm,
+                ZLibCompLevel level,
+                ZLibCompMethod method,
+                int windowBits,
+                ZLibMemLevel memLevel,
+                ZLibCompStrategy strategy);
+            internal zng_deflateInit2 DeflateInit2Ptr;
+            public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            {
+                return DeflateInit2Ptr((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflate(
+                ZNgStreamL32 strm,
+                ZLibFlush flush);
+            internal zng_deflate DeflatePtr;
+            public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return DeflatePtr((ZNgStreamL32)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateEnd(
+                ZNgStreamL32 strm);
+            internal zng_deflateEnd DeflateEndPtr;
+            public override ZLibRet DeflateEnd(ZStreamBase strm)
+            {
+                return DeflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region Inflate - InflateInit2, Inflate, InflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateInit2(
+                ZNgStreamL32 strm,
+                int windowBits);
+            internal zng_inflateInit2 InflateInit2Ptr;
+            public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
+            {
+                string zlibVer = ZLibVersion();
+                return InflateInit2Ptr((ZNgStreamL32)strm, windowBits);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflate(
+                ZNgStreamL32 strm,
+                ZLibFlush flush);
+            internal zng_inflate InflatePtr;
+            public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return InflatePtr((ZNgStreamL32)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateEnd(
+                ZNgStreamL32 strm);
+            internal zng_inflateEnd InflateEndPtr;
+            public override ZLibRet InflateEnd(ZStreamBase strm)
+            {
+                return InflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ulong zng_zlibCompileFlags();
+            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
+            }
+            #endregion
+        }
+        #endregion
+
+        #region zlib-ng: NativeAbi Long32 - Stdcall (Windwos x86 stdcall)
+        internal sealed class ZLibNgNativeAbiStdcallL32 : ZLibNgNativeAbiStdcall
+        {
+            public ZLibNgNativeAbiStdcallL32(ZLibLoader lib) : base(lib)
+            {
+            }
+
+            #region Load and Reset Functions
+            public override void LoadFunctions()
+            {
+                DeflateInit2Ptr = Lib.GetFuncPtr<zng_deflateInit2>(nameof(zng_deflateInit2));
+                DeflatePtr = Lib.GetFuncPtr<zng_deflate>(nameof(zng_deflate));
+                DeflateEndPtr = Lib.GetFuncPtr<zng_deflateEnd>(nameof(zng_deflateEnd));
+
+                InflateInit2Ptr = Lib.GetFuncPtr<zng_inflateInit2>(nameof(zng_inflateInit2));
+                InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
+                InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
+
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
+
+                base.LoadFunctions();
+            }
+
+            public override void ResetFunctions()
+            {
+                DeflateInit2Ptr = null;
+                DeflatePtr = null;
+                DeflateEndPtr = null;
+
+                InflateInit2Ptr = null;
+                InflatePtr = null;
+                InflateEndPtr = null;
+
+                ZLibCompileFlagsPtr = null;
+
+                base.ResetFunctions();
+            }
+            #endregion
+
+            #region Deflate - DeflateInit2, Deflate, DeflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateInit2(
+                ZNgStreamL32 strm,
+                ZLibCompLevel level,
+                ZLibCompMethod method,
+                int windowBits,
+                ZLibMemLevel memLevel,
+                ZLibCompStrategy strategy);
+            internal zng_deflateInit2 DeflateInit2Ptr;
+            public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
+            {
+                return DeflateInit2Ptr((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflate(
+                ZNgStreamL32 strm,
+                ZLibFlush flush);
+            internal zng_deflate DeflatePtr;
+            public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return DeflatePtr((ZNgStreamL32)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_deflateEnd(
+                ZNgStreamL32 strm);
+            internal zng_deflateEnd DeflateEndPtr;
+            public override ZLibRet DeflateEnd(ZStreamBase strm)
+            {
+                return DeflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region Inflate - InflateInit2, Inflate, InflateEnd
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateInit2(
+                ZNgStreamL32 strm,
+                int windowBits);
+            internal zng_inflateInit2 InflateInit2Ptr;
+            public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
+            {
+                string zlibVer = ZLibVersion();
+                return InflateInit2Ptr((ZNgStreamL32)strm, windowBits);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflate(
+                ZNgStreamL32 strm,
+                ZLibFlush flush);
+            internal zng_inflate InflatePtr;
+            public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
+            {
+                return InflatePtr((ZNgStreamL32)strm, flush);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ZLibRet zng_inflateEnd(
+                ZNgStreamL32 strm);
+            internal zng_inflateEnd InflateEndPtr;
+            public override ZLibRet InflateEnd(ZStreamBase strm)
+            {
+                return InflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region ZLibCompileFlags
+            [UnmanagedFunctionPointer(CallConv)]
+            internal delegate ulong zng_zlibCompileFlags();
+            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            public override ulong ZLibCompileFlags()
+            {
+                return ZLibCompileFlagsPtr();
             }
             #endregion
         }
