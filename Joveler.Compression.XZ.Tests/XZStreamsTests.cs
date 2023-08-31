@@ -25,6 +25,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -480,51 +481,64 @@ namespace Joveler.Compression.XZ.Tests
 
             string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
 
-            using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (MemoryStream rms = new MemoryStream())
+            foreach (bool doAbort in new bool[] { false, true })
             {
-                XZStream xzs = null;
-                try
+                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (MemoryStream rms = new MemoryStream())
                 {
-                    if (threads == -1)
-                    { // Single-thread compression
-                        xzs = new XZStream(rms, compOpts);
-                    }
-                    else if (0 < threads)
-                    { // Multi-thread compression
-                        XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
-                        {
-                            Threads = threads,
-                        };
-                        xzs = new XZStream(rms, compOpts, threadOpts);
-                    }
-                    else
-                    {
-                        Assert.Fail($"threads [{threads}] is not a valid test value.");
-                    }
-
-                    sampleFs.CopyTo(xzs);
-
-                    xzs.Abort();
-
-                    // Internal xz resources are now freed. Every compress operation will fail.
-                    sampleFs.Position = 0;
-                    bool hadThrown = false;
+                    XZStream xzs = null;
                     try
                     {
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(rms, compOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(rms, compOpts, threadOpts);
+                        }
+                        else
+                        {
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
+
                         sampleFs.CopyTo(xzs);
+
+                        DateTime before = DateTime.Now;
+                        if (doAbort)
+                            xzs.Abort();
+                        else
+                            xzs.Close();
+                        DateTime after = DateTime.Now;
+                        TimeSpan abortElapsed = after - before;
+                        Console.WriteLine($"{sampleFileName}, {threads} = {(doAbort ? "Abort" : "Close")}() took {abortElapsed.TotalMilliseconds:0.000}ms");
+
+                        if (doAbort == false)
+                            continue;
+
+                        // Internal xz resources are now freed. Every compress operation will fail.
+                        sampleFs.Position = 0;
+                        bool hadThrown = false;
+                        try
+                        {
+                            sampleFs.CopyTo(xzs);
+                        }
+                        catch (XZException e)
+                        {
+                            Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
+                            hadThrown = true;
+                        }
+                        Assert.IsTrue(hadThrown);
                     }
-                    catch (XZException e)
+                    finally
                     {
-                        Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
-                        hadThrown = true;
+                        xzs?.Dispose();
+                        xzs = null;
                     }
-                    Assert.IsTrue(hadThrown);
-                }
-                finally
-                {
-                    xzs?.Dispose();
-                    xzs = null;
                 }
             }
         }
@@ -549,58 +563,73 @@ namespace Joveler.Compression.XZ.Tests
 
             XZDecompressOptions decompOpts = new XZDecompressOptions();
 
-            XZStream xzs = null;
-            try
+            foreach (bool doAbort in new bool[] { false, true })
             {
-                using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                XZStream xzs = null;
+                try
                 {
-                    if (threads == -1)
-                    { // Single-thread compression
-                        xzs = new XZStream(compFs, decompOpts);
-                    }
-                    else if (0 < threads)
-                    { // Multi-thread compression
-                        XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                    using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(compFs, decompOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(compFs, decompOpts, threadOpts);
+                        }
+                        else
                         {
-                            Threads = threads,
-                        };
-                        xzs = new XZStream(compFs, decompOpts, threadOpts);
-                    }
-                    else
-                    {
-                        Assert.Fail($"threads [{threads}] is not a valid test value.");
-                    }
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
 
-                    long firstReadLen = compFs.Length / 2;
-                    byte[] firstBuffer = new byte[firstReadLen];
-                    int bytesRead = xzs.Read(firstBuffer, 0, firstBuffer.Length);
+                        long firstReadLen = compFs.Length / 2;
+                        byte[] firstBuffer = new byte[firstReadLen];
+                        int bytesRead = xzs.Read(firstBuffer, 0, firstBuffer.Length);
 
-                    xzs.Abort();
+                        DateTime before = DateTime.Now;
+                        if (doAbort)
+                            xzs.Abort();
+                        else
+                            xzs.Close();
+                        DateTime after = DateTime.Now;
+                        TimeSpan abortElapsed = after - before;
+                        Console.WriteLine($"{sampleFileName}, {threads} = {(doAbort ? "Abort" : "Close")}() took {abortElapsed.TotalMilliseconds:0.000}ms");
 
-                    // Internal xz resources are now freed. Every decompress operation will fail.
-                    bool hadThrown = false;
-                    try
-                    {
-                        byte[] buffer = new byte[64 * 1024];
-                        do
+                        if (doAbort == false)
+                            continue;
+
+                        // Internal xz resources are now freed. Every decompress operation will fail.
+                        bool hadThrown = false;
+                        try
                         {
-                            bytesRead = xzs.Read(buffer, 0, buffer.Length);
-                        } while (0 < bytesRead);
+                            byte[] buffer = new byte[64 * 1024];
+                            do
+                            {
+                                bytesRead = xzs.Read(buffer, 0, buffer.Length);
+                            } while (0 < bytesRead);
+                        }
+                        catch (XZException e)
+                        {
+                            Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
+                            hadThrown = true;
+                        }
+                        Assert.IsTrue(hadThrown);
                     }
-                    catch (XZException e)
-                    {
-                        Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
-                        hadThrown = true;
-                    }
-                    Assert.IsTrue(hadThrown);
                 }
+                finally
+                {
+                    xzs?.Dispose();
+                    xzs = null;
+                }
+                Assert.IsNull(xzs);
             }
-            finally
-            {
-                xzs?.Dispose();
-                xzs = null;
-            }
-            Assert.IsNull(xzs);
+
+            
         }
         #endregion
     }

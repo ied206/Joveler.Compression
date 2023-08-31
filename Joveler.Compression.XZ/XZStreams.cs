@@ -609,6 +609,10 @@ namespace Joveler.Compression.XZ
         /// </summary>
         public void Abort()
         {
+            // In compress mode, Abort() is faster than Close().
+            // In threaded compress mode, Abort() is much faster than Close().
+            // In decompress mode, Abort() took similar time as Close().
+            
             // Invalidate LzmaStream instance.
             // After running this code, liblzma will refuse any operations via this LzmaStream object.
             if (_isAborted)
