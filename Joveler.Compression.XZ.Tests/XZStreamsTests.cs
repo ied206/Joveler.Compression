@@ -25,6 +25,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -455,6 +456,180 @@ namespace Joveler.Compression.XZ.Tests
             }
 
             Assert.IsTrue(decompDigest.SequenceEqual(originDigest));
+        }
+        #endregion
+
+        #region Abort Compress
+        [TestMethod]
+        public void AbortCompress()
+        {
+            AbortCompressTemplate("A.pdf", -1);
+            AbortCompressTemplate("B.txt", -1);
+            AbortCompressTemplate("C.bin", -1);
+
+            AbortCompressTemplate("A.pdf", 1);
+            AbortCompressTemplate("B.txt", 2);
+            AbortCompressTemplate("C.bin", 2);
+        }
+
+        private static void AbortCompressTemplate(string sampleFileName, int threads)
+        {
+            XZCompressOptions compOpts = new XZCompressOptions
+            {
+                Level = LzmaCompLevel.Default,
+            };
+
+            string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+            foreach (bool doAbort in new bool[] { false, true })
+            {
+                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (MemoryStream rms = new MemoryStream())
+                {
+                    XZStream xzs = null;
+                    try
+                    {
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(rms, compOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(rms, compOpts, threadOpts);
+                        }
+                        else
+                        {
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
+
+                        sampleFs.CopyTo(xzs);
+
+                        DateTime before = DateTime.Now;
+                        if (doAbort)
+                            xzs.Abort();
+                        else
+                            xzs.Close();
+                        DateTime after = DateTime.Now;
+                        TimeSpan abortElapsed = after - before;
+                        Console.WriteLine($"{sampleFileName}, {threads} = {(doAbort ? "Abort" : "Close")}() took {abortElapsed.TotalMilliseconds:0.000}ms");
+
+                        if (doAbort == false)
+                            continue;
+
+                        // Internal xz resources are now freed. Every compress operation will fail.
+                        sampleFs.Position = 0;
+                        bool hadThrown = false;
+                        try
+                        {
+                            sampleFs.CopyTo(xzs);
+                        }
+                        catch (XZException e)
+                        {
+                            Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
+                            hadThrown = true;
+                        }
+                        Assert.IsTrue(hadThrown);
+                    }
+                    finally
+                    {
+                        xzs?.Dispose();
+                        xzs = null;
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Abort Decompress
+        [TestMethod]
+        public void AbortDecompress()
+        {
+            AbortDecompressTemplate("A.xz", -1);
+            AbortDecompressTemplate("B9.xz", -1);
+            AbortDecompressTemplate("C.xz", -1);
+
+            AbortDecompressTemplate("A_mt16.xz", 1);
+            AbortDecompressTemplate("B1_mt16.xz", 2);
+            AbortDecompressTemplate("C.xz", 2);
+        }
+
+        private static void AbortDecompressTemplate(string sampleFileName, int threads)
+        {
+            string xzFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+            XZDecompressOptions decompOpts = new XZDecompressOptions();
+
+            foreach (bool doAbort in new bool[] { false, true })
+            {
+                XZStream xzs = null;
+                try
+                {
+                    using (FileStream compFs = new FileStream(xzFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        if (threads == -1)
+                        { // Single-thread compression
+                            xzs = new XZStream(compFs, decompOpts);
+                        }
+                        else if (0 < threads)
+                        { // Multi-thread compression
+                            XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                            {
+                                Threads = threads,
+                            };
+                            xzs = new XZStream(compFs, decompOpts, threadOpts);
+                        }
+                        else
+                        {
+                            Assert.Fail($"threads [{threads}] is not a valid test value.");
+                        }
+
+                        long firstReadLen = compFs.Length / 2;
+                        byte[] firstBuffer = new byte[firstReadLen];
+                        int bytesRead = xzs.Read(firstBuffer, 0, firstBuffer.Length);
+
+                        DateTime before = DateTime.Now;
+                        if (doAbort)
+                            xzs.Abort();
+                        else
+                            xzs.Close();
+                        DateTime after = DateTime.Now;
+                        TimeSpan abortElapsed = after - before;
+                        Console.WriteLine($"{sampleFileName}, {threads} = {(doAbort ? "Abort" : "Close")}() took {abortElapsed.TotalMilliseconds:0.000}ms");
+
+                        if (doAbort == false)
+                            continue;
+
+                        // Internal xz resources are now freed. Every decompress operation will fail.
+                        bool hadThrown = false;
+                        try
+                        {
+                            byte[] buffer = new byte[64 * 1024];
+                            do
+                            {
+                                bytesRead = xzs.Read(buffer, 0, buffer.Length);
+                            } while (0 < bytesRead);
+                        }
+                        catch (XZException e)
+                        {
+                            Assert.AreEqual(LzmaRet.ProgError, e.ReturnCode);
+                            hadThrown = true;
+                        }
+                        Assert.IsTrue(hadThrown);
+                    }
+                }
+                finally
+                {
+                    xzs?.Dispose();
+                    xzs = null;
+                }
+                Assert.IsNull(xzs);
+            }
+
+            
         }
         #endregion
     }

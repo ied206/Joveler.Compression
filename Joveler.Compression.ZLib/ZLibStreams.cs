@@ -84,12 +84,12 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
-    #region DeflateBaseStream
+    #region DeflateStreamBase
     /// <summary>
-    /// The stream which compress or decompress deflate stream format.
-    /// <para>This class can be changed anytime, does not rely on this as public stable ABI!</para>
+    /// The stream which compress or decompress zlib-related stream format.
+    /// <para>This symbol can be changed anytime, consider this as not a part of public ABI!</para>
     /// </summary>
-    public abstract class DeflateBaseStream : Stream
+    public abstract class DeflateStreamBase : Stream
     {
         #region enum Mode, Format
         internal enum Mode
@@ -145,7 +145,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Create compressing DeflateStream.
         /// </summary>
-        protected DeflateBaseStream(Stream baseStream, ZLibCompressOptions compOpts, Format format)
+        protected DeflateStreamBase(Stream baseStream, ZLibCompressOptions compOpts, Format format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -167,7 +167,7 @@ namespace Joveler.Compression.ZLib
             ZLibException.CheckReturnValue(ret, _zs);
         }
 
-        protected DeflateBaseStream(Stream baseStream, ZLibDecompressOptions decompOpts, Format format)
+        protected DeflateStreamBase(Stream baseStream, ZLibDecompressOptions decompOpts, Format format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -205,7 +205,7 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Disposable Pattern
-        ~DeflateBaseStream()
+        ~DeflateStreamBase()
         {
             Dispose(false);
         }
@@ -506,7 +506,7 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compress or decompress deflate stream format.
     /// </summary>
-    public sealed class DeflateStream : DeflateBaseStream
+    public sealed class DeflateStream : DeflateStreamBase
     {
         /// <summary>
         /// Create compressing DeflateStream.
@@ -527,7 +527,7 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compress or decompress zlib stream format.
     /// </summary>
-    public sealed class ZLibStream : DeflateBaseStream
+    public sealed class ZLibStream : DeflateStreamBase
     {
         /// <summary>
         /// Create compressing ZLibStream.
@@ -548,7 +548,7 @@ namespace Joveler.Compression.ZLib
     /// /// <summary>
     /// The stream which compress or decompress gzip stream format.
     /// </summary>
-    public sealed class GZipStream : DeflateBaseStream
+    public sealed class GZipStream : DeflateStreamBase
     {
         /// <summary>
         /// Create compressing GZipStream.
