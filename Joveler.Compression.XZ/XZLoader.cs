@@ -31,7 +31,7 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.XZ
 {
-    internal class XZLoader : DynLoaderBase
+    internal sealed class XZLoader : DynLoaderBase
     {
         #region Constructor
         public XZLoader() : base() { }

@@ -162,9 +162,21 @@ namespace Benchmark
             // zlib-ng and zlib are mutually exclusive.
             // Joveler.Compression.ZLib cannot load two or more zlib at once.
             if (flags.HasFlag(AlgorithmFlags.ZLibNg))
-                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibNgCompatPath, false);
+            {
+                Joveler.Compression.ZLib.ZLibInitOptions initOpts = new Joveler.Compression.ZLib.ZLibInitOptions()
+                {
+                    IsWindowsStdcall = false
+                };
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibNgCompatPath, initOpts);
+            }
             else if (flags.HasFlag(AlgorithmFlags.ZLibUp))
-                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibUpstreamPath, true);
+            {
+                Joveler.Compression.ZLib.ZLibInitOptions initOpts = new Joveler.Compression.ZLib.ZLibInitOptions()
+                {
+                    IsWindowsStdcall = true
+                };
+                Joveler.Compression.ZLib.ZLibInit.GlobalInit(zlibUpstreamPath, initOpts);
+            }
 
             if (flags.HasFlag(AlgorithmFlags.XZ))
                 Joveler.Compression.XZ.XZInit.GlobalInit(xzPath);

@@ -29,7 +29,7 @@ using System;
 
 namespace Joveler.Compression.XZ
 {
-    public class XZHardware
+    public static class XZHardware
     {
         #region Hardware - PhysMem & CPU Threads
         public static ulong PhysMem()

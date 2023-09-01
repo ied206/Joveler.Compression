@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-2023 Hajin Jang
 
     zlib license
 
@@ -55,18 +55,7 @@ namespace Joveler.Compression.ZLib
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckReturnValue(ZLibRet ret, ZStreamL32 zs = null)
-        {
-            if (ret != ZLibRet.Ok)
-            {
-                if (zs == null)
-                    throw new ZLibException(ret);
-                else
-                    throw new ZLibException(ret, zs.LastErrorMsg);
-            }
-        }
-
-        internal static void CheckReturnValue(ZLibRet ret, ZStreamL64 zs = null)
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamBase zs = null)
         {
             if (ret != ZLibRet.Ok)
             {

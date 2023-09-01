@@ -29,23 +29,23 @@ namespace Benchmark
             Descriptor descriptor = benchmarkCase.Descriptor;
 
             // Get parameters from benchmarkCase
-            object bufferSizeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(bufferSizeKey, StringComparison.Ordinal)).Value;
             object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
             object modeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(modeKey, StringComparison.Ordinal)).Value;
-            if (bufferSizeVal is not string bufferSizeStr)
-                return false;
+            object bufferSizeVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(bufferSizeKey, StringComparison.Ordinal)).Value;
             if (srcFileNameVal is not string srcFileNameStr)
                 return false;
             if (modeVal is not string modeStr)
                 return false;
+            if (bufferSizeVal is not int bufferSizeInt)
+                return false;
 
             // Set parameters to benchmark instances
-            PropertyInfo bufferSizeProp = descriptor.Type.GetProperty(bufferSizeKey);
-            bufferSizeProp.SetValue(instance, bufferSizeStr);
             PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
             srcFileNameProp.SetValue(instance, srcFileNameStr);
             PropertyInfo modeProp = descriptor.Type.GetProperty(modeKey);
             modeProp.SetValue(instance, modeStr);
+            PropertyInfo bufferSizeProp = descriptor.Type.GetProperty(bufferSizeKey);
+            bufferSizeProp.SetValue(instance, bufferSizeInt);
             return true;
         }
 
@@ -71,20 +71,6 @@ namespace Benchmark
         private const string ModeCompress = "Compress";
         private const string ModeDecompress = "Decompress";
 
-        // BufferSizes
-        [ParamsSource(nameof(BufferSizes))]
-        public int BufferSize { get; set; }
-        public IReadOnlyList<int> BufferSizes { get; set; } = new int[]
-        {
-            64 * 1024,
-            128 * 1024,
-            256 * 1024,
-            512 * 1024,
-            1024 * 1024,
-            2 * 1024 * 1024,
-            4 * 1024 * 1024,
-        };
-
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
@@ -102,6 +88,20 @@ namespace Benchmark
         {
             ModeCompress,
             ModeDecompress,
+        };
+
+        // BufferSizes
+        [ParamsSource(nameof(BufferSizes))]
+        public int BufferSize { get; set; }
+        public IReadOnlyList<int> BufferSizes { get; set; } = new int[]
+        {
+            64 * 1024,
+            128 * 1024,
+            256 * 1024,
+            512 * 1024,
+            1024 * 1024,
+            2 * 1024 * 1024,
+            4 * 1024 * 1024,
         };
         #endregion
 

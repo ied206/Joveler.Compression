@@ -64,10 +64,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)count);
-                else
-                    return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)count);
+                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)count);
             }
         }
 
@@ -76,10 +73,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Crc32(checksum, bufPtr, (uint)span.Length);
-                else
-                    return ZLibInit.Lib.Cdecl.Crc32(checksum, bufPtr, (uint)span.Length);
+                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)span.Length);
             }
         }
         #endregion

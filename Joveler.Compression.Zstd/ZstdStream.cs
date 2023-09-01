@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2021 Hajin Jang
+    Copyright (C) 2020-2023 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ namespace Joveler.Compression.Zstd
     /// <remarks>
     /// Default value is based on default value of lz4 cli
     /// </remarks>
-    public class ZstdCompressOptions
+    public sealed class ZstdCompressOptions
     {
         #region General parameters
         /// <summary>
@@ -163,7 +163,7 @@ namespace Joveler.Compression.Zstd
     /// <summary>
     /// Decompress options for ZstdStream
     /// </summary>
-    public class ZstdDecompressOptions
+    public sealed class ZstdDecompressOptions
     {
         #region General parameters
         /// <summary>
@@ -186,7 +186,7 @@ namespace Joveler.Compression.Zstd
     #endregion
 
     #region ZstdStream
-    public unsafe class ZstdStream : Stream
+    public unsafe sealed class ZstdStream : Stream
     {
         #region enum Mode
         private enum Mode
@@ -431,7 +431,7 @@ namespace Joveler.Compression.Zstd
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)
@@ -531,7 +531,7 @@ namespace Joveler.Compression.Zstd
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)

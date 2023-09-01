@@ -51,7 +51,7 @@ namespace Joveler.Compression.ZLib.Tests
             SampleDir = Path.Combine(BaseDir, "Samples");
 
             string libPath = GetNativeLibPath();
-            ZLibInit.GlobalInit(libPath, false);
+            ZLibInit.GlobalInit(libPath, new ZLibInitOptions() { IsWindowsStdcall = false });
         }
 
         [AssemblyCleanup]
@@ -60,7 +60,7 @@ namespace Joveler.Compression.ZLib.Tests
             ZLibInit.GlobalCleanup();
         }
 
-        private static string GetNativeLibPath()
+        public static string GetNativeLibPath()
         {
             string libDir = string.Empty;
 
