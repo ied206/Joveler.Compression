@@ -25,7 +25,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -629,7 +628,7 @@ namespace Joveler.Compression.XZ.Tests
                 Assert.IsNull(xzs);
             }
 
-            
+
         }
         #endregion
     }

@@ -171,5 +171,5 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-#endregion
+    #endregion
 }

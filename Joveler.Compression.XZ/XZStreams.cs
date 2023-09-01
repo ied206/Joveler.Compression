@@ -63,7 +63,7 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = XZStreamBase.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the xz stream object.
         /// </summary>
@@ -162,11 +162,11 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// 
         /// </summary>
-        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlags;
+        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStreamBase.DefaultDecodingFlags;
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = XZStreamBase.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the xz stream object.
         /// </summary>
@@ -596,7 +596,7 @@ namespace Joveler.Compression.XZ
             // lzma_end frees memory allocated for coder data structures.
             // It must be called to avoid memory leak.
             if (_lzmaStream != null)
-            { 
+            {
                 XZInit.Lib.LzmaEnd(_lzmaStream);
             }
         }
@@ -605,19 +605,19 @@ namespace Joveler.Compression.XZ
         /// Immediately aborts the current operation.
         /// Internal XZ resources will be freed without flushing nor finalizing.
         /// <para>The instance will not be able to perform any operations except disposing.</para>
-        /// <para>Data written to the BaseStream will become invalid, dispose it immediately.</para>
+        /// <para>Data written to the BaseStream will become invalid, discard it immediately.</para>
         /// </summary>
         public void Abort()
         {
             // In compress mode, Abort() is faster than Close().
             // In threaded compress mode, Abort() is much faster than Close().
             // In decompress mode, Abort() took similar time as Close().
-            
+
             // Invalidate LzmaStream instance.
             // After running this code, liblzma will refuse any operations via this LzmaStream object.
             if (_isAborted)
                 return;
-            
+
             FreeLzmaStream();
             _isAborted = true;
         }
@@ -899,7 +899,7 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-        
+
 
         #region GetProgress
         /// <summary>

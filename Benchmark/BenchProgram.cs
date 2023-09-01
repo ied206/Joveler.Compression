@@ -163,7 +163,7 @@ namespace Benchmark
             // Joveler.Compression.ZLib cannot load two or more zlib at once.
             if (flags.HasFlag(AlgorithmFlags.ZLibNg))
             {
-                Joveler.Compression.ZLib.ZLibInitOptions initOpts = new Joveler.Compression.ZLib.ZLibInitOptions() 
+                Joveler.Compression.ZLib.ZLibInitOptions initOpts = new Joveler.Compression.ZLib.ZLibInitOptions()
                 {
                     IsWindowsStdcall = false
                 };

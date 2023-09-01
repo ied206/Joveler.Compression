@@ -30,7 +30,6 @@
 using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 
 namespace Joveler.Compression.ZLib
 {
@@ -334,7 +333,7 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
-                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));                
+                ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
 
                 base.LoadFunctions();
             }

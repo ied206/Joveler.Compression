@@ -144,7 +144,7 @@ namespace Joveler.Compression.ZLib
     [StructLayout(LayoutKind.Sequential)]
     internal abstract unsafe class ZStreamBase
     {
-        public static uint DowncastCULong64(ulong val64, [CallerMemberName]string caller = "")
+        public static uint DowncastCULong64(ulong val64, [CallerMemberName] string caller = "")
         {
             if (uint.MaxValue < val64)
                 throw new OverflowException($"{caller}: [{val64}] cannot be represented in 32bit unsigned integer.");
