@@ -33,7 +33,7 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.LZ4
 {
-    internal unsafe class LZ4Loader : DynLoaderBase
+    internal unsafe sealed class LZ4Loader : DynLoaderBase
     {
         #region Constructor
         public LZ4Loader() : base() { }
