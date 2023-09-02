@@ -27,7 +27,7 @@ using Joveler.DynLoader;
 
 namespace Joveler.Compression.LZ4
 {
-    internal class LZ4LoadManager : LoadManagerBase<LZ4Loader>
+    internal sealed class LZ4LoadManager : LoadManagerBase<LZ4Loader>
     {
         protected override string ErrorMsgInitFirst => "Please call LZ4Init.GlobalInit() first!";
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.LZ4 is already initialized.";

@@ -53,6 +53,10 @@ namespace Joveler.Compression.ZLib
         internal static ZLibLoader Lib => Manager.Lib;
         #endregion
 
+        #region Properties
+        public static bool IsLoaded => Manager.Loaded;
+        #endregion
+
         #region GlobalInit, GlobalCleanup
         /// <summary>
         /// Init system-default zlib native library.
