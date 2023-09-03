@@ -1,8 +1,8 @@
 #!/bin/bash
-# Compile zlib on Linux/macOS
+# Compile static pigz on Linux/macOS
 
 # Usage:
-#   ./zlib-posix.sh ~/build/native/zlib-1.3
+#   ./pigz-posix.sh ~/build/native/pigz-2.8
 
 # Check script arguments
 if [[ "$#" -ne 1 ]]; then
@@ -24,64 +24,61 @@ OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
 if [ "${OS}" = Linux ]; then
     BASE_ABS_PATH=$(readlink -f "$0")
     CORES=$(grep -c ^processor /proc/cpuinfo)
-    DEST_DYNAMIC_LIB="libz.so"
     STRIP="strip"
     CHECKDEP="ldd"
+    SED_ARGS="-i"
+    SED_ZLIB="\\-l:libz.a"
 elif [ "${OS}" = Darwin ]; then
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
-    DEST_DYNAMIC_LIB="libz.dylib"
     STRIP="strip -x"
     CHECKDEP="otool -L"
+    SED_ARGS="-i .bak -e"
+    SED_ZLIB="\\-lzstatic"
 else
     echo "[${OS}] is not a supported platform!" >&2
     exit 1
 fi
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
-DEST_STATIC_LIB="libz.a"
-DEST_INCL_ZLIBH="zlib.h"
-DEST_INCL_ZCONFH="zconf.h"
+DEST_EXE="pigz"
+MAKEFILE_MOD=Makefile.mod
 
-# Create dest directory
-rm -rf "${DEST_DIR}"
-mkdir -p "${DEST_DIR}"
-mkdir -p "${DEST_DIR}/include"
+# Dest directory must have been created by zlib-posix.sh
+if ! [[ -d "${DEST_DIR}" ]]; then
+    echo "Please run [zlib-posix.sh] first." >&2
+    exit 1
+fi
 
-# Compile zlib
-BUILD_MODES=( "static" "dynamic" )
+# Patch pigz Makefile
+# - Link static zlib instead of dynamic
+# - Specify previously built zlib headers and libz.a path
 pushd "${SRCDIR}" > /dev/null
-for BUILD_MODE in "${BUILD_MODES[@]}"; do
-    CONFIGURE_ARGS=""
-    if [ "$BUILD_MODE" = "static" ]; then
-        CONFIGURE_ARGS="--static"
-    elif [ "$BUILD_MODE" = "dynamic" ]; then
-        CONFIGURE_ARGS=""
-    fi
+if [ "${OS}" = Darwin ]; then
+    cp "${DEST_DIR}/libz.a" "${DEST_DIR}/libzstatic.a" 
+fi
+cp Makefile $MAKEFILE_MOD
+sed ${SED_ARGS} "s/LIBS=\\-lm \\-lpthread \\-lz/LIBS=\\-lm \\-lpthread ${SED_ZLIB}/g" $MAKEFILE_MOD
+sed ${SED_ARGS} "s,LDFLAGS=,LDFLAGS=\\-L${DEST_DIR},g" $MAKEFILE_MOD
+sed ${SED_ARGS} "s,CFLAGS=,CFLAGS=\\-I${DEST_DIR}/include ,g" $MAKEFILE_MOD
+popd > /dev/null
 
-    make clean
-    ./configure
-    make "-j${CORES}"
-
-    if [ "$BUILD_MODE" = "static" ]; then
-        cp "${DEST_STATIC_LIB}" "${DEST_DIR}"
-        cp "${DEST_INCL_ZLIBH}" "${DEST_DIR}/include"
-        cp "${DEST_INCL_ZCONFH}" "${DEST_DIR}/include"
-    elif [ "$BUILD_MODE" = "dynamic" ]; then
-        cp "${DEST_DYNAMIC_LIB}" "${DEST_DIR}"
-    fi    
-done 
+# Compile pigz
+pushd "${SRCDIR}" > /dev/null
+make -f $MAKEFILE_MOD clean
+make -f $MAKEFILE_MOD "-j${CORES}"
+cp "${DEST_EXE}" "${DEST_DIR}"
 popd > /dev/null
 
 # Strip a binary
 pushd "${DEST_DIR}" > /dev/null
-ls -lh "${DEST_DYNAMIC_LIB}"
-${STRIP} "${DEST_DYNAMIC_LIB}"
-ls -lh "${DEST_DYNAMIC_LIB}"
+ls -lh "${DEST_EXE}"
+${STRIP} "${DEST_EXE}"
+ls -lh "${DEST_EXE}"
 popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_DYNAMIC_LIB}"
+${CHECKDEP} "${DEST_EXE}"
 popd > /dev/null
 
