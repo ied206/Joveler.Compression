@@ -124,6 +124,8 @@ namespace Joveler.Compression.ZLib
             }
 
             NativeAbi.LoadFunctions();
+
+            ValidateNativeAbi();
         }
 
         protected override void ResetFunctions()
@@ -133,7 +135,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region (static) Create a new ZStream object
+        #region Create a new ZStream object
         internal ZStreamBase CreateZStream()
         {
             if (UseZLibNgModernAbi)
@@ -154,6 +156,50 @@ namespace Joveler.Compression.ZLib
                     _ => throw new PlatformNotSupportedException(),
                 };
             }
+        }
+        #endregion
+
+        #region Validate zlib compile-time options
+        internal void ValidateNativeAbi()
+        {
+            uint rawFlags = NativeAbi.ZLibCompileFlags();
+            ZLibCompileFlags flags = new ZLibCompileFlags(rawFlags);
+
+            // [*] Check type sizes
+            // Check C-type uint byte size
+            if (flags.CUIntSize != 4)
+                throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.CUIntSize));
+
+            // Check C-type ulong byte size
+            bool ulongValid = PlatformLongSize switch
+            {
+                PlatformLongSize.Long32 => flags.CULongSize == 4,
+                PlatformLongSize.Long64 => flags.CULongSize == 8,
+                _ => flags.CULongSize == 0,
+            };
+            if (ulongValid == false)
+                throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.CULongSize));
+
+            // Check C-type pointer size
+            if (flags.PtrSize != IntPtr.Size)
+                throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.PtrSize));
+
+            // [*] Check compiler options (Windows x86 only)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && RuntimeInformation.ProcessArchitecture == Architecture.X86)
+            {
+                if (flags.IsWinApi != UseStdcall)
+                    throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.IsWinApi));
+            }
+
+            // [*] Check library functionality
+            // Required for GZipStream implementation
+            if (flags.NoGZip)
+                throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.NoGZip));
+
+            // [*] Check operation variations
+            // Required for compression level
+            if (flags.FastestDeflateOnly)
+                throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.FastestDeflateOnly));
         }
         #endregion
 
@@ -194,7 +240,7 @@ namespace Joveler.Compression.ZLib
             #endregion
 
             #region CompileFlags
-            public abstract ulong ZLibCompileFlags();
+            public abstract uint ZLibCompileFlags();
             #endregion
         }
         #endregion
@@ -433,9 +479,9 @@ namespace Joveler.Compression.ZLib
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zlibCompileFlags();
             internal zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return (uint)ZLibCompileFlagsPtr();
             }
             #endregion
         }
@@ -559,7 +605,7 @@ namespace Joveler.Compression.ZLib
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zlibCompileFlags();
             internal zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
                 return ZLibCompileFlagsPtr();
             }
@@ -685,7 +731,7 @@ namespace Joveler.Compression.ZLib
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zlibCompileFlags();
             internal zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
                 return ZLibCompileFlagsPtr();
             }
@@ -919,9 +965,9 @@ namespace Joveler.Compression.ZLib
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zng_zlibCompileFlags();
             internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return (uint)ZLibCompileFlagsPtr();
             }
             #endregion
         }
@@ -1035,9 +1081,9 @@ namespace Joveler.Compression.ZLib
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
-            internal delegate ulong zng_zlibCompileFlags();
+            internal delegate uint zng_zlibCompileFlags();
             internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
                 return ZLibCompileFlagsPtr();
             }
@@ -1153,9 +1199,9 @@ namespace Joveler.Compression.ZLib
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
-            internal delegate ulong zng_zlibCompileFlags();
+            internal delegate uint zng_zlibCompileFlags();
             internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
-            public override ulong ZLibCompileFlags()
+            public override uint ZLibCompileFlags()
             {
                 return ZLibCompileFlagsPtr();
             }

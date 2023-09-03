@@ -67,8 +67,7 @@ namespace Joveler.Compression.ZLib.Tests
             finally
             {
                 // Reload to zlib1.dll
-                if (ZLibInit.IsLoaded)
-                    ZLibInit.GlobalCleanup();
+                ZLibInit.TryGlobalCleanup();
 
                 ZLibInit.GlobalInit(libPath, TestSetup.GetNativeLoadOptions());
                 Console.WriteLine($"zlib instance restored: {libPath}");
@@ -93,8 +92,7 @@ namespace Joveler.Compression.ZLib.Tests
             finally
             {
                 // Reload to default zlib path
-                if (ZLibInit.IsLoaded)
-                    ZLibInit.GlobalCleanup();
+                ZLibInit.TryGlobalCleanup();
 
                 string libPath = TestSetup.GetNativeLibPath(false);
                 ZLibInit.GlobalInit(libPath, TestSetup.GetNativeLoadOptions());
