@@ -50,8 +50,9 @@ namespace Joveler.Compression.ZLib.Tests
             BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
 
-            string libPath = GetNativeLibPath();
-            ZLibInit.GlobalInit(libPath, new ZLibInitOptions() { IsWindowsStdcall = false });
+            // Joveler.Compression.ZLib ships with zlib-ng compat binaries.
+            string libPath = GetNativeLibPath(false);
+            ZLibInit.GlobalInit(libPath, GetNativeLoadOptions());
         }
 
         [AssemblyCleanup]
@@ -60,7 +61,13 @@ namespace Joveler.Compression.ZLib.Tests
             ZLibInit.GlobalCleanup();
         }
 
-        public static string GetNativeLibPath()
+        public static ZLibInitOptions GetNativeLoadOptions() => new ZLibInitOptions()
+        {
+            IsWindowsStdcall = false,
+            IsZLibNgModernAbi = false,
+        };
+
+        public static string GetNativeLibPath(bool isZLibNgModernAbi)
         {
             string libDir = string.Empty;
 
@@ -96,11 +103,11 @@ namespace Joveler.Compression.ZLib.Tests
 
             string libPath = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(libDir, "zlib1.dll");
+                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "zlib-ng2.dll" : "zlib1.dll");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(libDir, "libz.so");
+                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "libz-ng.so" : "libz.so");
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(libDir, "libz.dylib");
+                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "libz-ng.dylib" : "libz.dylib");
 
             if (libPath == null)
                 throw new PlatformNotSupportedException($"Unable to find native library.");
