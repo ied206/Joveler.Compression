@@ -157,7 +157,18 @@ namespace Joveler.Compression.ZLib.Tests
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x86.exe");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X86:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x86.exe");
+                        break;
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x64.exe");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.arm64.exe");
+                        break;
+                }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
