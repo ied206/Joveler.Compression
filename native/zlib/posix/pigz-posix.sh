@@ -26,11 +26,15 @@ if [ "${OS}" = Linux ]; then
     CORES=$(grep -c ^processor /proc/cpuinfo)
     STRIP="strip"
     CHECKDEP="ldd"
+    SED_ARGS="-i"
+    SED_ZLIB="\\-l:libz.a"
 elif [ "${OS}" = Darwin ]; then
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
     STRIP="strip -x"
     CHECKDEP="otool -L"
+    SED_ARGS="-i .bak -e"
+    SED_ZLIB="\\-lzstatic"
 else
     echo "[${OS}] is not a supported platform!" >&2
     exit 1
@@ -50,10 +54,13 @@ fi
 # - Link static zlib instead of dynamic
 # - Specify previously built zlib headers and libz.a path
 pushd "${SRCDIR}" > /dev/null
+if [ "${OS}" = Darwin ]; then
+    cp "${DEST_DIR}/libz.a" "${DEST_DIR}/libzstatic.a" 
+fi
 cp Makefile $MAKEFILE_MOD
-sed -i "s/LIBS=\\-lm \\-lpthread \\-lz/LIBS=\\-lm \\-lpthread \\-l:libz.a/g" $MAKEFILE_MOD
-sed -i "s,LDFLAGS=,LDFLAGS=\\-L${DEST_DIR},g" $MAKEFILE_MOD
-sed -i "s,CFLAGS=,CFLAGS=\\-I${DEST_DIR}/include ,g" $MAKEFILE_MOD
+sed ${SED_ARGS} "s/LIBS=\\-lm \\-lpthread \\-lz/LIBS=\\-lm \\-lpthread ${SED_ZLIB}/g" $MAKEFILE_MOD
+sed ${SED_ARGS} "s,LDFLAGS=,LDFLAGS=\\-L${DEST_DIR},g" $MAKEFILE_MOD
+sed ${SED_ARGS} "s,CFLAGS=,CFLAGS=\\-I${DEST_DIR}/include ,g" $MAKEFILE_MOD
 popd > /dev/null
 
 # Compile pigz
