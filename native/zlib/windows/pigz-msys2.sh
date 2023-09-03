@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compile pigz for Windows on MSYS2
+# Compile static pigz for Windows on MSYS2
 
 # Usage:
 #   ./pigz-msys2.sh -a i686 /d/build/native/pigz-2.8
@@ -71,8 +71,11 @@ else
     exit 1
 fi
 
-# Create dest directory
-mkdir -p "${DEST_DIR}"
+# Dest directory must have been created by zlib-msys2.sh
+if ! [[ -d "${DEST_DIR}" ]]; then
+    echo "Please run [zlib-msys2.sh] first." >&2
+    exit 1
+fi
 
 # Let custom toolchain is called first in PATH
 if ! [[ -z "${TOOLCHAIN_DIR}" ]]; then
