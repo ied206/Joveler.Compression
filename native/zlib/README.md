@@ -1,14 +1,22 @@
-# zlib Native Library Compile
+# Build zlib native library
 
-This document explains how the embedded native binaries are compiled.
+This document explains how to obtain zlib native binaries.
 
 ## Source
 
 zlib source can be obtained from its [homepage](https://zlib.net).
 
+pigz source can be obtainced from its [homepage](https://zlib.net/pigz/).
+
 ## Windows - x86, x64, arm64
 
-Windows .dll files are compiled with size optimization.
+### LLVM-mingw Build
+
+Run `zlib-msys2.sh` and `pigz-msys2.sh` script on MSYS2 with proper arguments.
+
+### MSVC Build
+
+Build MSVC .dll files with size optimization.
 
 1. Open `contrib\vstudio\vc14\zlibvc.sln` with MSVC 2017 or later
 1. Select `zlibvc` project
@@ -32,41 +40,12 @@ Windows .dll files are compiled with size optimization.
 
 ## Linux - x64, armhf, arm64
 
-Linux .so files are built with default optimization, using autotools and make.
+Linux .so files are built with default optimization.
 
-1. Configure Makefile
-1. Build with standard Makefile
-1. Strip `libz.so.(ver)`
-1. Make sure the binary does not have unnecessary dependency
-
-```sh
-./configure
-make -j`nproc`
-ls -l libz.so.(ver)
-strip libz.so.(ver)
-ls -l libz.so.(ver)
-ldd libz.so.(ver)
-```
-
-Patch `zstd` cli Makefile to prevent it from linking to unnecessary dependency.
-- Set `HAVE_ZLIB`, `HAVE_LZ4`, `HAVE_LZMA` to 0.
+Run `zlib-posix.sh` with proper arguments.
 
 ## macOS - x64, arm64
 
 macOS .dylib files are built with default optimization.
 
-1. Build with standard Makefile.
-   ```ssh
-   make -j(N)
-   ```
-1. Strip `lib/libzstd.(ver).dylib`
-   ```sh
-   strip -S -x lib/libzstd.(ver).dylib
-   ```
-1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   otool -L `lib/libzstd.(ver).dylib`
-   ```
-
-Patch `zstd` cli Makefile to prevent it from linking to unnecessary dependency.
-- Set `HAVE_ZLIB`, `HAVE_LZ4`, `HAVE_LZMA` to 0.
+Run `zlib-posix.sh` with proper arguments.

@@ -1,5 +1,5 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
+    Derived from Zstd header files (BSD 2-Clause)
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang

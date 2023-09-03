@@ -1,4 +1,4 @@
-# Native Library Compile
+# Build lz4 native library
 
 This document explains how the embedded native binaries are compiled.
 
@@ -14,7 +14,7 @@ LZ4 source can be obtained from [GitHub](https://github.com/lz4/lz4/releases).
 
 Build with cmake, and use llvm-mingw.
 
-Run `lz4-clang-cmake.ps1` script with proper arguments.
+Run `lz4-clang-cmake.ps1` script on MSYS2 with proper arguments.
 
 ### MSVC Build
 
@@ -136,32 +136,10 @@ AMD Ryzen 7 5800X, 1 CPU, 16 logical and 8 physical cores
 
 Linux .so files are built with default optimization.
 
-1. Build with standard Makefile
-   ```sh
-   make -j(N)
-   ```
-1. Strip `lib/liblz4.(ver).so`
-   ```sh
-   strip lib/liblz4.(ver).so
-   ```
-1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   ldd lib/liblz4.(ver).so
-   ```
- 
-## macOS - x64
+Run `lz4-posix.sh` with proper arguments.
+
+## macOS - x64, arm64
 
 macOS .dylib files are built with default optimization.
 
-1. Build with standard Makefile.
-   ```ssh
-   make -j(N)
-   ```
-1. Strip `lib/liblz4.(ver).dylib`
-   ```sh
-   strip -S -x lib/liblz4.(ver).dylib
-   ```
-1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   ottol -L `lib/liblz4.(ver).dylib`
-   ```
+Run `lz4-posix.sh` with proper arguments.

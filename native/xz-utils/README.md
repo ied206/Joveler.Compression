@@ -8,6 +8,8 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 
 ## Windows - x86, x64, arm64
 
+Compile with MSYS2 and `liblzma-msys2.sh`.
+
 ### 5.4.0
 
 xz 5.4.0 MSVC vcxproj files has an issue regarding `lzma_stream_decoder_mt`.

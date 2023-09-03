@@ -115,8 +115,8 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             else if (checksum.Length == 4)
             {
                 uint actual = BitConverter.ToUInt32(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
+                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X8}");
+                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X8}");
                 Assert.AreEqual((uint)expected, actual);
             }
             else
