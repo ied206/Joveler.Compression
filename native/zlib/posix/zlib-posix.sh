@@ -46,6 +46,7 @@ DEST_INCL_ZCONFH="zconf.h"
 # Create dest directory
 rm -rf "${DEST_DIR}"
 mkdir -p "${DEST_DIR}"
+mkdir -p "${DEST_DIR}/include"
 
 # Compile zlib
 BUILD_MODES=( "static" "dynamic" )

@@ -38,6 +38,7 @@ fi
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 DEST_EXE="pigz"
+MAKEFILE_MOD=Makefile.mod
 
 # Dest directory must have been created by zlib-posix.sh
 if ! [[ -d "${DEST_DIR}" ]]; then
