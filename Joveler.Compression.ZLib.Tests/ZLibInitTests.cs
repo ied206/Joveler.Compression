@@ -23,8 +23,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.IO;
-using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -33,6 +31,13 @@ namespace Joveler.Compression.ZLib.Tests
     public class ZLibInitUpCdeclTests : ZLibInitTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibInitUpStdcallTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
     }
 
     [TestClass]
@@ -52,45 +57,4 @@ namespace Joveler.Compression.ZLib.Tests
         }
     }
     #endregion
-
-    [TestClass]
-    public class ZLiLoadTests 
-    {
-        [ClassInitialize]
-        public static void ClassInitialize(TestContext _)
-        {
-            TestSetup.Cleanup();
-        }
-
-        [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
-        public static void ClassCleanup()
-        {
-            TestSetup.Cleanup();
-        }
-
-        #region LegacyInitCompatShim
-        [TestMethod]
-        [DoNotParallelize]
-        public void LegacyInitCompatShim()
-        {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return;
-
-            string libPath = TestSetup.GetNativeLibPath(TestNativeAbi.UpstreamCdecl);
-            string libDir = Path.GetDirectoryName(libPath);
-            string newLibPath = Path.Combine(libDir, "zlibwapi.dll");
-            Console.WriteLine($"First try libPath (DOES NOT EXIST): {newLibPath}");
-            Console.WriteLine($"Second try libPath (DOES EXIST: {libPath}");
-
-            ZLibInit.TryGlobalCleanup();
-
-            // Supress Obsolete warning for compat shim testing
-#pragma warning disable CS0618
-            ZLibInit.GlobalInit(newLibPath);
-#pragma warning restore CS0618
-
-            Console.WriteLine(ZLibInit.VersionString());
-        }
-        #endregion
-    }
 }

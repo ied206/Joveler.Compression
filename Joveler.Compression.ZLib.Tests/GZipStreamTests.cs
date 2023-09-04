@@ -37,6 +37,13 @@ namespace Joveler.Compression.ZLib.Tests
 
     [TestClass]
     [DoNotParallelize]
+    public class GZipStreamUpStdcallTests : GZipStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
     public class GZipStreamNgCdeclTests : GZipStreamTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;

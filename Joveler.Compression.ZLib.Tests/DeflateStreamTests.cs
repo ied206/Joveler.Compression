@@ -51,6 +51,13 @@ namespace Joveler.Compression.ZLib.Tests
 
     [TestClass]
     [DoNotParallelize]
+    public class DeflateStreamUpStdcallTests : DeflateStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
     public class DeflateStreamNgCdeclTests : DeflateStreamTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;

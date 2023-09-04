@@ -22,11 +22,6 @@
 */
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Joveler.Compression.ZLib.Tests
 {
@@ -46,21 +41,5 @@ namespace Joveler.Compression.ZLib.Tests
         {
             TestSetup.Cleanup();
         }
-
-        /*
-        protected static TestNativeAbi Abi { get; set; }
-
-        [ClassInitialize]
-        public static void ClassInitialize(TestContext _)
-        {
-            TestSetup.InitNativeAbi(Abi);
-        }
-
-        [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
-        public static void ClassCleanup()
-        {
-            TestSetup.Cleanup();
-        }
-        */
     }
 }

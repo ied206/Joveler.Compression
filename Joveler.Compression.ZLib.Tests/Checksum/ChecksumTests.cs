@@ -40,6 +40,13 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
 
     [TestClass]
     [DoNotParallelize]
+    public class ChecksumUpStdcallTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
     public class ChecksumNgCdeclTests : ChecksumTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;

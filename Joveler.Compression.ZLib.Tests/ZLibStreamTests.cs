@@ -30,20 +30,27 @@ namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
     [DoNotParallelize]
-    public class ZLibStreamUpCdeclTests : GZipStreamTestsBase
+    public class ZLibStreamUpCdeclTests : ZLibStreamTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
     }
 
     [TestClass]
     [DoNotParallelize]
-    public class ZLibStreamNgCdeclTests : GZipStreamTestsBase
+    public class ZLibStreamUpStdcallTests : ZLibStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibStreamNgCdeclTests : ZLibStreamTestsBase
     {
         protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
     }
 
     #region ZLibStreamTestsBase
-    public abstract class ZLibStreamTestsBase
+    public abstract class ZLibStreamTestsBase : ZLibTestBase
     {
         #region Compress
         [TestMethod]

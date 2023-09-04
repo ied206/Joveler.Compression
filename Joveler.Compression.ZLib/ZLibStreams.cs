@@ -27,7 +27,6 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using Joveler.DynLoader;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
