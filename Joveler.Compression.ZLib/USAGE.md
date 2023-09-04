@@ -95,14 +95,14 @@ Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (c
 
 | Platform              | Binary                                    | License       | C Runtime     |
 |-----------------------|-------------------------------------------|---------------|---------------|
-| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | Public Domain | Universal CRT |
-| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | Public Domain | Universal CRT |
-| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | Public Domain | Universal CRT |
-| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\libz.so`    | Public Domain | glibc         |
-| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\libz.so`    | Public Domain | glibc         |
-| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\libz.so`  | Public Domain | glibc         |
-| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`   | Public Domain | libSystem     |
-| macOS Ventura arm64   | `$(OutDir)\runtimes\osx-arm64\libz.dylib` | Public Domain | libSystem     |
+| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
+| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
+| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
+| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\libz.so`    | zlib          | glibc         |
+| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\libz.so`    | zlib          | glibc         |
+| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\libz.so`  | zlib          | glibc         |
+| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`   | zlib          | libSystem     |
+| macOS Ventura arm64   | `$(OutDir)\runtimes\osx-arm64\libz.dylib` | zlib          | libSystem     |
 
 - Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
 - Bundled Windows binaires targets [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) to ensure interoperability with modern .NET runtime.
@@ -114,9 +114,9 @@ Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (c
 
 | Platform              | Binary                                    | License       | C Runtime     |
 |-----------------------|-------------------------------------------|---------------|---------------|
-| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | Public Domain | Universal CRT |
-| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | Public Domain | Universal CRT |
-| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | Public Domain | Universal CRT |
+| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
+| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
+| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
 
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
@@ -125,13 +125,13 @@ Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (c
 
 To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to the custom binary.
 
-You are required to pass valid `ZLibInitOptions` instance alongside library path. It controls which ABI would be used to load native library.
+You are required to pass valid `ZLibInitOptions` instance alongside library path. It controls which ABI should be used to load native library. Set it to correct value, or it would crash the process in worst cases.
 
 #### Supported ABIs
 
 Joveler.Compression.ZLib supports both traditional zlib ABIs, and also its modern counterpart zlib-ng ABI.
 
-Joveler.Compression.ZLib uses `zlib (cdecl)` ABI by default. If you want to load other ABI, tweak `ZLibInitOptions` which would be passed into `ZLibInit.GlobalInit()`.
+Joveler.Compression.ZLib uses `zlib (cdecl)` ABI by default, and default `ZLibInitOptions` instance is set to use it. If you want to load other ABI, tweak `ZLibInitOptions` properties.
 
 | ABI        | Calling Convention | FileNames                                     | Note         |
 |------------|--------------------|-----------------------------------------------|--------------|
@@ -221,13 +221,17 @@ using (DeflateStream zs = new DeflateStream(fsComp, decompOpts))
 
 `ZLibStream` is the class that processes a data format conforming to [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt).
 
-It has the same usage as `DeflateStream`.
+The zlib data format has its simple header and adler32 footer.
+
+It has an interface same as `DeflateStream`.
 
 ## GZipStream
 
 `GZipStream` is the class that processes a data format conforming to [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt).
 
-It has the same usage as `DeflateStream`.
+Use this stream to handle `.gz` files.
+
+It has an interface same as `DeflateStream`.
 
 ## Adler32Checksum
 
