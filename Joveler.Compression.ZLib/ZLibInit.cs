@@ -1,7 +1,5 @@
 ﻿/*
-    Derived from zlib header files (zlib license)
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -29,6 +27,12 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
+    /// <summary>
+    /// Controls the ABI used to interface native library.
+    /// </summary>
+    /// <remarks>
+    /// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+    /// </remarks>
     public class ZLibInitOptions
     {
         /// <summary>
@@ -144,6 +148,9 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Init supplied zlib native library, with explicit stdcall/cdecl flag.
         /// </summary>
+        /// <remarks>
+        /// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+        /// </remarks>
         /// <param name="libPath">
         /// The path of the zlib native library file.
         /// </param>

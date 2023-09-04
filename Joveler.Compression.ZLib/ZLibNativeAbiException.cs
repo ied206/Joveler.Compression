@@ -20,20 +20,36 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using Joveler.DynLoader;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Joveler.Compression.ZLib
 {
-    internal class ZLibLoadManager : LoadManagerBase<ZLibLoader>
+    #region ZLibNativeAbiException
+    public class ZLibNativeAbiException : Exception
     {
-        protected override string ErrorMsgInitFirst => "Please call ZLibInit.GlobalInit() first!";
-        protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.ZLib is already initialized.";
+        public string IncompatibleAbi { get; private set; }
 
-        protected override ZLibLoader CreateLoader() => new ZLibLoader();
-
-        public void GlobalReinit()
+        public ZLibNativeAbiException(string incompatibleAbi)
+            : base(ForgeErrorMessage(incompatibleAbi))
         {
+            IncompatibleAbi = incompatibleAbi;
+        }
 
+        public ZLibNativeAbiException(string incompatibleAbi, string msg)
+            : base(ForgeErrorMessage(incompatibleAbi, msg))
+        {
+            IncompatibleAbi = incompatibleAbi;
+        }
+
+        private static string ForgeErrorMessage(string incompatibleAbi, string msg = null)
+        {
+            string abiMsg = $"Loaded native library is incompatible because of ABI [{incompatibleAbi}].";
+            return msg == null ? abiMsg : $"{abiMsg} {msg}";
         }
     }
+    #endregion
 }

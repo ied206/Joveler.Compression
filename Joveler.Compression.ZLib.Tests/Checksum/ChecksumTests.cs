@@ -26,8 +26,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Security.Cryptography;
-// ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
-// ReSharper disable CommentTypo
 
 namespace Joveler.Compression.ZLib.Tests.Checksum
 {

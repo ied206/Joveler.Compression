@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -83,28 +83,5 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
-    #region ZLibNativeAbiException
-    public class ZLibNativeAbiException : Exception
-    {
-        public string IncompatibleAbi { get; private set; }
-
-        public ZLibNativeAbiException(string incompatibleAbi)
-            : base(ForgeErrorMessage(incompatibleAbi))
-        {
-            IncompatibleAbi = incompatibleAbi;
-        }
-
-        public ZLibNativeAbiException(string incompatibleAbi, string msg)
-            : base(ForgeErrorMessage(incompatibleAbi, msg))
-        {
-            IncompatibleAbi = incompatibleAbi;
-        }
-
-        private static string ForgeErrorMessage(string incompatibleAbi, string msg = null)
-        {
-            string abiMsg = $"Loaded native library is incompatible because of ABI [{incompatibleAbi}].";
-            return msg == null ? abiMsg : $"{abiMsg} {msg}";
-        }
-    }
-    #endregion
+    
 }
