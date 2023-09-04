@@ -56,7 +56,11 @@ macOS arm64 should be supported on theory, but I do not have access to an Apple 
 
 ### Supported zlib version
 
-- 1.2.11 (Included)
+- zlib 1.3
+    - Supports both `zlib1.dll` and `zlibwapi.dll` on Windows.
+- zlib-ng 2.1.3 compat ABI (Included)
+    - Compatible with traditional zlib ABI.
+- zlib-ng 2.1.3 modern ABI
 
 ## Changelog
 
