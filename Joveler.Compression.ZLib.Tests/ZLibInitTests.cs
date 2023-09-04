@@ -1,6 +1,6 @@
 ﻿/*
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -21,7 +21,6 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
@@ -30,13 +29,43 @@ using System.Runtime.InteropServices;
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.ZLib")]
-    public class ZLibInitTests
+    [DoNotParallelize]
+    public class ZLibInitUpCdeclTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibInitNgCdeclTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    #region ZLibInitTestsBase
+    public abstract class ZLibInitTestsBase : ZLibTestBase
     {
         [TestMethod]
         public void VersionTests()
         {
             Console.WriteLine(ZLibInit.VersionString());
+        }
+    }
+    #endregion
+
+    [TestClass]
+    public class ZLiLoadTests 
+    {
+        [ClassInitialize]
+        public static void ClassInitialize(TestContext _)
+        {
+            TestSetup.Cleanup();
+        }
+
+        [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
+        public static void ClassCleanup()
+        {
+            TestSetup.Cleanup();
         }
 
         #region LegacyInitCompatShim
@@ -47,57 +76,20 @@ namespace Joveler.Compression.ZLib.Tests
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
-            string libPath = TestSetup.GetNativeLibPath(false);
-            try
-            {
-                string libDir = Path.GetDirectoryName(libPath);
-                string newLibPath = Path.Combine(libDir, "zlibwapi.dll");
-                Console.WriteLine($"First try libPath (DOES NOT EXIST): {newLibPath}");
-                Console.WriteLine($"Second try libPath (DOES EXIST: {libPath}");
+            string libPath = TestSetup.GetNativeLibPath(TestNativeAbi.UpstreamCdecl);
+            string libDir = Path.GetDirectoryName(libPath);
+            string newLibPath = Path.Combine(libDir, "zlibwapi.dll");
+            Console.WriteLine($"First try libPath (DOES NOT EXIST): {newLibPath}");
+            Console.WriteLine($"Second try libPath (DOES EXIST: {libPath}");
 
-                ZLibInit.GlobalCleanup();
+            ZLibInit.TryGlobalCleanup();
 
-                // Supress Obsolete warning for compat shim testing
+            // Supress Obsolete warning for compat shim testing
 #pragma warning disable CS0618
-                ZLibInit.GlobalInit(newLibPath);
+            ZLibInit.GlobalInit(newLibPath);
 #pragma warning restore CS0618
 
-                Console.WriteLine(ZLibInit.VersionString());
-            }
-            finally
-            {
-                // Reload to zlib1.dll
-                ZLibInit.TryGlobalCleanup();
-
-                ZLibInit.GlobalInit(libPath, TestSetup.GetNativeLoadOptions());
-                Console.WriteLine($"zlib instance restored: {libPath}");
-            }
-        }
-        #endregion
-
-        #region zlib-ng Modern ABI Load Tests
-        [TestMethod]
-        [DoNotParallelize]
-        public void LoadZLibNgModernAbi()
-        {
-            try
-            {
-                string libPath = TestSetup.GetNativeLibPath(true);
-                Console.WriteLine($"Try loading zlib-ng modern ABI: {libPath}");
-
-                ZLibInit.GlobalCleanup();
-                ZLibInit.GlobalInit(libPath, new ZLibInitOptions() { IsZLibNgModernAbi = true });
-                Console.WriteLine(ZLibInit.VersionString());
-            }
-            finally
-            {
-                // Reload to default zlib path
-                ZLibInit.TryGlobalCleanup();
-
-                string libPath = TestSetup.GetNativeLibPath(false);
-                ZLibInit.GlobalInit(libPath, TestSetup.GetNativeLoadOptions());
-                Console.WriteLine($"zlib instance restored: {libPath}");
-            }
+            Console.WriteLine(ZLibInit.VersionString());
         }
         #endregion
     }

@@ -32,8 +32,17 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
+[assembly: DoNotParallelize]
 namespace Joveler.Compression.ZLib.Tests
 {
+    public enum TestNativeAbi
+    {
+        None = 0,
+        UpstreamCdecl = 1,
+        UpstreamStdcall = 2,
+        ZLibNgCdecl = 3,
+    }
+
     #region TestSetup
     [TestClass]
     public class TestSetup
@@ -44,30 +53,54 @@ namespace Joveler.Compression.ZLib.Tests
         [AssemblyInitialize]
         public static void Init(TestContext context)
         {
+            // Differet from other compression wrappers, Joveler.Compression.ZLib supports multiple native ABIs.
+            // To test all ABIs, Joveler.Compression.ZLib.Tests do not load native library at AssemblyInitialize.
+            // Instead, the libraries will be loaded in ClassInitialize, with DoNotParallelize attribute added to classes.
             _ = context;
 
             string absPath = TestHelper.GetProgramAbsolutePath();
             BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
-
-            // Joveler.Compression.ZLib ships with zlib-ng compat binaries.
-            string libPath = GetNativeLibPath(false);
-            ZLibInit.GlobalInit(libPath, GetNativeLoadOptions());
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            ZLibInit.GlobalCleanup();
+            ZLibInit.TryGlobalCleanup();
         }
 
-        public static ZLibInitOptions GetNativeLoadOptions() => new ZLibInitOptions()
+        public static void InitNativeAbi(TestNativeAbi abi)
         {
-            IsWindowsStdcall = false,
-            IsZLibNgModernAbi = false,
-        };
+            // Joveler.Compression.ZLib ships with zlib-ng compat binaries.
+            // However, Joveler.Compression.ZLib.Tests also contains zlib-ng modern ABI binaries and zlib stdcall binaries for testing.
+            string libPath = GetNativeLibPath(abi);
+            ZLibInit.GlobalInit(libPath, GetNativeLoadOptions(abi));
+        }
 
-        public static string GetNativeLibPath(bool isZLibNgModernAbi)
+        public static ZLibInitOptions GetNativeLoadOptions(TestNativeAbi abi)
+        {
+            ZLibInitOptions opts = new ZLibInitOptions();
+            switch (abi)
+            {
+                case TestNativeAbi.UpstreamCdecl:
+                    opts.IsWindowsStdcall = false;
+                    opts.IsZLibNgModernAbi = false;
+                    break;
+                case TestNativeAbi.UpstreamStdcall:
+                    opts.IsWindowsStdcall = true;
+                    opts.IsZLibNgModernAbi = false;
+                    break;
+                case TestNativeAbi.ZLibNgCdecl:
+                    opts.IsWindowsStdcall = false;
+                    opts.IsZLibNgModernAbi = true;
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+            return opts;
+        }
+
+        public static string GetNativeLibPath(TestNativeAbi abi)
         {
             string libDir = string.Empty;
 
@@ -101,16 +134,59 @@ namespace Joveler.Compression.ZLib.Tests
             libDir = Path.Combine(libDir, "native");
 #endif
 
-            string libPath = null;
+            string libFileName = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "zlib-ng2.dll" : "zlib1.dll");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                        libFileName = "zlib1.dll";
+                        break;
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "zlibwapi.dll";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "zlib-ng2.dll";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "libz-ng.so" : "libz.so");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "libz.so";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "libz-ng.so";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(libDir, isZLibNgModernAbi ? "libz-ng.dylib" : "libz.dylib");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "libz.dylib";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "libz-ng.dylib";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
 
-            if (libPath == null)
+            if (libFileName == null)
                 throw new PlatformNotSupportedException($"Unable to find native library.");
+
+            string libPath = Path.Combine(libDir, libFileName);
             if (!File.Exists(libPath))
                 throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 

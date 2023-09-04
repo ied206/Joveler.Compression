@@ -1,6 +1,6 @@
 ﻿/*
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -29,7 +29,21 @@ using System.Linq;
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    public class GZipStreamTests
+    [DoNotParallelize]
+    public class GZipStreamUpCdeclTests : GZipStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class GZipStreamNgCdeclTests : GZipStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    #region GZipStreamTestsBase
+    public abstract class GZipStreamTestsBase : ZLibTestBase
     {
         #region GZipStream - Compress
         [TestMethod]
@@ -176,4 +190,5 @@ namespace Joveler.Compression.ZLib.Tests
         }
         #endregion
     }
+    #endregion
 }

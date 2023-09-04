@@ -29,12 +29,24 @@ using System.Linq;
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.ZLib")]
-    public class ZLibStreamTests
+    [DoNotParallelize]
+    public class ZLibStreamUpCdeclTests : GZipStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibStreamNgCdeclTests : GZipStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    #region ZLibStreamTestsBase
+    public abstract class ZLibStreamTestsBase
     {
         #region Compress
         [TestMethod]
-
         public void Compress()
         {
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, false);
@@ -175,4 +187,5 @@ namespace Joveler.Compression.ZLib.Tests
         }
         #endregion
     }
+    #endregion
 }

@@ -1,7 +1,6 @@
 ﻿/*
-    Derived from zlib header files (zlib license)
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-    Copyright (C) 2017-2020 Hajin Jang
+    C# tests by Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -33,8 +32,20 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.ZLib.Tests.Checksum
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.ZLib")]
-    public class ChecksumTests
+    [DoNotParallelize]
+    public class ChecksumUpCdeclTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ChecksumNgCdeclTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    public abstract class ChecksumTestsBase : ZLibTestBase
     {
         #region Template
         private enum TestKind
