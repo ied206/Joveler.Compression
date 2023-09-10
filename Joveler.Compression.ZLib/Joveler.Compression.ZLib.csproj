@@ -9,7 +9,7 @@
     
     <PackageId>Joveler.Compression.ZLib</PackageId>
     <Title>Joveler.Compression.ZLib</Title>
-    <Version>4.2.0</Version>
+    <Version>5.0.0</Version>
     <Authors>Jean-loup Gailly, Mark Adler, Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>zlib pinvoke library for .NET.
@@ -21,14 +21,17 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Recompile Windows zlib binaries with proper compile options.
-- Discontinue .NET Framework 4.5.1, 4.6, 4.6.1 due to end of official Microsoft support.</PackageReleaseNotes>    
+    <PackageReleaseNotes>- (BREAKING CHANGE) The library now ships zlib1.dll (zlib-ng compat ABI) instead of zlibwapi.dll (zlib stdcall ABI) for faster performance. Please refer to USAGE.md for proper initialization.
+- Supports multiple zlib ABIs - 'zlib (cdecl)' (default), 'zlib (stdcall)', 'zlib-ng (cdecl)'.
+- (BREAKING CHANGE) `DeflateStream`, `ZLibStream`, `GZipStream` and helper classes are now sealed for better performance.
+- Add `ZLibInit.TryGlobalCleanup()`, which tries to silently unload native zlib instance even though if it has not been loaded.
+- Retargets .NET Framework 4.6.</PackageReleaseNotes>    
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.2.1" />
+    <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6 -->

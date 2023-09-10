@@ -45,6 +45,7 @@ namespace Joveler.Compression.LZ4
         public static void GlobalInit() => Manager.GlobalInit();
         public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
         public static void GlobalCleanup() => Manager.GlobalCleanup();
+        public static bool TryGlobalCleanup() => Manager.TryGlobalCleanup();
         #endregion
 
         #region Version - (Static)

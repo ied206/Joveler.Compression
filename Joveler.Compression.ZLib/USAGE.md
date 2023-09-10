@@ -4,39 +4,23 @@
 
 Joveler.Compression.ZLib requires the explicit loading of a zlib library.
 
-You must call `ZLibInit.GlobalInit()` before using Joveler.Compression.ZLib. Please put this code snippet in your application init code:
+You must call `ZLibInit.GlobalInit()` before using Joveler.Compression.ZLib. 
 
-#### For .NET Framework 4.5.1+
+- Call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` to load embedded binaries.
+    - If you don't know what you are doing, just follow the init code snippet.
+- Call parameterless `ZLibInit.GlobalInit()` on Linux/macOS to load system zlib binary.
+- Never call deprecated `ZLibInit.GlobalInit(string libPath)`.
+    - This function now contains shim code to make Joveler.Compression.ZLib v5.x compatible with v4.x without any source code modification.
+    - It translates `zlibwapi.dll` in path to `zlib1.dll` with cdecl ABI. 
+    - To avoid ABI ambiguity, always call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` directly.
 
-```cs
-public static void InitNativeLibrary()
-{
-    string arch = null;
-    switch (RuntimeInformation.ProcessArchitecture)
-    {
-        case Architecture.X86:
-            arch = "x86";
-            break;
-        case Architecture.X64:
-            arch = "x64";
-            break;
-        case Architecture.Arm:
-            arch = "armhf";
-            break;
-        case Architecture.Arm64:
-            arch = "arm64";
-            break;
-    }
-    string libPath = Path.Combine(arch, "zlibwapi.dll");
+### Init Code Snippet
 
-    if (!File.Exists(libPath))
-        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+Please put this code snippet in your application init code:
 
-    Magic.GlobalInit(libPath);
-}
-```
+**WARNING**: Caller process and callee library must have the same architecture!
 
-#### For .NET Standard 2.0+:
+#### On .NET/.NET Core
 
 ```cs
 public static void InitNativeLibrary()
@@ -68,7 +52,7 @@ public static void InitNativeLibrary()
 
     string libPath = null;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        libPath = Path.Combine(libDir, "zlibwapi.dll");
+        libPath = Path.Combine(libDir, "zlib1.dll");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         libPath = Path.Combine(libDir, "libz.so");
     else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -79,49 +63,123 @@ public static void InitNativeLibrary()
     if (!File.Exists(libPath))
         throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 
-    Magic.GlobalInit(libPath);
+    ZLibInit.GlobalInit(libPath, new ZLibInitOptions());
 }
 ```
 
-**WARNING**: Caller process and callee library must have the same architecture!
+#### On .NET Framework
+
+```cs
+public static void InitNativeLibrary()
+{
+    string arch = null;
+    switch (RuntimeInformation.ProcessArchitecture)
+    {
+        case Architecture.X86:
+            arch = "x86";
+            break;
+        case Architecture.X64:
+            arch = "x64";
+            break;
+        case Architecture.Arm64:
+            arch = "arm64";
+            break;
+    }
+    string libPath = Path.Combine(arch, "zlib1.dll");
+
+    if (!File.Exists(libPath))
+        throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
+
+    ZLibInit.GlobalInit(libPath, new ZLibInitOptions());
+}
+```
 
 ### Embedded binary
 
-Joveler.Compression.ZLib comes with sets of static binaries of `zlib 1.2.11`. They are copied into the build directory at build time.
+Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (compat ABI)`. They will be copied into the build directory at build time.
 
-#### For .NET Framework 4.5.1+
+#### On .NET/.NET Core & .NET Standard
 
-| Platform         | Binary                      | Note               |
-|------------------|-----------------------------|--------------------|
-| Windows x86      | `$(OutDir)\x86\zlibwpi.dll` | Compiled w/ VS2019 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274)|
-| Windows x64      | `$(OutDir)\x64\zlibwpi.dll` | Compiled w/ VS2019 |
+| Platform              | Binary                                    | License       | C Runtime     |
+|-----------------------|-------------------------------------------|---------------|---------------|
+| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
+| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
+| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
+| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\libz.so`    | zlib          | glibc         |
+| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\libz.so`    | zlib          | glibc         |
+| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\libz.so`  | zlib          | glibc         |
+| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`   | zlib          | libSystem     |
+| macOS Ventura arm64   | `$(OutDir)\runtimes\osx-arm64\libz.dylib` | zlib          | libSystem     |
 
-- Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
-- Joveler.Compression.ZLib recognizes only `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)` on Windows.
-
-#### For .NET Standard 2.0+
-
-| Platform      | Binary                                   | Note                     |
-|---------------|------------------------------------------|--------------------------|
-| Windows x86   | `$(OutDir)\runtimes\win-x86\zlibwpi.dll` | Compiled w/ VS2019 wo assembly optimization, due to [the bug](https://github.com/madler/zlib/issues/274) |
-| Windows x64   | `$(OutDir)\runtimes\win-x64\zlibwpi.dll` | Compiled w/ VS2019       |
-| Windows arm64 | `$(OutDir)\runtimes\win-x64\zlibwpi.dll` | Compiled w/ VS2019       |
-| Linux x64     | `$(OutDir)\runtimes\linux-x64\libz.so`   | Compiled in Ubuntu 18.04 |
-| Linux armhf   | `$(OutDir)\runtimes\linux-arm\libz.so`   | Compiled in Debian 10    |
-| Linux arm64   | `$(OutDir)\runtimes\linux-arm64\libz.so` | Compiled in Debian 10    |
-| macOS x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`  | Compiled in Catalina     |
-
-- Joveler.Compression.ZLib recognizes only `zlibwapi.dll (stdcall)` , not `zlib1.dll (cdecl)` on Windows.
+- Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
+- Bundled Windows binaires targets [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) to ensure interoperability with modern .NET runtime.
+    - If you encounter a dependency issue on Windows Vista, 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
 - If you call `ZLibInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed zlib.
 - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `ZLibInit.GlobalInit()` to use system-installed zlib.
 
+#### For .NET Framework 
+
+| Platform              | Binary                                    | License       | C Runtime     |
+|-----------------------|-------------------------------------------|---------------|---------------|
+| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
+| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
+| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
+
+- Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
+- Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
+
+#### Supported ABIs
+
+Joveler.Compression.ZLib uses `zlib (cdecl)` ABI by default. Joveler.Compression.ZLib also supports `zlib (stdcall)` ABI and `zlib-ng (modern)` ABI.
+
+`ZLibInitOptions` controls which ABI should be used to load native library. Default `ZLibInitOptions` instance is set to use default `zlib (cdecl)` ABI.
+
+If you want to load a non-default ABI, tweak `ZLibInitOptions` properties. Set it to correct value, or it would crash the process in worst cases. 
+
+```csharp
+/// <summary>
+/// Controls the ABI used to interface native library.
+/// </summary>
+/// <remarks>
+/// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+/// </remarks>
+public class ZLibInitOptions
+{
+    /// <summary>
+    /// Does the native library have 'stdcall' calling convention? Set it to default unless you know what you are doing.
+    /// <para>Set it to false for zlib1.dll (cdecl), and true for zlibwapi.dll (stdcall).</para>
+    /// <para>This flag is effective only on Windows x86. Otherwise it will be ignored.</para>
+    /// </summary>
+    public bool IsWindowsStdcall { get; set; } = false;
+    /// <summary>
+    /// Does the naive library have zlib-ng 'modern' ABI? Set it to default unless you know what you are doing.
+    /// <para>Set it to true only if you are loading one of 'zlib-ng2.dll', 'libz-ng.so' or 'libz-ng.dylib'.</para>
+    /// <para>If the native library was built with zlib-ng 'compat' mode, set it to false.</para>
+    /// </summary>
+    public bool IsZLibNgModernAbi { get; set; } = false;
+}
+```
+
+| ABI        | Calling Convention (x86) | FileNames                               | Note                          |
+|------------|--------------------|-----------------------------------------------|-------------------------------|
+| zlib       | cdecl              | `zlib1.dll`, `libz.so`, `libz.dylib`          | Default ABI                   |
+| zlib       | stdcall            | `zlibwapi.dll`                                | Effective only on Windows x86 |
+| zlib-ng    | cdecl              | `zlib-ng2.dll`, `libz-ng.so`, `libz-ng.dylib` | zlib-ng modern ABI            |
+
+- `zlib` can be compiled into many ABIs due to its long history. 
+- Its fork `zlib-ng` introduced its own ABI to avoid symbol conflict with long-standing `zlib` ABI.
+- Calling convention difference is only effective on Windows x86.
+    - Specifying to use `stdcall` on POSIX or Windows x64/arm64 would be ignored.
+
 ### Custom binary
 
-To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to the custom binary.
+To use custom zlib binary instead, call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` with a path to the custom binary.
+
+You are required to pass valid `ZLibInitOptions` instance alongside library path.
 
 ### Cleanup
 
-To unload the zlib library explicitly, call `ZLibInit.GlobalCleanup()`.
+To unload the zlib library explicitly, call `ZLibInit.GlobalCleanup()` or `ZLibInit.TryGlobalCleanup()`.
 
 ## DeflateStream
 
@@ -196,13 +254,17 @@ using (DeflateStream zs = new DeflateStream(fsComp, decompOpts))
 
 `ZLibStream` is the class that processes a data format conforming to [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt).
 
-It has the same usage as `DeflateStream`.
+The zlib data format has its simple header and adler32 footer.
+
+It has an interface same as `DeflateStream`.
 
 ## GZipStream
 
 `GZipStream` is the class that processes a data format conforming to [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt).
 
-It has the same usage as `DeflateStream`.
+Use this stream to handle `.gz` files.
+
+It has an interface same as `DeflateStream`.
 
 ## Adler32Checksum
 

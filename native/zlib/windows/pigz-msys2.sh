@@ -1,10 +1,10 @@
 #!/bin/bash
-# Compile zlib for Windows on MSYS2
+# Compile static pigz for Windows on MSYS2
 
 # Usage:
-#   ./zlib-msys2.sh -a i686 /d/build/native/zlib-1.3
-#   ./zlib-msys2.sh -a x86_64 /d/build/native/zlib-1.3
-#   ./zlib-msys2.sh -a aarch64 -t /c/llvm-mingw /d/build/native/zlib-1.3
+#   ./pigz-msys2.sh -a i686 /d/build/native/pigz-2.8
+#   ./pigz-msys2.sh -a x86_64 /d/build/native/pigz-2.8
+#   ./pigz-msys2.sh -a aarch64 -t /c/llvm-mingw /d/build/native/pigz-2.8
 
 function print_help() {
     echo "Usage: $0 <-a i686|x86_64|aarch64> [-t TOOLCHAIN_DIR] <FILE_SRCDIR>" >&2
@@ -34,7 +34,7 @@ shift $(( OPTIND - 1 ))
 SRCDIR="$@"
 if ! [[ -d "${SRCDIR}" ]]; then
     print_help
-    echo "Source [${SRCDIR}] is not a directory!" >&2
+    echo "Src [${SRCDIR}] is not a directory!" >&2
     exit 1
 fi
 
@@ -45,12 +45,10 @@ BASE_ABS_PATH=$(readlink -f "$0")
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR=${BASE_DIR}/build-${ARCH}
 CORES=$(grep -c ^processor /proc/cpuinfo)
+MAKEFILE_MOD=Makefile.mod
 
 # Set library paths
-DEST_STATIC_LIB="libz.a"
-DEST_DYNAMIC_LIB="zlib1.dll"
-DEST_INCL_ZLIBH="zlib.h"
-DEST_INCL_ZCONFH="zconf.h"
+DEST_EXE="pigz.exe"
 STRIP="strip"
 CHECKDEP="ldd"
 
@@ -73,34 +71,44 @@ else
     exit 1
 fi
 
-# Create dest directory
-rm -rf "${DEST_DIR}"
-mkdir -p "${DEST_DIR}"
-mkdir -p "${DEST_DIR}/include"
+# Dest directory must have been created by zlib-msys2.sh
+if ! [[ -d "${DEST_DIR}" ]]; then
+    echo "Please run [zlib-msys2.sh] first." >&2
+    exit 1
+fi
 
 # Let custom toolchain is called first in PATH
 if ! [[ -z "${TOOLCHAIN_DIR}" ]]; then
     export PATH=${TOOLCHAIN_DIR}/bin:${PATH}
 fi
 
-# Compile zlib
+# Patch pigz Makefile
+# - Change compile target architecture
+# - Link static libpthread and zlib instead of dynamic
+# - Specify previously built zlib headers and libz.a path
 pushd "${SRCDIR}" > /dev/null
-make -f "win32/Makefile.gcc" clean
-make -f "win32/Makefile.gcc" "-j${CORES}" "PREFIX=${TARGET_TRIPLE}-"
-cp "${DEST_STATIC_LIB}" "${DEST_DIR}"
-cp "${DEST_DYNAMIC_LIB}" "${DEST_DIR}"
-cp "${DEST_INCL_ZLIBH}" "${DEST_DIR}/include"
-cp "${DEST_INCL_ZCONFH}" "${DEST_DIR}/include"
+cp Makefile $MAKEFILE_MOD
+sed -i "s/CC=gcc/CC=${TARGET_TRIPLE}-gcc/g" $MAKEFILE_MOD
+sed -i "s/LIBS=\\-lm \\-lpthread \\-lz/LIBS=\\-lm \\-l:libpthread.a \\-l:libz.a/g" $MAKEFILE_MOD
+sed -i "s,LDFLAGS=,LDFLAGS=\\-L${DEST_DIR},g" $MAKEFILE_MOD
+sed -i "s,CFLAGS=,CFLAGS=\\-I${DEST_DIR}/include ,g" $MAKEFILE_MOD
+popd > /dev/null
+
+# Compile pigz
+pushd "${SRCDIR}" > /dev/null
+make -f $MAKEFILE_MOD clean
+make -f $MAKEFILE_MOD "-j${CORES}"
+cp "${DEST_EXE}" "${DEST_DIR}"
 popd > /dev/null
 
 # Strip binaries
 pushd "${DEST_DIR}" > /dev/null
-ls -lh *.dll
-${STRIP} "${DEST_DYNAMIC_LIB}"
-ls -lh *.dll
+ls -lh *.exe
+${STRIP} "${DEST_EXE}"
+ls -lh *.exe
 popd > /dev/null
 
 # Print dependency of binraies
 pushd "${DEST_DIR}" > /dev/null
-${CHECKDEP} "${DEST_DYNAMIC_LIB}"
+${CHECKDEP} "${DEST_EXE}"
 popd > /dev/null

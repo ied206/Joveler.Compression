@@ -8,6 +8,8 @@ xz-utils source can be obtained from [homepage](https://tukaani.org/xz/).
 
 ## Windows - x86, x64, arm64
 
+Compile with MSYS2 and `liblzma-msys2.sh`.
+
 ### 5.4.0
 
 xz 5.4.0 MSVC vcxproj files has an issue regarding `lzma_stream_decoder_mt`.
@@ -48,35 +50,13 @@ Use MSYS2 as a workaround.
 
 Linux .so files are built with default optimization.
 
-1. Build with standard Makefile
-   ```sh
-   make -j(N)
-   ```
-1. Strip `src/liblzma/.libs/liblzma.so.(ver)`
-   ```sh
-   strip src/liblzma/.libs/liblzma.so.(ver)
-   ```
-1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   ldd src/liblzma/.libs/liblzma.so.(ver)
-   ```
+Run `liblzma-posix.sh` with proper arguments.
  
 ## macOS - x64, arm64
 
 macOS .dylib files are built with default optimization.
 
-1. Build with standard Makefile.
-   ```ssh
-   make -j(N)
-   ```
-1. Strip `lib/liblzma.(ver).dylib`
-   ```sh
-   strip -S -x lib/liblzma.(ver).dylib
-   ```
-1. Make sure the binary does not have unnecessary dependency
-   ```sh
-   otool -L `lib/liblzma.(ver).dylib`
-   ```
+Run `liblzma-posix.sh` with proper arguments.
 
 `xz` MachO binary for testing must be configured with `--disable-shared --enable-static`.
 - [Reference](https://github.com/therootcompany/xz-static)

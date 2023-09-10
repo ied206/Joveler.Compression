@@ -1,5 +1,5 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
+    Derived from Zstd header files (BSD 2-Clause)
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
@@ -43,6 +43,7 @@ namespace Joveler.Compression.Zstd
         public static void GlobalInit() => Manager.GlobalInit();
         public static void GlobalInit(string libPath) => Manager.GlobalInit(libPath);
         public static void GlobalCleanup() => Manager.GlobalCleanup();
+        public static bool TryGlobalCleanup() => Manager.TryGlobalCleanup();
         #endregion
 
         #region Version - (Static)

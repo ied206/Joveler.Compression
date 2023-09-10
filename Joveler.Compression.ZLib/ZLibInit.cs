@@ -1,7 +1,5 @@
 ﻿/*
-    Derived from zlib header files (zlib license)
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -29,6 +27,12 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
+    /// <summary>
+    /// Controls the ABI used to interface native library.
+    /// </summary>
+    /// <remarks>
+    /// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+    /// </remarks>
     public class ZLibInitOptions
     {
         /// <summary>
@@ -53,10 +57,6 @@ namespace Joveler.Compression.ZLib
         internal static ZLibLoader Lib => Manager.Lib;
         #endregion
 
-        #region Properties
-        public static bool IsLoaded => Manager.Loaded;
-        #endregion
-
         #region GlobalInit, GlobalCleanup
         /// <summary>
         /// Init system-default zlib native library.
@@ -67,6 +67,7 @@ namespace Joveler.Compression.ZLib
             IsWindowsStdcall = false,
             IsZLibNgModernAbi = false,
         });
+
         /// <summary>
         /// (Deprecated) Init supplied zlib native library. Use <see cref="GlobalInit(string libPath, ZLibInitOptions opts)"/> instead.
         /// <para>On Windows x86, whether to use stdcall/cdecl symbol would be guessed by dll filename.</para>
@@ -147,6 +148,9 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Init supplied zlib native library, with explicit stdcall/cdecl flag.
         /// </summary>
+        /// <remarks>
+        /// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+        /// </remarks>
         /// <param name="libPath">
         /// The path of the zlib native library file.
         /// </param>
@@ -158,7 +162,16 @@ namespace Joveler.Compression.ZLib
         {
             Manager.GlobalInit(libPath, opts);
         }
-        public static void GlobalCleanup() => Manager.GlobalCleanup();
+
+        public static void GlobalCleanup()
+        {
+            Manager.GlobalCleanup();
+        }
+
+        public static bool TryGlobalCleanup()
+        {
+            return Manager.TryGlobalCleanup();
+        }
         #endregion
 
         #region Version - (Static)

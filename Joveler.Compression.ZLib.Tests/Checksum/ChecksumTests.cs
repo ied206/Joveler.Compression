@@ -1,7 +1,6 @@
 ﻿/*
-    Derived from zlib header files (zlib license)
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-    Copyright (C) 2017-2020 Hajin Jang
+    C# tests by Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -27,14 +26,31 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Security.Cryptography;
-// ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
-// ReSharper disable CommentTypo
 
 namespace Joveler.Compression.ZLib.Tests.Checksum
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.ZLib")]
-    public class ChecksumTests
+    [DoNotParallelize]
+    public class ChecksumUpCdeclTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ChecksumUpStdcallTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ChecksumNgCdeclTests : ChecksumTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    public abstract class ChecksumTestsBase : ZLibTestBase
     {
         #region Template
         private enum TestKind
@@ -115,8 +131,8 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             else if (checksum.Length == 4)
             {
                 uint actual = BitConverter.ToUInt32(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
+                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X8}");
+                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X8}");
                 Assert.AreEqual((uint)expected, actual);
             }
             else

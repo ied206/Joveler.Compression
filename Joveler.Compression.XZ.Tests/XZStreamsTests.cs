@@ -27,6 +27,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace Joveler.Compression.XZ.Tests
@@ -57,11 +58,19 @@ namespace Joveler.Compression.XZ.Tests
         [TestMethod]
         public void XZCompressMulti()
         {
+            int maxThreads = Environment.ProcessorCount;
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86:
+                case Architecture.Arm:
+                    maxThreads = 2;
+                    break;
+            }
             XZCompressTemplate("A.pdf", false, true, 1, LzmaCompLevel.Level7, false);
             XZCompressTemplate("A.pdf", false, true, 2, LzmaCompLevel.Default, false);
             XZCompressTemplate("B.txt", false, true, 2, LzmaCompLevel.Level3, true);
-            XZCompressTemplate("C.bin", false, true, Environment.ProcessorCount, LzmaCompLevel.Level1, false);
-            XZCompressTemplate("C.bin", false, false, Environment.ProcessorCount, (LzmaCompLevel)255, false);
+            XZCompressTemplate("C.bin", false, true, maxThreads, LzmaCompLevel.Level1, false);
+            XZCompressTemplate("C.bin", false, false, maxThreads, (LzmaCompLevel)255, false);
         }
 
         private static void XZCompressTemplate(string sampleFileName, bool useSpan, bool success, int threads, LzmaCompLevel level, bool extreme)

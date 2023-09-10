@@ -1,5 +1,4 @@
 ﻿/*
-    C# tests by Hajin Jang
     Copyright (C) 2017-present Hajin Jang
 
     zlib license
@@ -21,39 +20,31 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 
-namespace Joveler.Compression.ZLib.Tests
+namespace Joveler.Compression.ZLib
 {
-    [TestClass]
-    [DoNotParallelize]
-    public class ZLibInitUpCdeclTests : ZLibInitTestsBase
+    #region ZLibNativeAbiException
+    public class ZLibNativeAbiException : Exception
     {
-        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
-    }
+        public string IncompatibleAbi { get; private set; }
 
-    [TestClass]
-    [DoNotParallelize]
-    public class ZLibInitUpStdcallTests : ZLibInitTestsBase
-    {
-        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
-    }
-
-    [TestClass]
-    [DoNotParallelize]
-    public class ZLibInitNgCdeclTests : ZLibInitTestsBase
-    {
-        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
-    }
-
-    #region ZLibInitTestsBase
-    public abstract class ZLibInitTestsBase : ZLibTestBase
-    {
-        [TestMethod]
-        public void VersionTests()
+        public ZLibNativeAbiException(string incompatibleAbi)
+            : base(ForgeErrorMessage(incompatibleAbi))
         {
-            Console.WriteLine(ZLibInit.VersionString());
+            IncompatibleAbi = incompatibleAbi;
+        }
+
+        public ZLibNativeAbiException(string incompatibleAbi, string msg)
+            : base(ForgeErrorMessage(incompatibleAbi, msg))
+        {
+            IncompatibleAbi = incompatibleAbi;
+        }
+
+        private static string ForgeErrorMessage(string incompatibleAbi, string msg = null)
+        {
+            string abiMsg = $"Loaded native library is incompatible because of ABI [{incompatibleAbi}].";
+            return msg == null ? abiMsg : $"{abiMsg} {msg}";
         }
     }
     #endregion

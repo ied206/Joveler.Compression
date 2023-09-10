@@ -1,5 +1,5 @@
 ﻿/*
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -30,5 +30,10 @@ namespace Joveler.Compression.ZLib
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.ZLib is already initialized.";
 
         protected override ZLibLoader CreateLoader() => new ZLibLoader();
+
+        public void GlobalReinit()
+        {
+
+        }
     }
 }

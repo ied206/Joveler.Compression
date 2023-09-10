@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -30,12 +30,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-// ReSharper disable InconsistentNaming
-// ReSharper disable EnumUnderlyingTypeIsInt
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable NotAccessedField.Local
-// ReSharper disable UnusedMember.Local
-// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {
@@ -140,6 +134,126 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
+    #region ZLibCompileFlags
+    /// <summary>
+    /// Flags indicating compile-time options.
+    /// </summary>
+    internal class ZLibCompileFlags
+    {
+        #region Constructor
+        public ZLibCompileFlags(uint flags)
+        {
+            RawFlags = flags;
+
+            CUIntSize = ParseTypeSize(flags, 0);
+            CULongSize = ParseTypeSize(flags, 2);
+            PtrSize = ParseTypeSize(flags, 4);
+            ZOffsetSize = ParseTypeSize(flags, 6);
+
+            IsDebug = ParseBool(flags, 8);
+            IsWinApi = ParseBool(flags, 10);
+            IsBuildFixed = ParseBool(flags, 12);
+            IsDynamicCrcTable = ParseBool(flags, 13);
+
+            NoGZCompress = ParseBool(flags, 16);
+            NoGZip = ParseBool(flags, 17);
+
+            PKZipBugWorkaround = ParseBool(flags, 20);
+            FastestDeflateOnly = ParseBool(flags, 21);
+        }
+        #endregion
+
+        #region Flag Properties
+        public uint RawFlags { get; }
+
+        // Type sizes, two bits each, 00 = 16 bits, 01 = 32, 10 = 64, 11 = other:
+        /// <summary>
+        /// 1.0: size of unsigned int
+        /// </summary>
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int CUIntSize { get; }
+        /// <summary>
+        /// 3.2: size of unsigned long
+        /// </summary>
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int CULongSize { get; }
+        /// <summary>
+        /// 5.4: size of void * (pointer)
+        /// </summary>
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int PtrSize { get; }
+        /// <summary>
+        /// 7.6: size of z_off_t
+        /// </summary>
+        public int ZOffsetSize { get; }
+        // Compiler, assembler, and debug options:
+        /// <summary>
+        /// 8: ZLIB_DEBUG
+        /// </summary>
+        public bool IsDebug { get; }
+        /// <summary>
+        /// 10: ZLIB_WINAPI -- exported functions use the WINAPI calling convention
+        /// </summary>
+        public bool IsWinApi { get; }
+        // One-time table building (smaller code, but not thread-safe if true):
+        /// <summary>
+        /// 12: BUILDFIXED -- build static block decoding tables when needed (not supported by zlib-ng)
+        /// </summary>
+        public bool IsBuildFixed { get; }
+        /// <summary>
+        /// 13: DYNAMIC_CRC_TABLE -- build CRC calculation tables when needed
+        /// </summary>
+        public bool IsDynamicCrcTable { get; }
+        // Library content (indicates missing functionality):
+        /// <summary>
+        /// 16: NO_GZCOMPRESS -- gz* functions cannot compress (to avoid linking
+        ///                      deflate code when not needed)
+        /// </summary>
+        public bool NoGZCompress { get; }
+        /// <summary>
+        /// 17: NO_GZIP -- deflate can't write gzip streams, and inflate can't detect
+        ///                and decode gzip streams(to avoid linking crc code)
+        /// </summary>
+        public bool NoGZip { get; }
+        // Operation variations (changes in library functionality):
+        /// <summary>
+        /// 20: PKZIP_BUG_WORKAROUND -- slightly more permissive inflate
+        /// </summary>
+        public bool PKZipBugWorkaround { get; }
+        /// <summary>
+        /// 21: FASTEST -- deflate algorithm with only one, lowest compression level
+        /// </summary>
+        public bool FastestDeflateOnly { get; }
+        #endregion
+
+        #region (static) Parse methods
+        private static int ParseTypeSize(uint flags, int bitPos)
+        {
+            uint andVal = (flags >> bitPos) & 0b11;
+            return andVal switch
+            {
+                0 => 2,
+                1 => 4,
+                2 => 8,
+                _ => 0,
+            };
+        }
+
+        private static bool ParseBool(uint flags, int bitPos)
+        {
+            uint andVal = (flags >> bitPos) & 0b1;
+            return andVal != 0;
+        }
+        #endregion
+    }
+    #endregion
+
     #region ZStreamBase (inheritance)
     [StructLayout(LayoutKind.Sequential)]
     internal abstract unsafe class ZStreamBase
@@ -195,7 +309,9 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public abstract uint Adler { get; set; }
     }
+    #endregion
 
+    #region ZStream (32bit long)
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe sealed class ZStreamL32 : ZStreamBase
     {
@@ -290,7 +406,7 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
-    #region ZStream for 64bit long
+    #region ZStream (64bit long)
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe sealed class ZStreamL64 : ZStreamBase
     {

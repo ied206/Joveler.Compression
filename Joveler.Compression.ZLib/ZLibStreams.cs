@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2023 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -27,7 +27,6 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using Joveler.DynLoader;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -182,21 +181,7 @@ namespace Joveler.Compression.ZLib
             int windowBits = ProcessFormatWindowBits(decompOpts.WindowBits, _mode, format);
 
             // Prepare and init ZStream
-            switch (ZLibInit.Lib.PlatformLongSize)
-            {
-                case PlatformLongSize.Long32:
-                    {
-                        _zs = new ZStreamL32();
-                        break;
-                    }
-                case PlatformLongSize.Long64:
-                    {
-                        _zs = new ZStreamL64();
-                        break;
-                    }
-                default:
-                    throw new PlatformNotSupportedException();
-            }
+            _zs = ZLibInit.Lib.CreateZStream();
             _zsPin = GCHandle.Alloc(_zs, GCHandleType.Pinned);
 
             ZLibRet ret = ZLibInit.Lib.NativeAbi.InflateInit(_zs, windowBits);

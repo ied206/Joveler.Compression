@@ -22,39 +22,24 @@
 */
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 
 namespace Joveler.Compression.ZLib.Tests
 {
-    [TestClass]
     [DoNotParallelize]
-    public class ZLibInitUpCdeclTests : ZLibInitTestsBase
+    public abstract class ZLibTestBase
     {
-        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
-    }
+        protected abstract TestNativeAbi Abi { get; }
 
-    [TestClass]
-    [DoNotParallelize]
-    public class ZLibInitUpStdcallTests : ZLibInitTestsBase
-    {
-        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
-    }
-
-    [TestClass]
-    [DoNotParallelize]
-    public class ZLibInitNgCdeclTests : ZLibInitTestsBase
-    {
-        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
-    }
-
-    #region ZLibInitTestsBase
-    public abstract class ZLibInitTestsBase : ZLibTestBase
-    {
-        [TestMethod]
-        public void VersionTests()
+        [TestInitialize]
+        public void TestInitialize()
         {
-            Console.WriteLine(ZLibInit.VersionString());
+            TestSetup.InitNativeAbi(Abi);
+        }
+
+        [TestCleanup]
+        public void TestCleanup()
+        {
+            TestSetup.Cleanup();
         }
     }
-    #endregion
 }
