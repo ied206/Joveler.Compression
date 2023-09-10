@@ -8,7 +8,9 @@ LZ4 source can be obtained from [GitHub](https://github.com/lz4/lz4/releases).
 
 ## Windows - x86, x64, arm64
 
-**WARN**: lz4 implementation benefits a lot from code being cached into CPU. All build methods provided here build with size optimization.
+All build methods provided here build with size optimization.
+
+lz4 implementation benefits a lot from code being cached into CPU. Size optimized code (`-Os`) is about 2x ~ 3x faster than perf optimized code (`-O3`) in C# warpped test.
 
 ### LLVM-mingw build
 

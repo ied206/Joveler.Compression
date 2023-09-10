@@ -10,7 +10,9 @@ zlib-ng source can be obtained from its [GitHub repo](https://github.com/zlib-ng
 
 ### LLVM-mingw Build
 
-Install cmake, and run `zlib-ng-msys2.sh` script on MSYS2 with proper arguments.
+Install cmake, and run `zlib-ng-cmake.ps1` script with proper arguments.
+
+You may need to patch zlib-ng source.
 
 ## Linux - x64, armhf, arm64
 
