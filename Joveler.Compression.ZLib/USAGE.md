@@ -4,9 +4,19 @@
 
 Joveler.Compression.ZLib requires the explicit loading of a zlib library.
 
+You must call `ZLibInit.GlobalInit()` before using Joveler.Compression.ZLib. 
+
+- Call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` to load embedded binaries.
+    - If you don't know what you are doing, just follow the init code snippet.
+- Call parameterless `ZLibInit.GlobalInit()` on Linux/macOS to load system zlib binary.
+- Never call deprecated `ZLibInit.GlobalInit(string libPath)`.
+    - This function now contains shim code to make Joveler.Compression.ZLib v5.x compatible with v4.x without any source code modification.
+    - It translates `zlibwapi.dll` in path to `zlib1.dll` with cdecl ABI. 
+    - To avoid ABI ambiguity, always call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` directly.
+
 ### Init Code Snippet
 
-You must call `ZLibInit.GlobalInit()` before using Joveler.Compression.ZLib. Please put this code snippet in your application init code:
+Please put this code snippet in your application init code:
 
 **WARNING**: Caller process and callee library must have the same architecture!
 
@@ -71,9 +81,6 @@ public static void InitNativeLibrary()
         case Architecture.X64:
             arch = "x64";
             break;
-        case Architecture.Arm:
-            arch = "armhf";
-            break;
         case Architecture.Arm64:
             arch = "arm64";
             break;
@@ -121,32 +128,58 @@ Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (c
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
 
-### Custom binary
-
-To use custom zlib binary instead, call `ZLibInit.GlobalInit()` with a path to the custom binary.
-
-You are required to pass valid `ZLibInitOptions` instance alongside library path. It controls which ABI should be used to load native library. Set it to correct value, or it would crash the process in worst cases.
-
 #### Supported ABIs
 
-Joveler.Compression.ZLib supports both traditional zlib ABIs, and also its modern counterpart zlib-ng ABI.
+Joveler.Compression.ZLib uses `zlib (cdecl)` ABI by default. Joveler.Compression.ZLib also supports `zlib (stdcall)` ABI and `zlib-ng (modern)` ABI.
 
-Joveler.Compression.ZLib uses `zlib (cdecl)` ABI by default, and default `ZLibInitOptions` instance is set to use it. If you want to load other ABI, tweak `ZLibInitOptions` properties.
+`ZLibInitOptions` controls which ABI should be used to load native library. Default `ZLibInitOptions` instance is set to use default `zlib (cdecl)` ABI.
 
-| ABI        | Calling Convention | FileNames                                     | Note         |
-|------------|--------------------|-----------------------------------------------|--------------|
-| zlib       | cdecl/default      | `zlib1.dll`, `libz.so`, `libz.dylib`          | Default ABI  |
+If you want to load a non-default ABI, tweak `ZLibInitOptions` properties. Set it to correct value, or it would crash the process in worst cases. 
+
+```csharp
+/// <summary>
+/// Controls the ABI used to interface native library.
+/// </summary>
+/// <remarks>
+/// Default values of ZLibInitOptions instance are tuned to load embedded zlib-ng compat binary.
+/// </remarks>
+public class ZLibInitOptions
+{
+    /// <summary>
+    /// Does the native library have 'stdcall' calling convention? Set it to default unless you know what you are doing.
+    /// <para>Set it to false for zlib1.dll (cdecl), and true for zlibwapi.dll (stdcall).</para>
+    /// <para>This flag is effective only on Windows x86. Otherwise it will be ignored.</para>
+    /// </summary>
+    public bool IsWindowsStdcall { get; set; } = false;
+    /// <summary>
+    /// Does the naive library have zlib-ng 'modern' ABI? Set it to default unless you know what you are doing.
+    /// <para>Set it to true only if you are loading one of 'zlib-ng2.dll', 'libz-ng.so' or 'libz-ng.dylib'.</para>
+    /// <para>If the native library was built with zlib-ng 'compat' mode, set it to false.</para>
+    /// </summary>
+    public bool IsZLibNgModernAbi { get; set; } = false;
+}
+```
+
+| ABI        | Calling Convention (x86) | FileNames                               | Note                          |
+|------------|--------------------|-----------------------------------------------|-------------------------------|
+| zlib       | cdecl              | `zlib1.dll`, `libz.so`, `libz.dylib`          | Default ABI                   |
 | zlib       | stdcall            | `zlibwapi.dll`                                | Effective only on Windows x86 |
-| zlib-ng    | cdecl/default      | `zlib-ng2.dll`, `libz-ng.so`, `libz-ng.dylib` |              |
+| zlib-ng    | cdecl              | `zlib-ng2.dll`, `libz-ng.so`, `libz-ng.dylib` | zlib-ng modern ABI            |
 
 - `zlib` can be compiled into many ABIs due to its long history. 
 - Its fork `zlib-ng` introduced its own ABI to avoid symbol conflict with long-standing `zlib` ABI.
 - Calling convention difference is only effective on Windows x86.
     - Specifying to use `stdcall` on POSIX or Windows x64/arm64 would be ignored.
 
+### Custom binary
+
+To use custom zlib binary instead, call `ZLibInit.GlobalInit(string libPath, ZLibInitOptions opts)` with a path to the custom binary.
+
+You are required to pass valid `ZLibInitOptions` instance alongside library path.
+
 ### Cleanup
 
-To unload the zlib library explicitly, call `ZLibInit.GlobalCleanup()`.
+To unload the zlib library explicitly, call `ZLibInit.GlobalCleanup()` or `ZLibInit.TryGlobalCleanup()`.
 
 ## DeflateStream
 
