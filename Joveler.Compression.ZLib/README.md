@@ -1,6 +1,6 @@
 # Joveler.Compression.ZLib
 
-[zlib](https://zlib.net/) pinvoke library for .NET.
+Cross-platform [zlib](https://zlib.net/) pinvoke library for .NET.
 
 `DefalteStream` and its familiy is based on the code of [zlibnet](https://zlibnet.codeplex.com) by [@hardon](https://www.codeplex.com/site/users/view/hardon).
 
@@ -12,9 +12,23 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 
 ## Features
 
-- ZLibStream, the stream implementation conforms [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt)
-- Improved DeflateStream and GZipStream, conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt) and [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt)
-- Adler32 and CRC32 checksum
+Joveler.Compression.ZLib exposes fast zlib capabilities with backed by zlib-ng.
+
+- ZLibStream, the stream implementation conforms [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt).
+- Improved DeflateStream and GZipStream, conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt) and [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt).
+- Fast Adler32 and CRC32 checksum.
+
+## How is Joveler.Compression.ZLib different from System.IO.Compression?
+
+.NET BCL also provides [System.IO.Compression](https://learn.microsoft.com/en-us/dotnet/api/system.io.compression) for handling zlib streams.
+
+Here is the list where this library differs from .NET BCL:
+
+1. Joveler.Compression.ZLib ships with fast zlib-ng fork, and performs better than .NET BCL.
+1. System.IO.Compression lacks some zlib capabilities, which Joveler.Compression.ZLib does.
+    - System.IO.Compression did not support ZLibStream and GZipStream until .NET 6.0, and still does not in .NET Framework.
+    - System.IO.Compression did not support best compressoin level until .NET 6.0, and still does not in .NET Framework.
+    - System.IO.Compression does not expose Adler32 and CRC32 checksum functions.
 
 ## Support
 
@@ -22,7 +36,7 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 
 - .NET Core 3.1
 - .NET Standard 2.0
-- .NET Framework 4.6.2
+- .NET Framework 4.6
 
 #### Discontinued target frameworks
 
@@ -30,7 +44,7 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 |----------|------------------------|
 | .NET Framework 4.5 | [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) |
 | .NET Standard 1.3 | [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) |
-| .NET Framework 4.5.1, 4.6, 4.6.1 | [v4.1.0](https://www.nuget.org/packages/Joveler.Compression.ZLib/4.1.0) |
+| .NET Framework 4.5.1 | [v4.1.0](https://www.nuget.org/packages/Joveler.Compression.ZLib/4.1.0) |
 
 ### Supported OS platforms
 
@@ -43,23 +57,14 @@ Joveler.Compression.ZLib can be installed via [nuget](https://www.nuget.org/pack
 |          | armhf        | Yes    |
 |          | arm64        | Yes    |
 | macOS    | x64          | Yes    |
-
-macOS arm64 should be supported on theory, but I do not have access to an Apple Sillicon device to test. Please contribute if you have an ARM64 macOS machine.
-
-#### Tested linux distributions
-
-| Architecture  | Distribution | Note |
-|---------------|--------------|------|
-| x64           | Ubuntu 18.04 | Tested on AppVeyor CI |
-| armhf         | Debian 10    | Emulated on QEMU      |
-| arm64         | Debian 10    | Emulated on QEMU      |
+|          | arm64        | Yes    |
 
 ### Supported zlib version
 
+- zlib-ng 2.1.3 compat ABI (Included)
+    - Compatible with traditional zlib ABI, such as `zlib1.dll`.
 - zlib 1.3
     - Supports both `zlib1.dll` and `zlibwapi.dll` on Windows.
-- zlib-ng 2.1.3 compat ABI (Included)
-    - Compatible with traditional zlib ABI.
 - zlib-ng 2.1.3 modern ABI
 
 ## Changelog
