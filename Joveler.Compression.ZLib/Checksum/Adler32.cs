@@ -1,7 +1,7 @@
 ﻿/*
    Derived from zlib header files (zlib license)
    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-   Copyright (C) 2017-2020 Hajin Jang
+   Copyright (C) 2017-present Hajin Jang
 
    zlib license
 
@@ -64,10 +64,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Adler32(checksum, bufPtr, (uint)count);
-                else
-                    return ZLibInit.Lib.Cdecl.Adler32(checksum, bufPtr, (uint)count);
+                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)count);
             }
         }
 
@@ -76,10 +73,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                if (ZLibInit.Lib.UseStdcall)
-                    return ZLibInit.Lib.Stdcall.Adler32(checksum, bufPtr, (uint)span.Length);
-                else
-                    return ZLibInit.Lib.Cdecl.Adler32(checksum, bufPtr, (uint)span.Length);
+                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
         #endregion

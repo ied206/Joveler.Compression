@@ -1,9 +1,6 @@
 ﻿/*
-    Derived from zlib header files (zlib license)
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -32,8 +29,19 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
+// This tests cannot be parallelized to test two or more native abis at once.
+[assembly: DoNotParallelize]
+
 namespace Joveler.Compression.ZLib.Tests
 {
+    public enum TestNativeAbi
+    {
+        None = 0,
+        UpstreamCdecl = 1,
+        UpstreamStdcall = 2,
+        ZLibNgCdecl = 3,
+    }
+
     #region TestSetup
     [TestClass]
     public class TestSetup
@@ -44,23 +52,54 @@ namespace Joveler.Compression.ZLib.Tests
         [AssemblyInitialize]
         public static void Init(TestContext context)
         {
+            // Differet from other compression wrappers, Joveler.Compression.ZLib supports multiple native ABIs.
+            // To test all ABIs, Joveler.Compression.ZLib.Tests do not load native library at AssemblyInitialize.
+            // Instead, the libraries will be loaded in ClassInitialize, with DoNotParallelize attribute added to classes.
             _ = context;
 
             string absPath = TestHelper.GetProgramAbsolutePath();
             BaseDir = Path.GetFullPath(Path.Combine(absPath, "..", "..", ".."));
             SampleDir = Path.Combine(BaseDir, "Samples");
-
-            string libPath = GetNativeLibPath();
-            ZLibInit.GlobalInit(libPath, false);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
-            ZLibInit.GlobalCleanup();
+            ZLibInit.TryGlobalCleanup();
         }
 
-        private static string GetNativeLibPath()
+        public static void InitNativeAbi(TestNativeAbi abi)
+        {
+            // Joveler.Compression.ZLib ships with zlib-ng compat binaries.
+            // However, Joveler.Compression.ZLib.Tests also contains zlib-ng modern ABI binaries and zlib stdcall binaries for testing.
+            string libPath = GetNativeLibPath(abi);
+            ZLibInit.GlobalInit(libPath, GetNativeLoadOptions(abi));
+        }
+
+        public static ZLibInitOptions GetNativeLoadOptions(TestNativeAbi abi)
+        {
+            ZLibInitOptions opts = new ZLibInitOptions();
+            switch (abi)
+            {
+                case TestNativeAbi.UpstreamCdecl:
+                    opts.IsWindowsStdcall = false;
+                    opts.IsZLibNgModernAbi = false;
+                    break;
+                case TestNativeAbi.UpstreamStdcall:
+                    opts.IsWindowsStdcall = true;
+                    opts.IsZLibNgModernAbi = false;
+                    break;
+                case TestNativeAbi.ZLibNgCdecl:
+                    opts.IsWindowsStdcall = false;
+                    opts.IsZLibNgModernAbi = true;
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+            return opts;
+        }
+
+        public static string GetNativeLibPath(TestNativeAbi abi)
         {
             string libDir = string.Empty;
 
@@ -94,16 +133,59 @@ namespace Joveler.Compression.ZLib.Tests
             libDir = Path.Combine(libDir, "native");
 #endif
 
-            string libPath = null;
+            string libFileName = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                libPath = Path.Combine(libDir, "zlib1.dll");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                        libFileName = "zlib1.dll";
+                        break;
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "zlibwapi.dll";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "zlib-ng2.dll";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                libPath = Path.Combine(libDir, "libz.so");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "libz.so";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "libz-ng.so";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                libPath = Path.Combine(libDir, "libz.dylib");
+            {
+                switch (abi)
+                {
+                    case TestNativeAbi.UpstreamCdecl:
+                    case TestNativeAbi.UpstreamStdcall:
+                        libFileName = "libz.dylib";
+                        break;
+                    case TestNativeAbi.ZLibNgCdecl:
+                        libFileName = "libz-ng.dylib";
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
 
-            if (libPath == null)
+            if (libFileName == null)
                 throw new PlatformNotSupportedException($"Unable to find native library.");
+
+            string libPath = Path.Combine(libDir, libFileName);
             if (!File.Exists(libPath))
                 throw new PlatformNotSupportedException($"Unable to find native library [{libPath}].");
 
@@ -157,7 +239,18 @@ namespace Joveler.Compression.ZLib.Tests
             string binary = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x86.exe");
+                switch (RuntimeInformation.ProcessArchitecture)
+                {
+                    case Architecture.X86:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x86.exe");
+                        break;
+                    case Architecture.X64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.x64.exe");
+                        break;
+                    case Architecture.Arm64:
+                        binary = Path.Combine(TestSetup.SampleDir, binDir, "pigz.arm64.exe");
+                        break;
+                }
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {

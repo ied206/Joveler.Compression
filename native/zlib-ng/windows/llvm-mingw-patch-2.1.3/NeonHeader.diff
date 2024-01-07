@@ -1,0 +1,23 @@
+diff --git a/zlib-ng-2.1.3/arch/arm/neon_intrins.h b/zlib-ng-2.1.3-mod/arch/arm/neon_intrins.h
+index d6b57f6..3c3facf 100644
+--- a/zlib-ng-2.1.3/arch/arm/neon_intrins.h
++++ b/zlib-ng-2.1.3-mod/arch/arm/neon_intrins.h
+@@ -1,10 +1,15 @@
+ #ifndef ARM_NEON_INTRINS_H
+ #define ARM_NEON_INTRINS_H
+
+-#ifdef _M_ARM64
+-#  include <arm64_neon.h>
++#if (defined(__MINGW32__) || defined(__MINGW64__)) && defined(__clang__)
++// LLVM-mingw does not have arm64_neon.h
++#include <arm_neon.h>
+ #else
+-#  include <arm_neon.h>
++    #ifdef _M_ARM64
++    #  include <arm64_neon.h>
++    #else
++    #  include <arm_neon.h>
++    #endif
+ #endif
+
+ #if defined(ARM_NEON) && !defined(__aarch64__) && !defined(_M_ARM64)

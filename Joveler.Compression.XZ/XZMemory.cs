@@ -27,7 +27,7 @@
 
 namespace Joveler.Compression.XZ
 {
-    public class XZMemory
+    public static class XZMemory
     {
         #region MemUsage
         /// <summary>

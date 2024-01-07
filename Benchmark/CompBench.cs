@@ -1,12 +1,68 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿// #define SHORT_TEST
+
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 
 namespace Benchmark
 {
+    #region CompRatioColumn
+    public class CompRatioColumn : ReturnValueColumn
+    {
+        public override string Id { get; protected set; } = $"{nameof(CompRatioColumn)}.CompRatio";
+        public override string ColumnName { get; protected set; } = "CompRatio";
+        public override string Legend => $"Compression ratio of the configured algorithm.";
+
+        public CompRatioColumn()
+        {
+        }
+
+
+        public override bool LoadParams(object instance, BenchmarkCase benchmarkCase)
+        {
+            const string srcFileNameKey = nameof(CompBench.SrcFileName);
+            const string levelKey = nameof(CompBench.Level);
+
+            Descriptor descriptor = benchmarkCase.Descriptor;
+
+            // Get parameters from benchmarkCase
+            object srcFileNameVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(srcFileNameKey, StringComparison.Ordinal)).Value;
+            object levelVal = benchmarkCase.Parameters.Items.First(x => x.Name.Equals(levelKey, StringComparison.Ordinal)).Value;
+            if (srcFileNameVal is not string srcFileNameStr)
+                return false;
+            if (levelVal is not string levelStr)
+                return false;
+
+            // Set parameters to benchmark instances
+            PropertyInfo srcFileNameProp = descriptor.Type.GetProperty(srcFileNameKey);
+            srcFileNameProp.SetValue(instance, srcFileNameStr);
+            PropertyInfo levelProp = descriptor.Type.GetProperty(levelKey);
+            levelProp.SetValue(instance, levelStr);
+            return true;
+        }
+
+        public override string ParseReturnObject(object ret) => ParseDouble(ret);
+    }
+
+    public class CompRatioConfig : BenchConfig
+    {
+        public CompRatioConfig() : base()
+        {
+            // Columns
+            AddColumn(new CompRatioColumn());
+        }
+    }
+    #endregion
+
     #region CompBench
-    [Config(typeof(BenchConfig))]
+    [Config(typeof(CompRatioConfig))]
+#if SHORT_TEST
+    [ShortRunJob]
+#endif
     public class CompBench
     {
         #region Fields and Properties
@@ -18,30 +74,32 @@ namespace Benchmark
         // SrcFiles
         [ParamsSource(nameof(SrcFileNames))]
         public string SrcFileName { get; set; }
-        public IReadOnlyList<string> SrcFileNames { get; set; } = new string[]
+#if SHORT_TEST
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>()
         {
-            "Banner.bmp", // From PEBakery EncodedFile tests
-            "Banner.svg", // From PEBakery EncodedFile tests
-            "Type4.txt", // From PEBakery EncodedFile tests
-            "bible_en_utf8.txt", // From Canterbury Corpus
-            "bible_kr_cp949.txt", // Public Domain (개역한글)
-            "bible_kr_utf8.txt", // Public Domain (개역한글)
-            "bible_kr_utf16le.txt", // Public Domain (개역한글)
-            "ooffice.dll", // From silesia corpus
-            "reymont.pdf", // From silesia corpus
-            "world192.txt", // From Canterbury corpus
+            "Banner.svg"
         };
+#else
+        public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
+#endif
+
+        /// <summary>
+        /// Cache raw source files to memory to minimize I/O bottleneck.
+        /// </summary>
         public Dictionary<string, byte[]> SrcFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         // Levels
         [ParamsSource(nameof(Levels))]
         public string Level { get; set; }
+#if SHORT_TEST
         public IReadOnlyList<string> Levels { get; set; } = new string[]
         {
-            "Fastest",
             "Default",
-            "Best",
         };
+#else
+        public IReadOnlyList<string> Levels { get; set; } = new List<string>(BenchSamples.Levels);
+#endif
+
 
         // ZLibCompLevel
         public Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel> NativeZLibLevelDict = new Dictionary<string, Joveler.Compression.ZLib.ZLibCompLevel>(StringComparer.Ordinal)
@@ -101,7 +159,7 @@ namespace Benchmark
         #region Setup and Cleanup
         private void GlobalSetup()
         {
-            _sampleDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..", "Samples"));
+            _sampleDir = Program.SampleDir;
 
             _destDir = Path.GetTempFileName();
             File.Delete(_destDir);
@@ -153,7 +211,7 @@ namespace Benchmark
             GlobalSetup();
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(ZstdNativeJoveler) })]
+        [GlobalSetup(Targets = new string[] { nameof(ZstdSingleNativeJoveler), nameof(ZstdMultiNativeJoveler) })]
         public void ZstdSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.Zstd);
@@ -286,15 +344,10 @@ namespace Benchmark
             return (double)compLen / rawData.Length;
         }
 
-        [Benchmark(Description = "xz-T0 (n_Joveler)")]
+        [Benchmark(Description = "xz-T1 (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.XZ)]
         public double XZMultiNativeJoveler()
         {
-            // LZMA2 threaded compression with -9 option takes a lot of memory.
-            // To prevent memory starvation, skip threaded -9 compression.
-            if (Level.Equals("Best", StringComparison.OrdinalIgnoreCase))
-                return 0;
-
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
@@ -306,9 +359,11 @@ namespace Benchmark
                     LeaveOpen = true,
                 };
 
+                // LZMA2 threaded compression with -9 option takes a lot of memory.
+                // To prevent memory starvation and make test results consistent, test only 1 threads.
                 Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
                 {
-                    Threads = Environment.ProcessorCount,
+                    Threads = 1,
                 };
 
                 using (MemoryStream rms = new MemoryStream(rawData))
@@ -376,7 +431,7 @@ namespace Benchmark
         #region Benchmark - zstd
         [Benchmark(Description = "zstd (m_Joveler)")]
         [BenchmarkCategory(BenchConfig.Zstd)]
-        public double ZstdNativeJoveler()
+        public double ZstdSingleNativeJoveler()
         {
             long compLen;
             byte[] rawData = SrcFiles[SrcFileName];
@@ -385,6 +440,34 @@ namespace Benchmark
                 Joveler.Compression.Zstd.ZstdCompressOptions compOpts = new Joveler.Compression.Zstd.ZstdCompressOptions
                 {
                     CompressionLevel = ZstdLevelDict[Level],
+                    MTWorkers = 0,
+                    LeaveOpen = true,
+                };
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.Zstd.ZstdStream zs = new Joveler.Compression.Zstd.ZstdStream(ms, compOpts))
+                {
+                    rms.CopyTo(zs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+            return (double)compLen / rawData.Length;
+        }
+
+        [Benchmark(Description = "zstd-T1 (m_Joveler)")]
+        [BenchmarkCategory(BenchConfig.Zstd)]
+        public double ZstdMultiNativeJoveler()
+        {
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Joveler.Compression.Zstd.ZstdCompressOptions compOpts = new Joveler.Compression.Zstd.ZstdCompressOptions
+                {
+                    CompressionLevel = ZstdLevelDict[Level],
+                    MTWorkers = 1,
                     LeaveOpen = true,
                 };
 

@@ -1,6 +1,6 @@
 ﻿/*
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -22,6 +22,18 @@
 */
 
 
+/* 'Joveler.Compression.ZLib.Tests (net6.0)' 프로젝트에서 병합되지 않은 변경 내용
+이전:
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+이후:
+using Joveler;
+using Joveler.Compression;
+using Joveler.Compression.ZLib;
+using Joveler.Compression.ZLib.Tests;
+using Joveler.Compression.ZLib.Tests;
+using Joveler.Compression.ZLib.Tests.TestBase;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+*/
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
@@ -31,11 +43,31 @@ using System.Linq;
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    public class DeflateStreamTests
+    [DoNotParallelize]
+    public class DeflateStreamUpCdeclTests : DeflateStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class DeflateStreamUpStdcallTests : DeflateStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class DeflateStreamNgCdeclTests : DeflateStreamTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    #region DeflateStreamTestsBase
+    public abstract class DeflateStreamTestsBase : ZLibTestBase
     {
         #region Compress
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Compress()
         {
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, false);
@@ -44,7 +76,6 @@ namespace Joveler.Compression.ZLib.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void CompressSpan()
         {
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, true);
@@ -166,4 +197,5 @@ namespace Joveler.Compression.ZLib.Tests
         }
         #endregion
     }
+    #endregion
 }

@@ -1,5 +1,5 @@
 ﻿/*
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -27,7 +27,7 @@ using Joveler.DynLoader;
 
 namespace Joveler.Compression.LZ4
 {
-    internal class LZ4LoadManager : LoadManagerBase<LZ4Loader>
+    internal sealed class LZ4LoadManager : LoadManagerBase<LZ4Loader>
     {
         protected override string ErrorMsgInitFirst => "Please call LZ4Init.GlobalInit() first!";
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.LZ4 is already initialized.";

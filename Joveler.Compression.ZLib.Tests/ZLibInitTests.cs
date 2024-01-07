@@ -1,6 +1,6 @@
 ﻿/*
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -21,15 +21,34 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 
 namespace Joveler.Compression.ZLib.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.ZLib")]
-    public class ZLibInitTests
+    [DoNotParallelize]
+    public class ZLibInitUpCdeclTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamCdecl;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibInitUpStdcallTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.UpstreamStdcall;
+    }
+
+    [TestClass]
+    [DoNotParallelize]
+    public class ZLibInitNgCdeclTests : ZLibInitTestsBase
+    {
+        protected override TestNativeAbi Abi => TestNativeAbi.ZLibNgCdecl;
+    }
+
+    #region ZLibInitTestsBase
+    public abstract class ZLibInitTestsBase : ZLibTestBase
     {
         [TestMethod]
         public void VersionTests()
@@ -37,4 +56,5 @@ namespace Joveler.Compression.ZLib.Tests
             Console.WriteLine(ZLibInit.VersionString());
         }
     }
+    #endregion
 }

@@ -41,5 +41,5 @@ Please refer the [project homepage](https://github.com/ied206/Joveler.Compressio
 
 ### Supported XZ Utils version
 
-- 5.4.3 (Included)
+- 5.4.4 (Included)
 

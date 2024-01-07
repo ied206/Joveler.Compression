@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Copyright (C) 2018-2023 Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -33,7 +33,7 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.LZ4
 {
-    internal unsafe class LZ4Loader : DynLoaderBase
+    internal unsafe sealed class LZ4Loader : DynLoaderBase
     {
         #region Constructor
         public LZ4Loader() : base() { }

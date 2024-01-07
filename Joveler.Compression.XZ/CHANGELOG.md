@@ -2,6 +2,23 @@
 
 ## v4.x
 
+### v4.3.0
+
+Released in 2023-09-02
+
+- (BREAKING CHANGE) XZ streams and helper classes are now sealed for better performance.
+    - ABI will not break unless you have created a derived class of XZ streams.
+- Added the `Abort()` method to XZ streams. ([\#15](https://github.com/ied206/Joveler.Compression/pull/15)).
+    - When a user wants to abort the current operation, one can call `Abort()` for faster stream cleanup.
+        - Currently only the compression mode benefits from `Abort()`, especially multithreaded compression.
+    - The output stream will have an invalid state, and must be discarded right after calling `Abort()`.
+ 
+### v4.2.3
+
+Released in 2023-08-27
+
+- Update xz-utils to 5.4.4.
+
 ### v4.2.2
 
 Released in 2023-08-06

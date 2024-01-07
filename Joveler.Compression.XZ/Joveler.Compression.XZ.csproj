@@ -9,7 +9,7 @@
 
     <PackageId>Joveler.Compression.XZ</PackageId>
     <Title>Joveler.Compression.XZ</Title>
-    <Version>4.2.2</Version>
+    <Version>4.3.0</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>XZ Utils (liblzma) pinvoke library for .NET.
@@ -21,13 +21,14 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- Update xz-utils to 5.4.3.</PackageReleaseNotes>
+    <PackageReleaseNotes>- XZ streams and helper classes are now sealed for better performance.
+- Added the Abort() method to XZ streams for faster stream cleanup in aborting cases.</PackageReleaseNotes>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.2.0" />
+    <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6 -->

@@ -6,7 +6,7 @@
     Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
     
     Maintained by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -28,13 +28,8 @@
 */
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-// ReSharper disable InconsistentNaming
-// ReSharper disable EnumUnderlyingTypeIsInt
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable NotAccessedField.Local
-// ReSharper disable UnusedMember.Local
-// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {
@@ -139,147 +134,556 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
-    #region ZStream for 32bit long
-    [StructLayout(LayoutKind.Sequential)]
-    internal unsafe class ZStreamL32
+    #region ZLibCompileFlags
+    /// <summary>
+    /// Flags indicating compile-time options.
+    /// </summary>
+    internal class ZLibCompileFlags
     {
-#pragma warning disable 169
-#pragma warning disable IDE0044
-        /// <summary>
-        /// next input byte
-        /// </summary>
-        public byte* NextIn;
-        /// <summary>
-        /// number of bytes available at next_in
-        /// </summary>
-        public uint AvailIn;
-        /// <summary>
-        /// total number of input bytes read so far
-        /// </summary>
-        public uint TotalIn;
+        #region Constructor
+        public ZLibCompileFlags(uint flags)
+        {
+            RawFlags = flags;
 
-        /// <summary>
-        /// next output byte will go here
-        /// </summary>
-        public byte* NextOut;
-        /// <summary>
-        /// remaining free space at next_out
-        /// </summary>
-        public uint AvailOut;
-        /// <summary>
-        /// total number of bytes output so far
-        /// </summary>
-        public uint TotalOut;
+            CUIntSize = ParseTypeSize(flags, 0);
+            CULongSize = ParseTypeSize(flags, 2);
+            PtrSize = ParseTypeSize(flags, 4);
+            ZOffsetSize = ParseTypeSize(flags, 6);
 
-        private IntPtr Msg = IntPtr.Zero;
-        /// <summary>
-        /// last error message, NULL if no error
-        /// </summary>
-        public string LastErrorMsg => Marshal.PtrToStringAnsi(Msg);
-        /// <summary>
-        /// not visible by applications
-        /// </summary>
-        private IntPtr State = IntPtr.Zero;
+            IsDebug = ParseBool(flags, 8);
+            IsWinApi = ParseBool(flags, 10);
+            IsBuildFixed = ParseBool(flags, 12);
+            IsDynamicCrcTable = ParseBool(flags, 13);
 
-        /// <summary>
-        /// used to allocate the internal state
-        /// </summary>
-        private IntPtr ZAlloc = IntPtr.Zero;
-        /// <summary>
-        /// used to free the internal state
-        /// </summary>
-        private IntPtr ZFree = IntPtr.Zero;
-        /// <summary>
-        /// private data object passed to zalloc and zfree
-        /// </summary>
-        private IntPtr Opaque = IntPtr.Zero;
+            NoGZCompress = ParseBool(flags, 16);
+            NoGZip = ParseBool(flags, 17);
 
+            PKZipBugWorkaround = ParseBool(flags, 20);
+            FastestDeflateOnly = ParseBool(flags, 21);
+        }
+        #endregion
+
+        #region Flag Properties
+        public uint RawFlags { get; }
+
+        // Type sizes, two bits each, 00 = 16 bits, 01 = 32, 10 = 64, 11 = other:
         /// <summary>
-        /// best guess about the data type: binary or text for deflate, or the decoding state for inflate
+        /// 1.0: size of unsigned int
         /// </summary>
-        public int DataType;
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int CUIntSize { get; }
         /// <summary>
-        /// Adler-32 or CRC-32 value of the uncompressed data
+        /// 3.2: size of unsigned long
         /// </summary>
-        public uint Adler;
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int CULongSize { get; }
         /// <summary>
-        /// reserved for future use
+        /// 5.4: size of void * (pointer)
         /// </summary>
-        private uint Reserved;
-#pragma warning restore 169
-#pragma warning restore IDE0044
+        /// <remarks>
+        /// Value is set as byte size, one of 2, 4 or 8. If not one of them, value is 0.
+        /// </remarks>
+        public int PtrSize { get; }
+        /// <summary>
+        /// 7.6: size of z_off_t
+        /// </summary>
+        public int ZOffsetSize { get; }
+        // Compiler, assembler, and debug options:
+        /// <summary>
+        /// 8: ZLIB_DEBUG
+        /// </summary>
+        public bool IsDebug { get; }
+        /// <summary>
+        /// 10: ZLIB_WINAPI -- exported functions use the WINAPI calling convention
+        /// </summary>
+        public bool IsWinApi { get; }
+        // One-time table building (smaller code, but not thread-safe if true):
+        /// <summary>
+        /// 12: BUILDFIXED -- build static block decoding tables when needed (not supported by zlib-ng)
+        /// </summary>
+        public bool IsBuildFixed { get; }
+        /// <summary>
+        /// 13: DYNAMIC_CRC_TABLE -- build CRC calculation tables when needed
+        /// </summary>
+        public bool IsDynamicCrcTable { get; }
+        // Library content (indicates missing functionality):
+        /// <summary>
+        /// 16: NO_GZCOMPRESS -- gz* functions cannot compress (to avoid linking
+        ///                      deflate code when not needed)
+        /// </summary>
+        public bool NoGZCompress { get; }
+        /// <summary>
+        /// 17: NO_GZIP -- deflate can't write gzip streams, and inflate can't detect
+        ///                and decode gzip streams(to avoid linking crc code)
+        /// </summary>
+        public bool NoGZip { get; }
+        // Operation variations (changes in library functionality):
+        /// <summary>
+        /// 20: PKZIP_BUG_WORKAROUND -- slightly more permissive inflate
+        /// </summary>
+        public bool PKZipBugWorkaround { get; }
+        /// <summary>
+        /// 21: FASTEST -- deflate algorithm with only one, lowest compression level
+        /// </summary>
+        public bool FastestDeflateOnly { get; }
+        #endregion
+
+        #region (static) Parse methods
+        private static int ParseTypeSize(uint flags, int bitPos)
+        {
+            uint andVal = (flags >> bitPos) & 0b11;
+            return andVal switch
+            {
+                0 => 2,
+                1 => 4,
+                2 => 8,
+                _ => 0,
+            };
+        }
+
+        private static bool ParseBool(uint flags, int bitPos)
+        {
+            uint andVal = (flags >> bitPos) & 0b1;
+            return andVal != 0;
+        }
+        #endregion
     }
     #endregion
 
-    #region ZStream for 64bit long
+    #region ZStreamBase (inheritance)
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe class ZStreamL64
+    internal abstract unsafe class ZStreamBase
     {
-#pragma warning disable 169
-#pragma warning disable IDE0044
+        public static uint DowncastCULong64(ulong val64, [CallerMemberName] string caller = "")
+        {
+            if (uint.MaxValue < val64)
+                throw new OverflowException($"{caller}: [{val64}] cannot be represented in 32bit unsigned integer.");
+            return (uint)val64;
+        }
+
         /// <summary>
         /// next input byte
         /// </summary>
-        public byte* NextIn;
+        public abstract byte* NextIn { get; set; }
         /// <summary>
         /// number of bytes available at next_in
         /// </summary>
-        public uint AvailIn;
+        public abstract uint AvailIn { get; set; }
         /// <summary>
         /// total number of input bytes read so far
         /// </summary>
-        public ulong TotalIn;
+        public abstract ulong TotalIn { get; set; }
 
         /// <summary>
         /// next output byte will go here
         /// </summary>
-        public byte* NextOut;
+        public abstract byte* NextOut { get; set; }
         /// <summary>
         /// remaining free space at next_out
         /// </summary>
-        public uint AvailOut;
+        public abstract uint AvailOut { get; set; }
         /// <summary>
         /// total number of bytes output so far
         /// </summary>
-        public ulong TotalOut;
+        public abstract ulong TotalOut { get; set; }
 
-        private IntPtr Msg = IntPtr.Zero;
+        /// <summary>
+        /// last error message, NULL if no error
+        /// </summary>
+        protected abstract IntPtr Msg { get; set; }
         /// <summary>
         /// last error message, NULL if no error
         /// </summary>
         public string LastErrorMsg => Marshal.PtrToStringAnsi(Msg);
-        /// <summary>
-        /// not visible by applications
-        /// </summary>
-        private IntPtr State = IntPtr.Zero;
-
-        /// <summary>
-        /// used to allocate the internal state
-        /// </summary>
-        private IntPtr ZAlloc = IntPtr.Zero;
-        /// <summary>
-        /// used to free the internal state
-        /// </summary>
-        private IntPtr ZFree = IntPtr.Zero;
-        /// <summary>
-        /// private data object passed to zalloc and zfree
-        /// </summary>
-        private IntPtr Opaque = IntPtr.Zero;
 
         /// <summary>
         /// best guess about the data type: binary or text for deflate, or the decoding state for inflate
         /// </summary>
-        public int DataType;
+        public abstract ZLibDataType DataType { get; set; }
         /// <summary>
         /// Adler-32 or CRC-32 value of the uncompressed data
         /// </summary>
-        public ulong Adler;
+        public abstract uint Adler { get; set; }
+    }
+    #endregion
+
+    #region ZStream (32bit long)
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZStreamL32 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override ulong TotalIn
+        {
+            get => _totalIn;
+            set => _totalIn = DowncastCULong64(value);
+        }
+        private uint _totalIn = 0;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override ulong TotalOut
+        {
+            get => _totalOut;
+            set => _totalOut = DowncastCULong64(value);
+        }
+        private uint _totalOut = 0;
+
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => _adler;
+            set => _adler = value;
+        }
+        private uint _adler = 0;
         /// <summary>
         /// reserved for future use
         /// </summary>
-        private ulong Reserved;
-#pragma warning restore 169
-#pragma warning restore IDE0044
+        private readonly uint _reserved = 0;
+    }
+    #endregion
+
+    #region ZStream (64bit long)
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZStreamL64 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override ulong TotalIn
+        {
+            get => _totalIn;
+            set => _totalIn = value;
+        }
+        private ulong _totalIn = 0;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override ulong TotalOut
+        {
+            get => _totalOut;
+            set => _totalOut = value;
+        }
+        private ulong _totalOut = 0;
+
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => DowncastCULong64(_adler);
+            set => _adler = value;
+        }
+        private ulong _adler = 0;
+        /// <summary>
+        /// reserved for future use
+        /// </summary>
+        private readonly ulong _reserved = 0;
+    }
+    #endregion
+
+    #region ZStream for zlib-ng (32bit long)
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZNgStreamL32 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override ulong TotalIn
+        {
+            get => _totalIn.ToUInt64();
+            set => _totalIn = new UIntPtr(value);
+        }
+        private UIntPtr _totalIn = UIntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override ulong TotalOut
+        {
+            get => _totalOut.ToUInt64();
+            set => _totalOut = new UIntPtr(value);
+        }
+        private UIntPtr _totalOut = UIntPtr.Zero;
+
+        /// <inheritdoc/>
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => (uint)_adler;
+            set => _adler = value;
+        }
+        private ulong _adler = 0;
+        private readonly uint _reserved = 0;
+    }
+    #endregion
+
+    #region ZStream for zlib-ng (64bit long)
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe sealed class ZNgStreamL64 : ZStreamBase
+    {
+        /// <inheritdoc/>
+        public override unsafe byte* NextIn
+        {
+            get => _nextIn;
+            set => _nextIn = value;
+        }
+        private byte* _nextIn = null;
+
+        /// <inheritdoc/>
+        public override uint AvailIn
+        {
+            get => _availIn;
+            set => _availIn = value;
+        }
+        private uint _availIn = 0;
+
+        /// <inheritdoc/>
+        public override ulong TotalIn
+        {
+            get => _totalIn.ToUInt64();
+            set => _totalIn = new UIntPtr(value);
+        }
+        private UIntPtr _totalIn = UIntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override unsafe byte* NextOut
+        {
+            get => _nextOut;
+            set => _nextOut = value;
+        }
+        private byte* _nextOut = null;
+        /// <inheritdoc/>
+        public override uint AvailOut
+        {
+            get => _availOut;
+            set => _availOut = value;
+        }
+        private uint _availOut = 0;
+        /// <inheritdoc/>
+        public override ulong TotalOut
+        {
+            get => _totalOut.ToUInt64();
+            set => _totalOut = new UIntPtr(value);
+        }
+        private UIntPtr _totalOut = UIntPtr.Zero;
+
+        /// <inheritdoc/>
+        protected override IntPtr Msg
+        {
+            get => _msg;
+            set => _msg = value;
+        }
+        private IntPtr _msg = IntPtr.Zero;
+        /// <summary>
+        /// not visible by applications
+        /// </summary>
+        private readonly IntPtr _state = IntPtr.Zero;
+
+        /// <summary>
+        /// used to allocate the internal state
+        /// </summary>
+        private readonly IntPtr _zalloc = IntPtr.Zero;
+        /// <summary>
+        /// used to free the internal state
+        /// </summary>
+        private readonly IntPtr _zfree = IntPtr.Zero;
+        /// <summary>
+        /// private data object passed to zalloc and zfree
+        /// </summary>
+        private readonly IntPtr _opaque = IntPtr.Zero;
+
+        /// <inheritdoc/>
+        public override ZLibDataType DataType
+        {
+            get => _dataType;
+            set => _dataType = value;
+        }
+        private ZLibDataType _dataType = ZLibDataType.Binary;
+        /// <inheritdoc/>
+        public override uint Adler
+        {
+            get => (uint)_adler;
+            set => _adler = value;
+        }
+        private ulong _adler = 0;
+        private readonly ulong _reserved = 0;
     }
     #endregion
 }

@@ -34,7 +34,7 @@ using System.Runtime.InteropServices;
 namespace Joveler.Compression.XZ
 {
     #region StreamOptions
-    public class XZCompressOptions
+    public sealed class XZCompressOptions
     {
         /// <summary>
         /// Select a compression preset level. 
@@ -63,7 +63,7 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = XZStreamBase.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the xz stream object.
         /// </summary>
@@ -95,7 +95,7 @@ namespace Joveler.Compression.XZ
     /// <remarks>
     /// IT IS HIGHLY RECOMMENDED TO SET memlimitThreading AND memlimitStop YOURSELF.
     /// </remarks>
-    public class XZThreadedCompressOptions
+    public sealed class XZThreadedCompressOptions
     {
         /// <summary>
         /// Maximum uncompressed size of a Block.
@@ -162,11 +162,11 @@ namespace Joveler.Compression.XZ
         /// <summary>
         /// 
         /// </summary>
-        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStream.DefaultDecodingFlags;
+        public LzmaDecodingFlag DecodeFlags { get; set; } = XZStreamBase.DefaultDecodingFlags;
         /// <summary>
         /// Size of the internal buffer.
         /// </summary>
-        public int BufferSize { get; set; } = XZStream.DefaultBufferSize;
+        public int BufferSize { get; set; } = XZStreamBase.DefaultBufferSize;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the xz stream object.
         /// </summary>
@@ -292,12 +292,13 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
-    #region XZStream
+    #region XZStreamBase
     /// <inheritdoc />
     /// <summary>
-    /// The stream to handle .xz file format.
+    /// The stream to handle xz-related file/stream format.
+    /// <para>This symbol can be changed anytime, consider this as not a part of public ABI!</para>
     /// </summary>
-    public class XZStream : Stream
+    public abstract class XZStreamBase : Stream
     {
         #region enum Mode
         private enum Mode
@@ -332,6 +333,8 @@ namespace Joveler.Compression.XZ
         private readonly int _bufferSize = DefaultBufferSize;
         private int _workBufPos = 0;
         private readonly byte[] _workBuf;
+
+        private bool _isAborted = false;
 
         // Property
         public Stream BaseStream { get; private set; }
@@ -381,7 +384,7 @@ namespace Joveler.Compression.XZ
         /// <param name="compOpts">
         /// Options to control general compression.
         /// </param>
-        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts)
+        protected unsafe XZStreamBase(Stream baseStream, XZCompressOptions compOpts)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -423,7 +426,7 @@ namespace Joveler.Compression.XZ
         /// <param name="threadOpts">
         /// Options to control threaded compression.
         /// </param>
-        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        protected unsafe XZStreamBase(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -455,20 +458,6 @@ namespace Joveler.Compression.XZ
 
         #region Constructors (Decompression)
         /// <summary>
-        /// Create decompressing XZStream instance.
-        /// </summary>
-        /// <param name="baseStream">
-        /// <para>A stream of XZ container to decompress.</para>
-        /// </param>
-        /// <param name="decompOpts">
-        /// Options to control general decompression.
-        /// </param>
-        public XZStream(Stream baseStream, XZDecompressOptions decompOpts)
-            : this(baseStream, decompOpts, CoderFormat.XZ)
-        {
-        }
-
-        /// <summary>
         /// (Not Public) Create decompressing XZStream instance with <see cref="CoderFormat"/>.
         /// </summary>
         /// <param name="baseStream">
@@ -481,7 +470,7 @@ namespace Joveler.Compression.XZ
         /// 
         /// </param>
         /// <exception cref="ArgumentNullException"></exception>
-        protected unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, CoderFormat fileFormat)
+        protected unsafe XZStreamBase(Stream baseStream, XZDecompressOptions decompOpts, CoderFormat fileFormat)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -532,7 +521,7 @@ namespace Joveler.Compression.XZ
         /// Options to control threaded decompression.
         /// <para>It is highly recommended to explicitly set <see cref="XZThreadedDecompressOptions.MemlimitThreading"/> value.</para>
         /// </param>
-        public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZThreadedDecompressOptions threadOpts)
+        protected unsafe XZStreamBase(Stream baseStream, XZDecompressOptions decompOpts, XZThreadedDecompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -559,7 +548,7 @@ namespace Joveler.Compression.XZ
         #endregion
 
         #region Disposable Pattern
-        ~XZStream()
+        ~XZStreamBase()
         {
             Dispose(false);
         }
@@ -570,17 +559,21 @@ namespace Joveler.Compression.XZ
             {
                 if (_lzmaStream != null)
                 {
-                    if (_mode == Mode.Compress)
+                    if (_isAborted == false)
                     {
-                        Flush();
-                        FinishWrite();
-                    }
-                    else
-                    {
-                        _workBufPos = ReadDone;
+                        if (_mode == Mode.Compress)
+                        {
+                            Flush();
+                            FinishWrite();
+                        }
+                        else
+                        {
+                            _workBufPos = ReadDone;
+                        }
+
+                        FreeLzmaStream();
                     }
 
-                    XZInit.Lib.LzmaEnd(_lzmaStream);
                     _lzmaStreamPin.Free();
                     _lzmaStream = null;
                 }
@@ -594,6 +587,39 @@ namespace Joveler.Compression.XZ
 
                 _disposed = true;
             }
+        }
+        #endregion
+
+        #region LzmaStream management and Abort
+        private void FreeLzmaStream()
+        {
+            // lzma_end frees memory allocated for coder data structures.
+            // It must be called to avoid memory leak.
+            if (_lzmaStream != null)
+            {
+                XZInit.Lib.LzmaEnd(_lzmaStream);
+            }
+        }
+
+        /// <summary>
+        /// Immediately aborts the current operation.
+        /// Internal XZ resources will be freed without flushing nor finalizing.
+        /// <para>The instance will not be able to perform any operations except disposing.</para>
+        /// <para>Data written to the BaseStream will become invalid, discard it immediately.</para>
+        /// </summary>
+        public void Abort()
+        {
+            // In compress mode, Abort() is faster than Close().
+            // In threaded compress mode, Abort() is much faster than Close().
+            // In decompress mode, Abort() took similar time as Close().
+
+            // Invalidate LzmaStream instance.
+            // After running this code, liblzma will refuse any operations via this LzmaStream object.
+            if (_isAborted)
+                return;
+
+            FreeLzmaStream();
+            _isAborted = true;
         }
         #endregion
 
@@ -873,6 +899,8 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
+
+
         #region GetProgress
         /// <summary>
         /// Get progress information of XZ stream.
@@ -901,6 +929,8 @@ namespace Joveler.Compression.XZ
             XZInit.Lib.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
         }
         #endregion
+
+
 
         #region Memory Usage (Decompression Only) - DISABLED
         // lzma_memusage() only works on per-thread basis.
@@ -965,6 +995,80 @@ namespace Joveler.Compression.XZ
     }
     #endregion
 
+    #region XZStream
+    public sealed class XZStream : XZStreamBase
+    {
+        #region Constructor (Compression)
+        /// <summary>
+        /// Create single-threaded compressing XZStream instance.
+        /// </summary>
+        /// <param name="baseStream">
+        /// A stream of XZ container to compress.
+        /// </param>
+        /// <param name="compOpts">
+        /// Options to control general compression.
+        /// </param>
+        public XZStream(Stream baseStream, XZCompressOptions compOpts) :
+            base(baseStream, compOpts)
+        {
+        }
+
+        /// <summary>
+        /// Create multi-threaded compressing XZStream instance.
+        /// Requires more memory than single-threaded mode.
+        /// </summary>
+        /// <param name="baseStream">
+        /// A stream of XZ container to compress.
+        /// </param>
+        /// <param name="compOpts">
+        /// Options to control general compression.
+        /// </param>
+        /// <param name="threadOpts">
+        /// Options to control threaded compression.
+        /// </param>
+        public unsafe XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts) :
+            base(baseStream, compOpts, threadOpts)
+        {
+        }
+        #endregion
+
+        #region Constructors (Decompression)
+        /// <summary>
+        /// Create decompressing XZStream instance.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of XZ container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        public XZStream(Stream baseStream, XZDecompressOptions decompOpts)
+            : base(baseStream, decompOpts, CoderFormat.XZ)
+        {
+        }
+
+        /// <summary>
+        /// Create multi-threaded decompressing XZStream instance.
+        /// Requires more memory than single-threaded mode.
+        /// </summary>
+        /// <param name="baseStream">
+        /// <para>A stream of XZ container to decompress.</para>
+        /// </param>
+        /// <param name="decompOpts">
+        /// Options to control general decompression.
+        /// </param>
+        /// <param name="threadOpts">
+        /// Options to control threaded decompression.
+        /// <para>It is highly recommended to explicitly set <see cref="XZThreadedDecompressOptions.MemlimitThreading"/> value.</para>
+        /// </param>
+        public unsafe XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZThreadedDecompressOptions threadOpts) :
+            base(baseStream, decompOpts, threadOpts)
+        {
+        }
+        #endregion
+    }
+    #endregion
+
     #region LzmaAutoStream (Decompress Only)
     /// <inheritdoc />
     /// <summary>
@@ -973,7 +1077,7 @@ namespace Joveler.Compression.XZ
     /// <remarks>
     /// Does not support multi-threaded xz decompression.
     /// </remarks>
-    public class LzmaAutoStream : XZStream
+    public sealed class LzmaAutoStream : XZStreamBase
     {
         /// <summary>
         /// Create decompressing LzmaAutoStream instance.
@@ -1002,7 +1106,7 @@ namespace Joveler.Compression.XZ
     // TODO: liblzma supports .lzma compression. Since the .lzma format is the legacy one and is almost dead,
     //       Do we really need it on Joveler.Compression.XZ?
     //       To support it, lzma_options_lzma also needs to be p/invoked.
-    public class LzmaAloneStream : XZStream
+    public sealed class LzmaAloneStream : XZStreamBase
     {
         /// <inheritdoc />
         /// <summary>
@@ -1025,7 +1129,7 @@ namespace Joveler.Compression.XZ
     /// <summary>
     /// The stream to handle .lz (lzip) file format. (Decompression Only)
     /// </summary>
-    public class LZipStream : XZStream
+    public sealed class LZipStream : XZStreamBase
     {
         /// <inheritdoc />
         /// <summary>
