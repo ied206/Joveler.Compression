@@ -7,6 +7,8 @@ param (
     [string]$src = "",
     [Parameter(Mandatory=$true)]
     [string]$toolchain = "",
+    #[Parameter(Mandatory=$true)]
+    #[string]$arch = "x86_64",
     [Parameter(Mandatory=$false)]
     [string]$radare2 = ""
 )
@@ -111,8 +113,9 @@ foreach ($buildArch in $buildArches) {
         Write-Host "[*] Configure zlib-ng" -ForegroundColor Yellow
         Push-Location $BuildDir
         cmake .. -G "MinGW Makefiles" "-DCMAKE_MAKE_PROGRAM=${ToolchainDir}/bin/mingw32-make" `
-            "-DCMAKE_TOOLCHAIN_FILE=${SrcDir}/cmake/toolchain-llvm-mingw-${TargetArch}.cmake" `
-            "-DLLVM_MINGW_ROOT=${ToolchainDir}" `
+            "-DCMAKE_TOOLCHAIN_FILE=${BaseDir}/llvm-mingw.cmake" `
+            "-DCMAKE_SYSTEM_PROCESSOR=${TargetArch}" `
+            "-DLLVM_MINGW=${ToolchainDir}" `
             "-DZLIB_COMPAT=${ParamCompat}" `
             "-DWITH_GTEST=OFF"
         Pop-Location
