@@ -47,11 +47,13 @@ deb http://ftp.kr.debian.org/debian/ bookworm main
 deb [arch=arm64,armhf] http://ftp.kr.debian.org/debian/ bookworm main
 ```
 
-Install C/C++ runtime library for armhf.
+Install C/C++ runtime library and .NET dependencies for armhf.
 
 ```bash
 sudo apt update
-sudo apt install libc6:armhf libstdc++6:armhf 
+sudo apt install libc6:armhf libstdc++6:armhf
+# https://github.com/dotnet/core/blob/main/release-notes/8.0/linux-packages.md
+sudo apt install libssl3:armhf libicu72:armhf zlib1g:armhf
 ```
 
 Now you can run .NET armhf binary on arm64 host.
