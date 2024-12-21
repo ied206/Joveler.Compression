@@ -22,11 +22,11 @@ while getopts "a:t:h" opt; do
         h)
             print_help
             exit 1
-        ;;
+            ;;
         :)
             print_help
             exit 1
-        ;;
+            ;;
     esac
 done
 # Parse <FILE_SRCDIR>
