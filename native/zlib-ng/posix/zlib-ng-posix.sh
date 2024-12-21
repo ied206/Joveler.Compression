@@ -15,7 +15,7 @@ function print_help() {
 
 # Check script arguments
 CROSS_ARCH=""
-while getopts "a:t:h" opt; do
+while getopts "a:h" opt; do
     case $opt in
         a) # architecture for cross-compile
             CROSS_ARCH=$OPTARG
@@ -79,6 +79,7 @@ CMAKE_OPT_PARAMS=""
 if [ "${CROSS_ARCH}" != "" ]; then
     echo "Setup cross-compile for [${CROSS_ARCH}]"
     CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_TOOLCHAIN_FILE=${SRC_DIR}/cmake/toolchain-${CROSS_ARCH}.cmake"
+    DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
 fi
 
 # Create dest directory
@@ -103,7 +104,7 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
     cmake .. -G "Unix Makefiles" \
         "-DZLIB_COMPAT=${ZLIB_COMPAT_VALUE}" \
         "-DWITH_GTEST=OFF" \
-        "${CMAKE_OPT_PARAMS}"
+        ${CMAKE_OPT_PARAMS}
     cmake --build . --config Release --parallel "${CORES}"
 
     cp "${DEST_LIB}" "${DEST_DIR}/${DEST_LIB}"
