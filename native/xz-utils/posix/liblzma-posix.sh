@@ -78,17 +78,20 @@ elif [ "${CROSS_ARCH}" = armhf ]; then
     TARGET_TRIPLE="arm-linux-gnueabihf"
 elif [ "${CROSS_ARCH}" = aarch64 ]; then
     TARGET_TRIPLE="aarch64-linux-gnu"
-else
+elif [ "${CROSS_ARCH}" != "" ]; then
     echo "[${ARCH}] is not a pre-defined architecture" >&2
     exit 1
 fi
 
-if [ "${CROSS_TRIPLE}" != "" ]; then
+if [ "${CROSS_ARCH}" != "" ]; then
+    DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
+elif [ "${CROSS_TRIPLE}" != "" ]; then
     TARGET_TRIPLE="${CROSS_TRIPLE}"
+    DEST_DIR="${DEST_DIR}-${CROSS_TRIPLE}"
 fi
 
 if [ "${TARGET_TRIPLE}" != "" ]; then
-    echo "(Cross comiple) Target triple set to [${TARGET_TRIPLE}]"
+    echo "(Cross compile) Target triple set to [${TARGET_TRIPLE}]"
 fi 
 
 # Create dest directory
