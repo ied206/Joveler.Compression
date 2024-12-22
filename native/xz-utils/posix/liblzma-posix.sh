@@ -4,16 +4,42 @@
 # Usage:
 #   ./liblzma-posix.sh ~/build/native/xz-5.4.3
 
+function print_help() {
+    echo "Usage: $0 [-a armhf|aarch64] [-T TARGET_TRIPLE] <SRC_DIR>" >&2
+    echo "" >&2
+    echo "-a: Specify architecture for cross-compiling (Linux only, Optional)" >&2
+    echo "-T: Specify target triple for cross-compiling (Optional)" >&2
+}
+
 # Check script arguments
-if [[ "$#" -ne 1 ]]; then
-    echo "Usage: $0 <FILE_SRCDIR>" >&2
+CROSS_ARCH=""
+CROSS_TRIPLE=""
+while getopts "a:T:h" opt; do
+    case $opt in
+        a) # pre-defined Architecture for cross-compile
+            CROSS_ARCH=$OPTARG
+            ;;
+        T) # any Target Triple for cross-compile
+            CROSS_TRIPLE=$OPTARG
+            ;;
+        h)
+            print_help
+            exit 1
+            ;;
+        :)
+            print_help
+            exit 1
+            ;;
+    esac
+done
+# Parse <FILE_SRC_DIR>
+shift $(( OPTIND - 1 ))
+SRC_DIR="$@"
+if ! [[ -d "${SRC_DIR}" ]]; then
+    print_help
+    echo "Source [${SRC_DIR}] is not a directory!" >&2
     exit 1
 fi
-if ! [[ -d "$1" ]]; then
-    echo "[$1] is not a directory!" >&2
-    exit 1
-fi
-SRCDIR=$1
 
 # Query environment info
 OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
@@ -42,22 +68,49 @@ fi
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 
+# Set target triple (for Linux)
+TARGET_TRIPLE=""
+if [ "${CROSS_ARCH}" = i686 ]; then
+    TARGET_TRIPLE="i686-linux-gnu"
+elif [ "${CROSS_ARCH}" = x86_64 ]; then
+    TARGET_TRIPLE="x86_64-linux-gnu"
+elif [ "${CROSS_ARCH}" = armhf ]; then
+    TARGET_TRIPLE="arm-linux-gnueabihf"
+elif [ "${CROSS_ARCH}" = aarch64 ]; then
+    TARGET_TRIPLE="aarch64-linux-gnu"
+else
+    echo "[${ARCH}] is not a pre-defined architecture" >&2
+    exit 1
+fi
+
+if [ "${CROSS_TRIPLE}" != "" ]; then
+    TARGET_TRIPLE="${CROSS_TRIPLE}"
+fi
+
+if [ "${TARGET_TRIPLE}" != "" ]; then
+    echo "(Cross comiple) Target triple set to [${TARGET_TRIPLE}]"
+fi 
+
 # Create dest directory
 mkdir -p "${DEST_DIR}"
 
 # Compile liblzma, xz
 BUILD_MODES=( "exe" "lib" )
-pushd "${SRCDIR}" > /dev/null
+pushd "${SRC_DIR}" > /dev/null
 for BUILD_MODE in "${BUILD_MODES[@]}"; do
     CONFIGURE_ARGS=""
     if [ "$BUILD_MODE" = "lib" ]; then
-        CONFIGURE_ARGS="--enable-shared --disable-xz"
+        CONFIGURE_ARGS="${CONFIGURE_ARGS} --enable-shared --disable-xz"
     elif [ "$BUILD_MODE" = "exe" ]; then
-        CONFIGURE_ARGS="--disable-shared CFLAGS=-Os"
+        CONFIGURE_ARGS="${CONFIGURE_ARGS} --disable-shared CFLAGS=-Os"
     fi
+
+    if [ "${TARGET_TRIPLE}" != "" ]; then
+        CONFIGURE_ARGS="${CONFIGURE_ARGS} --host=${TARGET_TRIPLE}"
+    fi 
     
     make clean
-    ./configure --host=${TARGET_TRIPLE} \
+    ./configure \
         --disable-debug \
         --disable-dependency-tracking \
         --disable-nls \
