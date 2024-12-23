@@ -32,7 +32,7 @@ while getopts "a:T:h" opt; do
             ;;
     esac
 done
-# Parse <FILE_SRC_DIR>
+# Parse <SRC_DIR>
 shift $(( OPTIND - 1 ))
 SRC_DIR="$@"
 if ! [[ -d "${SRC_DIR}" ]]; then
