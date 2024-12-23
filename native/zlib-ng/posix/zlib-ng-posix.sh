@@ -121,6 +121,7 @@ popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
+file *.${DEST_EXT}
 ${CHECKDEP} *.${DEST_EXT}
 popd > /dev/null
 

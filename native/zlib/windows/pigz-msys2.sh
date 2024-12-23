@@ -110,5 +110,6 @@ popd > /dev/null
 
 # Print dependency of binraies
 pushd "${DEST_DIR}" > /dev/null
+file "${DEST_EXE}"
 ${CHECKDEP} "${DEST_EXE}"
 popd > /dev/null

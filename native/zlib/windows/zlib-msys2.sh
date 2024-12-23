@@ -102,5 +102,6 @@ popd > /dev/null
 
 # Print dependency of binraies
 pushd "${DEST_DIR}" > /dev/null
+file "${DEST_DYNAMIC_LIB}"
 ${CHECKDEP} "${DEST_DYNAMIC_LIB}"
 popd > /dev/null

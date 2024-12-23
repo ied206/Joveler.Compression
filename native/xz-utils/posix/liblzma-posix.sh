@@ -142,6 +142,7 @@ popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
+file "${DEST_LIB}" "${DEST_EXE}"
 ${CHECKDEP} "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
 

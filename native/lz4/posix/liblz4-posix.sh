@@ -12,14 +12,10 @@ function print_help() {
 
 # Check script arguments
 CROSS_ARCH=""
-CROSS_TRIPLE=""
-while getopts "a:T:h" opt; do
+while getopts "a:h" opt; do
     case $opt in
         a) # pre-defined Architecture for cross-compile
             CROSS_ARCH=$OPTARG
-            ;;
-        T) # any Target Triple for cross-compile
-            CROSS_TRIPLE=$OPTARG
             ;;
         h)
             print_help
@@ -78,8 +74,7 @@ DEST_DIR="${BASE_DIR}/build"
 DEST_LIB="liblz4.${DEST_EXT}"
 DEST_EXE="lz4"
 
-# Set target triple (for Linux)
-TARGET_TRIPLE=""
+# Check cross-compile architecture (for Linux)
 if [ "${CROSS_ARCH}" = i686 ]; then
     :
 elif [ "${CROSS_ARCH}" = x86_64 ]; then
@@ -128,15 +123,14 @@ popd > /dev/null
 # Strip a binary
 pushd "${DEST_DIR}" > /dev/null
 pwd
-ls -lh ${DEST_LIB} ${DEST_EXE}
-${STRIP} ${DEST_LIB}
-${STRIP} ${DEST_EXE}
-ls -lh ${DEST_LIB} ${DEST_EXE}
+ls -lh "${DEST_LIB}" "${DEST_EXE}"
+${STRIP} "${DEST_LIB}"
+${STRIP} "${DEST_EXE}"
+ls -lh "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
-file ${DEST_LIB} ${DEST_EXE}
-${CHECKDEP} ${DEST_LIB} ${DEST_EXE}
+file "${DEST_LIB}" "${DEST_EXE}"
+${CHECKDEP} "${DEST_LIB}" "${DEST_EXE}"
 popd > /dev/null
-
