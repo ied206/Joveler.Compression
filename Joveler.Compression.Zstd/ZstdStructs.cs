@@ -47,6 +47,7 @@ namespace Joveler.Compression.Zstd
     /// </remarks>
     public enum Strategy
     {
+        Default = 0,
         Fast = 1,
         DFast = 2,
         Greedy = 3,
@@ -160,6 +161,20 @@ namespace Joveler.Compression.Zstd
         /// Special: value 0 means "use default strategy".
         /// </summary>
         Strategy = 107,
+        /// <summary>
+        /// v1.5.6+
+        /// Attempts to fit compressed block size into approximatively targetCBlockSize.
+        /// Bound by ZSTD_TARGETCBLOCKSIZE_MIN and ZSTD_TARGETCBLOCKSIZE_MAX.
+        /// Note that it's not a guarantee, just a convergence target (default:0).
+        /// No target when targetCBlockSize == 0.
+        /// This is helpful in low bandwidth streaming environments to improve end-to-end latency,
+        /// when a client can make use of partial documents (a prominent example being Chrome).
+        /// Note: this parameter is stable since v1.5.6.
+        /// It was present as an experimental parameter in earlier versions,
+        /// but it's not recommended using it with earlier library versions
+        /// due to massive performance regressions.
+        /// </summary>
+        TargetCBlockSize = 130,
 
         // LDM mode parameters
         /// <summary>

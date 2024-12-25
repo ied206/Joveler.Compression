@@ -50,8 +50,20 @@ namespace Joveler.Compression.Zstd
             ReturnCode = code;
         }
 
+        public ZstdException(UIntPtr code, Exception innerException)
+            : base(ForgeErrorMessage(code), innerException)
+        {
+            ReturnCode = code;
+        }
+
         public ZstdException(UIntPtr code, string msg)
             : base(msg)
+        {
+            ReturnCode = code;
+        }
+
+        public ZstdException(UIntPtr code, string msg, Exception innerException)
+            : base(msg, innerException)
         {
             ReturnCode = code;
         }
@@ -73,6 +85,35 @@ namespace Joveler.Compression.Zstd
 
             if (ZstdInit.Lib.IsError(code) != 0)
                 throw new ZstdException(code);
+        }
+
+        internal static void CheckReturnValueWithCStream(UIntPtr code, IntPtr cstream)
+        {
+            ZstdInit.Manager.EnsureLoaded();
+
+            if (ZstdInit.Lib.IsError(code) != 0)
+            {
+                UIntPtr resetCode = ZstdInit.Lib.CCtxReset(cstream, ResetDirective.ResetSessionOnly);
+                if (ZstdInit.Lib.IsError(resetCode) != 0)
+                    throw new ZstdException(code, new ZstdException(resetCode));
+                else
+                    throw new ZstdException(code);
+            }
+                
+        }
+
+        internal static void CheckReturnValueWithDStream(UIntPtr code, IntPtr dstream)
+        {
+            ZstdInit.Manager.EnsureLoaded();
+
+            if (ZstdInit.Lib.IsError(code) != 0)
+            {
+                UIntPtr resetCode = ZstdInit.Lib.DctxReset(dstream, ResetDirective.ResetSessionOnly);
+                if (ZstdInit.Lib.IsError(resetCode) != 0)
+                    throw new ZstdException(code, new ZstdException(resetCode));
+                else
+                    throw new ZstdException(code);
+            }
         }
 
         #region Serializable
