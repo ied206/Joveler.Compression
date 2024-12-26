@@ -18,6 +18,47 @@ You may need to patch zlib-ng source.
 
 Install cmake, and run `zlib-ng-posix.sh` with proper arguments.
 
+### Linux - armhf in arm64
+
+Recent ARMv8 SoCs dropped the ability to run an aarch32 VM on an aarch64 host. We can detour this issue by cross-compiling, then testing on aarch32 userspace on arm64 system.
+
+First, install gcc for armhf to cross-compile native libraries.
+
+```bash
+sudo apt install gcc-arm-linux-gnueabihf
+```
+
+Then setup aarch32 userspace on arm64 host.
+
+```bash
+sudo dpkg --add-architecture armhf
+```
+
+Edit `sources.list` to unsert `[arch=arm64,armhf]' between 'deb' and 'http'.
+
+```bash
+sudo vim /etc/apt/sources.lists
+```
+
+```
+[AS-IS]
+deb http://ftp.kr.debian.org/debian/ bookworm main
+[TO-BE]
+deb [arch=arm64,armhf] http://ftp.kr.debian.org/debian/ bookworm main
+```
+
+Install C/C++ runtime library and .NET dependencies for armhf.
+
+```bash
+sudo apt update
+sudo apt install libc6:armhf libstdc++6:armhf
+# https://github.com/dotnet/core/blob/main/release-notes/8.0/linux-packages.md
+sudo apt install libssl3:armhf libicu72:armhf zlib1g:armhf
+```
+
+Now you can run .NET armhf binary on arm64 host.
+
+
 ## macOS - x64, arm64
 
 Install cmake, and run `zlib-ng-posix.sh` with proper arguments.

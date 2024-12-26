@@ -2,18 +2,42 @@
 # Compile zlib on Linux/macOS
 
 # Usage:
-#   ./zlib-posix.sh ~/build/native/zlib-1.2.13
+#   [*] Native Build
+#   ./zlib-ng-posix.sh ~/build/native/zlib-ng-2.2.2
+#   [*] Cross Build (on arm64, requires a necessary toolchain to be installed)
+#   ./zlib-ng-posix.sh -a armhf ~/build/native/zlib-ng-2.2.2
+
+function print_help() {
+    echo "Usage: $0 [-a armhf|aarch64] <FILE_SRCDIR>" >&2
+    echo "" >&2
+    echo "-a: Specify architecture for cross-compiling (Optional)" >&2
+}
 
 # Check script arguments
-if [[ "$#" -ne 1 ]]; then
-    echo "Usage: $0 <FILE_SRCDIR>" >&2
+CROSS_ARCH=""
+while getopts "a:h" opt; do
+    case $opt in
+        a) # architecture for cross-compile
+            CROSS_ARCH=$OPTARG
+            ;;
+        h)
+            print_help
+            exit 1
+            ;;
+        :)
+            print_help
+            exit 1
+            ;;
+    esac
+done
+# Parse <FILE_SRCDIR>
+shift $(( OPTIND - 1 ))
+SRC_DIR="$@"
+if ! [[ -d "${SRC_DIR}" ]]; then
+    print_help
+    echo "Source [${SRC_DIR}] is not a directory!" >&2
     exit 1
 fi
-if ! [[ -d "$1" ]]; then
-    echo "[$1] is not a directory!" >&2
-    exit 1
-fi
-SRC_DIR=$1
 BUILD_DIR="${SRC_DIR}/build"
 
 # Required dependencies: cmake
@@ -50,6 +74,14 @@ fi
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 
+# Cross-compile
+CMAKE_OPT_PARAMS=""
+if [ "${CROSS_ARCH}" != "" ]; then
+    echo "Setup cross-compile for [${CROSS_ARCH}]"
+    CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_TOOLCHAIN_FILE=${SRC_DIR}/cmake/toolchain-${CROSS_ARCH}.cmake"
+    DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
+fi
+
 # Create dest directory
 rm -rf "${DEST_DIR}"
 mkdir -p "${DEST_DIR}"
@@ -71,7 +103,8 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
 
     cmake .. -G "Unix Makefiles" \
         "-DZLIB_COMPAT=${ZLIB_COMPAT_VALUE}" \
-        "-DWITH_GTEST=OFF"
+        "-DWITH_GTEST=OFF" \
+        ${CMAKE_OPT_PARAMS}
     cmake --build . --config Release --parallel "${CORES}"
 
     cp "${DEST_LIB}" "${DEST_DIR}/${DEST_LIB}"
@@ -88,6 +121,7 @@ popd > /dev/null
 
 # Check dependency of a binary
 pushd "${DEST_DIR}" > /dev/null
+file *.${DEST_EXT}
 ${CHECKDEP} *.${DEST_EXT}
 popd > /dev/null
 

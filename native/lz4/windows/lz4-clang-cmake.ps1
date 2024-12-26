@@ -89,13 +89,14 @@ foreach ($buildArch in $buildArches) {
     Write-Output ""
     Write-Host "[*] Configure lz4" -ForegroundColor Yellow
     Push-Location $BuildDir
-    cmake ..\build\cmake -G "MinGW Makefiles" "-DCMAKE_MAKE_PROGRAM=${ToolchainDir}/bin/mingw32-make" `
+    cmake ..\build\cmake -G "MinGW Makefiles" `
+        "-DCMAKE_MAKE_PROGRAM=${ToolchainDir}/bin/mingw32-make" `
         "-DCMAKE_TOOLCHAIN_FILE=${BaseDir}/llvm-mingw.cmake" `
         "-DCMAKE_SYSTEM_PROCESSOR=${TargetArch}" `
         "-DLLVM_MINGW=${ToolchainDir}" `
         "-DCPACK_SOURCE_ZIP=OFF" `
         "-DCPACK_SOURCE_7Z=OFF" `
-        "-DCPACK_BINARY_NSIS=OFF" ` 
+        "-DCPACK_BINARY_NSIS=OFF" `
         "-DCMAKE_BUILD_TYPE=MinSizeRel" 
     # Benchmark: MSVC -Os build is much faster than Clang -O3 build.
     # It seems CMAKE_BUILD_TYPE must be denoted in configure time, not a build time.

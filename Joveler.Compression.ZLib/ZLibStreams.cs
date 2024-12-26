@@ -78,7 +78,13 @@ namespace Joveler.Compression.ZLib
         /// For maximum compatibility, using ZLibWindowBits.Default (15) is recommended.
         /// </remarks>
         public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
         public int BufferSize { get; set; } = DeflateStream.DefaultBufferSize;
+         /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
     #endregion

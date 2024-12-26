@@ -57,45 +57,111 @@ namespace Joveler.Compression.Zstd
         public bool LeaveOpen { get; set; } = false;
         /// <summary>
         /// Compression level of <cref>ZstdFrameStream</cref>. 
+        /// 
         /// Default level is 0, which is controlled by <cref>ZstdFrameStream.CLevelDefault</cref>.
+        /// 
         /// Refer to <cref>ZstdStream.MinCompressionLevel()</cref> and <cref>ZstdStream.MaxCompressionLevel()</cref> for bounds.
         /// </summary>
+        /// <remarks>
+        /// Note 1 : it's possible to pass a negative compression level.
+        /// Note 2 : setting a level does not automatically set all other compression parameters
+        ///   to default. Setting this will however eventually dynamically impact the compression
+        ///   parameters which have not been manually set. The manually set
+        ///   ones will 'stick'.
+        /// </remarks>
         public int CompressionLevel { get; set; } = 0;
         /// <summary>
         /// Size of uncompressed content ; 0 == unknown
+        /// This value will also be controlled at end of frame, and trigger an error if not respected.
         /// </summary>
         public ulong ContentSize { get; set; } = 0;
         #endregion
 
         #region Advanced compression parameters
+        // It's possible to pin down compression parameters to some specific values.
+        // In which case, these values are no longer dynamically selected by the compressor
         /// <summary>
-        /// largest match distance : larger == more compression, more memory needed during decompression
+        /// Maximum allowed back-reference distance, expressed as power of 2.
+        /// 
+        /// This will set a memory budget for streaming decompression,
+        /// with larger values requiring more memory
+        /// and typically compressing more.
+        /// Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
+        /// 
+        /// Note: Using a windowLog greater than ZSTD_WINDOWLOG_LIMIT_DEFAULT
+        ///       requires explicitly allowing such size at streaming decompression stage.
         /// </summary>
-        public uint WindowLog;
+        /// <remarks>
+        /// Special: value 0 means "use default windowLog".
+        /// </remarks>
+        public uint WindowLog { get; set; } = 0;
         /// <summary>
-        /// fully searched segment : larger == more compression, slower, more memory (useless for fast)
+        /// Size of the initial probe table, as a power of 2.
+        /// Resulting memory usage is (1 << (hashLog+2)).
+        /// Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
+        /// Larger tables improve compression ratio of strategies <= dFast,
+        /// and improve speed of strategies > dFast.
         /// </summary>
-        public uint ChainLog;
+        /// <remarks>
+        /// Special: value 0 means "use default hashLog".
+        /// </remarks>
+        public uint HashLog { get; set; } = 0;
         /// <summary>
-        /// dispatch table : larger == faster, more memory
+        /// Size of the multi-probe search table, as a power of 2.
+        /// Resulting memory usage is (1 << (chainLog+2)).
+        /// Must be clamped between ZSTD_CHAINLOG_MIN and ZSTD_CHAINLOG_MAX.
+        /// Larger tables result in better and slower compression.
+        /// This parameter is useless for "fast" strategy.
+        /// It's still useful when using "dfast" strategy,
+        /// in which case it defines a secondary probe table.
         /// </summary>
-        public uint HashLog;
+        /// <remarks> 
+        /// Special: value 0 means "use default chainLog".
+        /// </remarks>
+        public uint ChainLog { get; set; } = 0;
         /// <summary>
-        /// nb of searches : larger == more compression, slower
+        /// Number of search attempts, as a power of 2.
+        /// More attempts result in better and slower compression.
+        /// This parameter is useless for "fast" and "dFast" strategies.
         /// </summary>
-        public uint SearchLog;
+        /// <remarks>
+        /// Special: value 0 means "use default searchLog".
+        /// </remarks>
+        public uint SearchLog { get; set; } = 0;
         /// <summary>
-        /// match length searched : larger == faster decompression, sometimes less compression
+        /// Minimum size of searched matches.
+        /// 
+        /// Note that Zstandard can still find matches of smaller size,
+        /// it just tweaks its search algorithm to look for this size and larger.
+        /// Larger values increase compression and decompression speed, but decrease ratio.
+        /// Must be clamped between ZSTD_MINMATCH_MIN and ZSTD_MINMATCH_MAX.
+        /// Note that currently, for all strategies < btopt, effective minimum is 4.
+        ///                    , for all strategies > fast, effective maximum is 6.
         /// </summary>
-        public uint MinMatch;
+        /// <remarks>
+        /// Special: value 0 means "use default minMatchLength". 
+        /// </remarks>
+        public uint MinMatch { get; set; } = 0;
         /// <summary>
-        /// acceptable match size for optimal parser (only) : larger == more compression, slower
+        /// Impact of this field depends on strategy.
+        /// For strategies btopt, btultra & btultra2:
+        ///     Length of Match considered "good enough" to stop search.
+        ///     Larger values make compression stronger, and slower.
+        /// For strategy fast:
+        ///     Distance between match sampling.
+        ///     Larger values make compression faster, and weaker.
         /// </summary>
-        public uint TargetLength;
+        /// <remarks>
+        /// Special: value 0 means "use default targetLength".
+        /// </remarks>
+        public uint TargetLength { get; set; } = 0;
         /// <summary>
-        /// see ZSTD_strategy definition above
+        /// See ZSTD_strategy enum definition.
+        /// The higher the value of selected strategy, the more complex it is,
+        /// resulting in stronger and slower compression.
+        /// Special: value 0 means "use default strategy".
         /// </summary>
-        public Strategy Strategy;
+        public Strategy Strategy { get; set; } = Strategy.Default;
         #endregion
 
         // TODO: LDM mode parameters
@@ -373,28 +439,6 @@ namespace Joveler.Compression.Zstd
 
                     ZstdInit.Lib.FreeCStream(_cstream);
                     _cstream = IntPtr.Zero;
-
-                    /* 'Joveler.Compression.Zstd (netstandard2.0)' 프로젝트에서 병합되지 않은 변경 내용
-                    이전:
-                                    }
-
-                                    if (_dstream != IntPtr.Zero)
-                    이후:
-                                    }
-
-                                    if (_dstream != IntPtr.Zero)
-                    */
-
-                    /* 'Joveler.Compression.Zstd (netcoreapp3.1)' 프로젝트에서 병합되지 않은 변경 내용
-                    이전:
-                                    }
-
-                                    if (_dstream != IntPtr.Zero)
-                    이후:
-                                    }
-
-                                    if (_dstream != IntPtr.Zero)
-                    */
                 }
 
                 if (_dstream != IntPtr.Zero)
@@ -489,7 +533,7 @@ namespace Joveler.Compression.Zstd
 
                     // Call ZSTD_decompressStream()
                     UIntPtr ret = ZstdInit.Lib.DecompressStream(_dstream, outBuf, inBuf);
-                    ZstdException.CheckReturnValue(ret);
+                    ZstdException.CheckReturnValueWithDStream(ret, _dstream);
                     ulong readSizeHint = ret.ToUInt64();
 
                     // How many source bytes are decompressed?
@@ -569,7 +613,7 @@ namespace Joveler.Compression.Zstd
 
                     // Compress the input buffer
                     ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, endDirective);
-                    ZstdException.CheckReturnValue(ret);
+                    ZstdException.CheckReturnValueWithCStream(ret, _cstream);
                     // ulong stillToFlush = ret.ToUInt64();
 
                     // Reset EndDirective

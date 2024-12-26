@@ -39,9 +39,9 @@ namespace Joveler.Compression.LZ4.Tests
         public void VersionTests()
         {
             Version verInst = LZ4Init.Version();
-            Console.WriteLine(verInst);
+            Console.WriteLine($"liblz4 version (Version) = {verInst}");
             string verStr = LZ4Init.VersionString();
-            Console.WriteLine(verStr);
+            Console.WriteLine($"liblz4 version (String)  = {verStr}");
         }
     }
 }
