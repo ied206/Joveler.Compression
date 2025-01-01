@@ -21,19 +21,6 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-
-/* 'Joveler.Compression.ZLib.Tests (net6.0)' 프로젝트에서 병합되지 않은 변경 내용
-이전:
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-이후:
-using Joveler;
-using Joveler.Compression;
-using Joveler.Compression.ZLib;
-using Joveler.Compression.ZLib.Tests;
-using Joveler.Compression.ZLib.Tests;
-using Joveler.Compression.ZLib.Tests.TestBase;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-*/
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
@@ -70,34 +57,60 @@ namespace Joveler.Compression.ZLib.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, false);
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: false);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: false);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: false);
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, true);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, true);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, true);
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: true);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: true);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: true);
         }
 
-        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, bool useSpan)
+        [TestMethod]
+        public void CompressParallel()
         {
-            string filePath = Path.Combine(TestSetup.SampleDir, sampleFileName);
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, useSpan: false);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, useSpan: false);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, useSpan: false);
+            CompressTemplate("C.bin", ZLibCompLevel.BestSpeed, threads: 4, useSpan: true);
+        }
 
-            ZLibCompressOptions compOpts = new ZLibCompressOptions()
-            {
-                Level = level,
-                LeaveOpen = true,
-            };
+        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool useSpan)
+        {
+            byte[] originDigest;
+            byte[] decompDigest;
 
-            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+            using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (MemoryStream compMs = new MemoryStream())
             using (MemoryStream decompMs = new MemoryStream())
             {
-                using (DeflateStream zs = new DeflateStream(compMs, compOpts))
+                DeflateStream zs;
+                if (threads < 0)
+                {
+                    ZLibCompressOptions compOpts = new ZLibCompressOptions()
+                    {
+                        Level = level,
+                        LeaveOpen = true,
+                    };
+                    zs = new DeflateStream(compMs, compOpts);
+                }
+                else
+                {
+                    ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                    {
+                        Level = level,
+                        LeaveOpen = true,
+                        Threads = threads,
+                    };
+                    zs = new DeflateStream(compMs, pcompOpts);
+                }
+
+                using (zs)
                 {
 #if !NETFRAMEWORK
                     if (useSpan)
@@ -106,34 +119,56 @@ namespace Joveler.Compression.ZLib.Tests
                         int bytesRead;
                         do
                         {
-
-                            bytesRead = fs.Read(buffer.AsSpan());
+                            bytesRead = sampleFs.Read(buffer.AsSpan());
                             zs.Write(buffer.AsSpan(0, bytesRead));
                         } while (0 < bytesRead);
                     }
                     else
 #endif
                     {
-                        fs.CopyTo(zs);
+                        sampleFs.CopyTo(zs);
+                    }
+                    
+                    if (threads < 0)
+                    {
+                        zs.Flush();
+
+                        Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
+
+                        Assert.AreEqual(sampleFs.Length, zs.TotalIn);
                     }
                 }
 
-                fs.Position = 0;
-                compMs.Position = 0;
-
-                // Decompress compMs with BCL DeflateStream
-                using (System.IO.Compression.DeflateStream zs = new System.IO.Compression.DeflateStream(compMs, CompressionMode.Decompress, true))
+                if (0 <= threads)
                 {
-                    zs.CopyTo(decompMs);
+                    Console.WriteLine($"[RAW]        {sampleFs.Length,7}");
+                    Console.WriteLine($"[Compressed] {compMs.Length,7}");
+                }
+                
+
+                // Decompress with BCL DeflateStream
+                compMs.Position = 0;
+                using (System.IO.Compression.DeflateStream bclStream = new System.IO.Compression.DeflateStream(compMs, CompressionMode.Decompress))
+                {
+                    try
+                    {
+                        bclStream.CopyTo(decompMs);
+                    }
+                    catch (InvalidDataException e)
+                    {
+                        Console.WriteLine($"compMs.Position = {compMs.Position}");
+                        throw;
+                    }
                 }
 
-                decompMs.Position = 0;
+                sampleFs.Position = 0;
+                originDigest = TestHelper.SHA256Digest(sampleFs);
 
-                // Compare SHA256 Digest
-                byte[] decompDigest = TestHelper.SHA256Digest(decompMs);
-                byte[] fileDigest = TestHelper.SHA256Digest(fs);
-                Assert.IsTrue(decompDigest.SequenceEqual(fileDigest));
+                decompMs.Position = 0;
+                decompDigest = TestHelper.SHA256Digest(decompMs);
             }
+
+            Assert.IsTrue(originDigest.SequenceEqual(decompDigest));
         }
         #endregion
 

@@ -57,61 +57,99 @@ namespace Joveler.Compression.ZLib.Tests
         [TestCategory("Joveler.Compression.ZLib")]
         public void Compress()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, false);
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: false);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: false);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: false);
         }
 
         [TestMethod]
         [TestCategory("Joveler.Compression.ZLib")]
         public void CompressSpan()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, true);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, true);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, true);
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: true);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: true);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: true);
         }
 
-        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, bool useSpan)
+        [TestMethod]
+        [TestCategory("Joveler.Compression.ZLib")]
+        public void CompressParallel()
+        {
+            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, useSpan: false);
+            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, useSpan: false);
+            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, useSpan: false);
+            CompressTemplate("C.bin", ZLibCompLevel.BestSpeed, threads: 4, useSpan: true);
+        }
+
+        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool useSpan)
         {
             string tempDecompFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             string tempArchiveFile = tempDecompFile + ".gz";
             try
             {
-                ZLibCompressOptions compOpts = new ZLibCompressOptions()
-                {
-                    Level = level,
-                    LeaveOpen = true,
-                };
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (FileStream archiveFs = new FileStream(tempArchiveFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (GZipStream zs = new GZipStream(archiveFs, compOpts))
                 {
-#if !NETFRAMEWORK
-                    if (useSpan)
+                    GZipStream zs;
+                    if (threads < 0)
                     {
-                        byte[] buffer = new byte[64 * 1024];
-                        int bytesRead;
-                        do
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
                         {
-                            bytesRead = sampleFs.Read(buffer.AsSpan());
-                            zs.Write(buffer.AsSpan(0, bytesRead));
-                        } while (0 < bytesRead);
+                            Level = level,
+                            LeaveOpen = true,
+                        };
+                        zs = new GZipStream(archiveFs, compOpts);
                     }
                     else
-#endif
                     {
-                        sampleFs.CopyTo(zs);
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
+                            Level = level,
+                            LeaveOpen = true,
+                            Threads = threads,
+                        };
+                        zs = new GZipStream(archiveFs, pcompOpts);
                     }
 
-                    zs.Flush();
+                    using (zs)
+                    {
+#if !NETFRAMEWORK
+                        if (useSpan)
+                        {
+                            byte[] buffer = new byte[64 * 1024];
+                            int bytesRead;
+                            do
+                            {
+                                bytesRead = sampleFs.Read(buffer.AsSpan());
+                                zs.Write(buffer.AsSpan(0, bytesRead));
+                            } while (0 < bytesRead);
+                        }
+                        else
+#endif
+                        {
+                            sampleFs.CopyTo(zs);
+                        }
 
-                    Assert.AreEqual(sampleFs.Length, zs.TotalIn);
-                    Assert.AreEqual(archiveFs.Length, zs.TotalOut);
+                        if (threads < 0)
+                        {
+                            zs.Flush();
+
+                            Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
+                            Console.WriteLine($"[Compressed] expected=[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
+                            Assert.AreEqual(sampleFs.Length, zs.TotalIn);
+                        }
+                    }
+
+                    if (0 <= threads)
+                    {
+                        Console.WriteLine($"[RAW]        {sampleFs.Length,7}");
+                        Console.WriteLine($"[Compressed] {archiveFs.Length,7}");
+                    }
                 }
 
                 int ret = TestHelper.RunPigz(tempArchiveFile);
-                Assert.IsTrue(ret == 0);
+                Assert.AreEqual(0, ret);
 
                 byte[] decompDigest;
                 byte[] originDigest;

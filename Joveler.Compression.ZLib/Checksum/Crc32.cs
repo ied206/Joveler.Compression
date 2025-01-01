@@ -31,6 +31,9 @@ namespace Joveler.Compression.ZLib.Checksum
     public sealed class Crc32Checksum : ChecksumBase<uint>
     {
         #region Const
+        /// <summary>
+        /// Equivalent to zlib's crc32(0, NULL, 0);
+        /// </summary>
         public const uint Crc32Init = 0;
         #endregion
 
@@ -76,6 +79,11 @@ namespace Joveler.Compression.ZLib.Checksum
                 return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)span.Length);
             }
         }
+
+        protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
+        {
+            return ZLibInit.Lib.NativeAbi.Crc32Combine(priorChecksum, nextChecksum, nextInputSize);
+        }
         #endregion
     }
     #endregion
@@ -113,6 +121,8 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             return BitConverter.GetBytes(_crc32.Checksum);
         }
+
+        public override int HashSize => 32;
     }
     #endregion
 }

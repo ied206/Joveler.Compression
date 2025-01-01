@@ -29,6 +29,7 @@
 
 using Joveler.DynLoader;
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
@@ -230,9 +231,17 @@ namespace Joveler.Compression.ZLib
             public abstract ZLibRet InflateEnd(ZStreamBase strm);
             #endregion
 
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            public abstract unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength);
+            public abstract ZLibRet DeflateReset(ZStreamBase strm);
+            public abstract ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy);
+            #endregion
+
             #region Checksum - Adler32, Crc32
             public abstract unsafe uint Adler32(uint adler, byte* buf, uint len);
             public abstract unsafe uint Crc32(uint crc, byte* buf, uint len);
+            public abstract unsafe uint Adler32Combine(uint adler1, uint adler2, int len2);
+            public abstract unsafe uint Crc32Combine(uint crc1, uint crc2, int len2);
             #endregion
 
             #region Version - ZLibVersion
@@ -379,6 +388,13 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<deflateSetDictionary>(nameof(deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<deflateReset>(nameof(deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<deflateParams>(nameof(deflateParams));
+
+                Adler32CombinePtr = Lib.GetFuncPtr<adler32_combine>(nameof(adler32_combine));
+                Crc32CombinePtr = Lib.GetFuncPtr<crc32_combine>(nameof(crc32_combine));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -393,6 +409,13 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
+
+                Adler32CombinePtr = null;
+                Crc32CombinePtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -475,6 +498,63 @@ namespace Joveler.Compression.ZLib
             }
             #endregion
 
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateSetDictionary(
+                ZStreamL64 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZStreamL64)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateReset(
+                ZStreamL64 strm);
+            internal unsafe deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZStreamL64)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateParams(
+                ZStreamL64 strm,
+                int level,
+                int strategy);
+            internal unsafe deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZStreamL64)strm, level, strategy);
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32 (Combine)
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint adler32_combine(
+               uint adler1,
+               uint adler2,
+               long len2);
+            internal adler32_combine Adler32CombinePtr;
+            public override uint Adler32Combine(uint adler1, uint adler2, int len2)
+            {
+                return Adler32CombinePtr(adler1, adler2, len2);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint crc32_combine(
+                uint crc1,
+                uint crc2,
+                long len2);
+            internal crc32_combine Crc32CombinePtr;
+            public override uint Crc32Combine(uint crc1, uint crc2, int len2)
+            {
+                return Crc32CombinePtr(crc1, crc2, len2);
+            }
+            #endregion
+
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zlibCompileFlags();
@@ -505,6 +585,13 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<deflateSetDictionary>(nameof(deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<deflateReset>(nameof(deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<deflateParams>(nameof(deflateParams));
+
+                Adler32CombinePtr = Lib.GetFuncPtr<adler32_combine>(nameof(adler32_combine));
+                Crc32CombinePtr = Lib.GetFuncPtr<crc32_combine>(nameof(crc32_combine));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -519,6 +606,13 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
+
+                Adler32CombinePtr = null;
+                Crc32CombinePtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -598,6 +692,63 @@ namespace Joveler.Compression.ZLib
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
                 return InflateEndPtr((ZStreamL32)strm);
+            }
+            #endregion
+
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateSetDictionary(
+                ZStreamL32 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZStreamL32)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateReset(
+                ZStreamL32 strm);
+            internal unsafe deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZStreamL32)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateParams(
+                ZStreamL32 strm,
+                int level,
+                int strategy);
+            internal unsafe deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZStreamL32)strm, level, strategy);
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32 (Combine)
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint adler32_combine(
+                uint adler1,
+                uint adler2,
+                int len2);
+            internal adler32_combine Adler32CombinePtr;
+            public override uint Adler32Combine(uint adler1, uint adler2, int len2)
+            {
+                return Adler32CombinePtr(adler1, adler2, len2);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint crc32_combine(
+                uint crc1,
+                uint crc2,
+                int len2);
+            internal crc32_combine Crc32CombinePtr;
+            public override uint Crc32Combine(uint crc1, uint crc2, int len2)
+            {
+                return Crc32CombinePtr(crc1, crc2, len2);
             }
             #endregion
 
@@ -631,6 +782,13 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<inflate>(nameof(inflate));
                 InflateEndPtr = Lib.GetFuncPtr<inflateEnd>(nameof(inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<deflateSetDictionary>(nameof(deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<deflateReset>(nameof(deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<deflateParams>(nameof(deflateParams));
+
+                Adler32CombinePtr = Lib.GetFuncPtr<adler32_combine>(nameof(adler32_combine));
+                Crc32CombinePtr = Lib.GetFuncPtr<crc32_combine>(nameof(crc32_combine));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zlibCompileFlags>(nameof(zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -645,6 +803,13 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
+
+                Adler32CombinePtr = null;
+                Crc32CombinePtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -727,6 +892,63 @@ namespace Joveler.Compression.ZLib
             }
             #endregion
 
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateSetDictionary(
+                ZStreamL32 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZStreamL32)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateReset(
+                ZStreamL32 strm);
+            internal unsafe deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZStreamL32)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet deflateParams(
+                ZStreamL32 strm,
+                int level,
+                int strategy);
+            internal unsafe deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZStreamL32)strm, level, strategy);
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32 (Combine)
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint adler32_combine(
+                uint adler1,
+                uint adler2,
+                int len2);
+            internal adler32_combine Adler32CombinePtr;
+            public override uint Adler32Combine(uint adler1, uint adler2, int len2)
+            {
+                return Adler32CombinePtr(adler1, adler2, len2);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint crc32_combine(
+                uint crc1,
+                uint crc2,
+                int len2);
+            internal crc32_combine Crc32CombinePtr;
+            public override uint Crc32Combine(uint crc1, uint crc2, int len2)
+            {
+                return Crc32CombinePtr(crc1, crc2, len2);
+            }
+            #endregion
+
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zlibCompileFlags();
@@ -753,6 +975,8 @@ namespace Joveler.Compression.ZLib
             {
                 Adler32Ptr = Lib.GetFuncPtr<zng_adler32>(nameof(zng_adler32));
                 Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
+                Adler32CombinePtr = Lib.GetFuncPtr<zng_adler32_combine>(nameof(zng_adler32_combine));
+                Crc32CombinePtr = Lib.GetFuncPtr<zng_crc32_combine>(nameof(zng_crc32_combine));
                 ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
             }
 
@@ -760,6 +984,8 @@ namespace Joveler.Compression.ZLib
             {
                 Adler32Ptr = null;
                 Crc32Ptr = null;
+                Adler32CombinePtr = null;
+                Crc32CombinePtr = null;
                 ZLibNgVersionPtr = null;
             }
             #endregion
@@ -785,6 +1011,30 @@ namespace Joveler.Compression.ZLib
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
                 return Crc32Ptr(crc, buf, len);
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32 (Combine)
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_adler32_combine(
+               uint adler1,
+               uint adler2,
+               long len2);
+            internal zng_adler32_combine Adler32CombinePtr;
+            public override uint Adler32Combine(uint adler1, uint adler2, int len2)
+            {
+                return Adler32CombinePtr(adler1, adler2, len2);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_crc32_combine(
+                uint crc1,
+                uint crc2,
+                long len2);
+            internal zng_crc32_combine Crc32CombinePtr;
+            public override uint Crc32Combine(uint crc1, uint crc2, int len2)
+            {
+                return Crc32CombinePtr(crc1, crc2, len2);
             }
             #endregion
 
@@ -811,6 +1061,8 @@ namespace Joveler.Compression.ZLib
             {
                 Adler32Ptr = Lib.GetFuncPtr<zng_adler32>(nameof(zng_adler32));
                 Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
+                Adler32CombinePtr = Lib.GetFuncPtr<zng_adler32_combine>(nameof(zng_adler32_combine));
+                Crc32CombinePtr = Lib.GetFuncPtr<zng_crc32_combine>(nameof(zng_crc32_combine));
                 ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
             }
 
@@ -818,6 +1070,8 @@ namespace Joveler.Compression.ZLib
             {
                 Adler32Ptr = null;
                 Crc32Ptr = null;
+                Adler32CombinePtr = null;
+                Crc32CombinePtr = null;
                 ZLibNgVersionPtr = null;
             }
             #endregion
@@ -843,6 +1097,30 @@ namespace Joveler.Compression.ZLib
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
                 return Crc32Ptr(crc, buf, len);
+            }
+            #endregion
+
+            #region Checksum - Adler32, Crc32 (Combine)
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_adler32_combine(
+               uint adler1,
+               uint adler2,
+               long len2);
+            internal zng_adler32_combine Adler32CombinePtr;
+            public override uint Adler32Combine(uint adler1, uint adler2, int len2)
+            {
+                return Adler32CombinePtr(adler1, adler2, len2);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate uint zng_crc32_combine(
+                uint crc1,
+                uint crc2,
+                long len2);
+            internal zng_crc32_combine Crc32CombinePtr;
+            public override uint Crc32Combine(uint crc1, uint crc2, int len2)
+            {
+                return Crc32CombinePtr(crc1, crc2, len2);
             }
             #endregion
 
@@ -873,6 +1151,10 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
                 InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<zng_deflateSetDictionary>(nameof(zng_deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<zng_deflateReset>(nameof(zng_deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<zng_deflateParams>(nameof(zng_deflateParams));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -887,6 +1169,10 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -961,6 +1247,39 @@ namespace Joveler.Compression.ZLib
             }
             #endregion
 
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateSetDictionary(
+                ZNgStreamL64 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZNgStreamL64)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateReset(
+                ZNgStreamL64 strm);
+            internal unsafe zng_deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZNgStreamL64)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateParams(
+                ZNgStreamL64 strm,
+                int level,
+                int strategy);
+            internal unsafe zng_deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZNgStreamL64)strm, level, strategy);
+            }
+            #endregion
+
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zng_zlibCompileFlags();
@@ -991,6 +1310,10 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
                 InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<zng_deflateSetDictionary>(nameof(zng_deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<zng_deflateReset>(nameof(zng_deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<zng_deflateParams>(nameof(zng_deflateParams));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -1005,6 +1328,10 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -1076,6 +1403,39 @@ namespace Joveler.Compression.ZLib
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
                 return InflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateSetDictionary(
+                ZNgStreamL32 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZNgStreamL32)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateReset(
+                ZNgStreamL32 strm);
+            internal unsafe zng_deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZNgStreamL32)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateParams(
+                ZNgStreamL32 strm,
+                int level,
+                int strategy);
+            internal unsafe zng_deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZNgStreamL32)strm, level, strategy);
             }
             #endregion
 
@@ -1109,6 +1469,10 @@ namespace Joveler.Compression.ZLib
                 InflatePtr = Lib.GetFuncPtr<zng_inflate>(nameof(zng_inflate));
                 InflateEndPtr = Lib.GetFuncPtr<zng_inflateEnd>(nameof(zng_inflateEnd));
 
+                DeflateSetDictionaryPtr = Lib.GetFuncPtr<zng_deflateSetDictionary>(nameof(zng_deflateSetDictionary));
+                DeflateResetPtr = Lib.GetFuncPtr<zng_deflateReset>(nameof(zng_deflateReset));
+                DeflateParamsPtr = Lib.GetFuncPtr<zng_deflateParams>(nameof(zng_deflateParams));
+
                 ZLibCompileFlagsPtr = Lib.GetFuncPtr<zng_zlibCompileFlags>(nameof(zng_zlibCompileFlags));
 
                 base.LoadFunctions();
@@ -1123,6 +1487,10 @@ namespace Joveler.Compression.ZLib
                 InflateInit2Ptr = null;
                 InflatePtr = null;
                 InflateEndPtr = null;
+
+                DeflateSetDictionaryPtr = null;
+                DeflateResetPtr = null;
+                DeflateParamsPtr = null;
 
                 ZLibCompileFlagsPtr = null;
 
@@ -1194,6 +1562,39 @@ namespace Joveler.Compression.ZLib
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
                 return InflateEndPtr((ZNgStreamL32)strm);
+            }
+            #endregion
+
+            #region Advanced - DeflateSetDictionary, DeflateReset, DeflateParams
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateSetDictionary(
+                ZNgStreamL32 strm,
+                byte* dictionary,
+                uint dictLength);
+            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
+            {
+                return DeflateSetDictionaryPtr((ZNgStreamL32)strm, dictionary, dictLength);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateReset(
+                ZNgStreamL32 strm);
+            internal unsafe zng_deflateReset DeflateResetPtr;
+            public override ZLibRet DeflateReset(ZStreamBase strm)
+            {
+                return DeflateResetPtr((ZNgStreamL32)strm);
+            }
+
+            [UnmanagedFunctionPointer(CallConv)]
+            internal unsafe delegate ZLibRet zng_deflateParams(
+                ZNgStreamL32 strm,
+                int level,
+                int strategy);
+            internal unsafe zng_deflateParams DeflateParamsPtr;
+            public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
+            {
+                return DeflateParamsPtr((ZNgStreamL32)strm, level, strategy);
             }
             #endregion
 

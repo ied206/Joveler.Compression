@@ -187,6 +187,15 @@ namespace Joveler.Compression.ZLib
             return Lib.NativeAbi.ZLibVersion();
         }
         #endregion
+
+        #region CompileFlags - (Static)
+        public static ZLibCompileFlags CompileFlags()
+        {
+            Manager.EnsureLoaded();
+            uint flags = Lib.NativeAbi.ZLibCompileFlags();
+            return new ZLibCompileFlags(flags);
+        }
+        #endregion
     }
     #endregion
 }

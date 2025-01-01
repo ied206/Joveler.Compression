@@ -31,6 +31,9 @@ namespace Joveler.Compression.ZLib.Checksum
     public sealed class Adler32Checksum : ChecksumBase<uint>
     {
         #region Const
+        /// <summary>
+        /// Equivalent to zlib's adler32(0, NULL, 0);
+        /// </summary>
         public const uint Adler32Init = 1;
         #endregion
 
@@ -76,6 +79,12 @@ namespace Joveler.Compression.ZLib.Checksum
                 return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
+
+        /// <inheritdoc/>
+        protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
+        {
+            return ZLibInit.Lib.NativeAbi.Adler32Combine(priorChecksum, nextChecksum, nextInputSize);
+        }
         #endregion
     }
     #endregion
@@ -113,6 +122,8 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             return BitConverter.GetBytes(_adler32.Checksum);
         }
+
+        public override int HashSize => 32;
     }
     #endregion
 }

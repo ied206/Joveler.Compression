@@ -96,6 +96,16 @@ namespace Joveler.Compression.ZLib.Checksum
         }
         #endregion
 
+        #region Combine()
+        public T Combine(T nextChecksum, int nextInputSize)
+        {
+            if (nextInputSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(nextInputSize));
+            Checksum = CombineCore(Checksum, nextChecksum, nextInputSize);
+            return Checksum;
+        }
+        #endregion
+
         #region Reset
         public abstract void Reset();
         public abstract void Reset(T reset);
@@ -105,16 +115,25 @@ namespace Joveler.Compression.ZLib.Checksum
         /// <summary>
         /// Please override this method to implement actual checksum calculation.
         /// Must not affect internal Checksum property, make it works like a static method.
-        /// Arguments are prefilted by Append methods, so do not need to check them here.
+        /// Arguments are prefiltered by Append methods, so it does not need to be checked here.
         /// </summary>
         protected abstract T AppendCore(T checksum, byte[] buffer, int offset, int count);
 
         /// <summary>
-        /// /// Please override this method to implement actual checksum calculation.
+        /// Please override this method to implement actual checksum calculation.
         /// Must not affect internal Checksum property, make it works like a static method.
-        /// Arguments are prefilted by Append methods, so do not need to check them here.
+        /// Arguments are prefiltered by Append methods, so it does not need to be checked here.
         /// </summary>
         protected abstract T AppendCore(T checksum, ReadOnlySpan<byte> span);
+        #endregion
+
+        #region Combine
+        /// <summary>
+        /// Please override this method to implement actual checksum combination.
+        /// Must not affect internal Checksum property, make it works like a static method.
+        /// Arguments are prefiltered by Combine methods, so it does not need to be checked here.
+        /// </summary>
+        protected abstract T CombineCore(T priorChecksum, T nextChecksum, int nextInputSize);
         #endregion
     }
     #endregion
