@@ -65,8 +65,8 @@ namespace Joveler.Compression.ZLib
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
         private static int CalcOutBlockSize(int rawBlockSize)
-        {
-            return rawBlockSize * 16 / 17 + 32 * 1024;
+        { // 17/16 * rawBlockSize + 32KB
+            return rawBlockSize + (rawBlockSize >> 4) + 32 * 1024;
         }
 
         private readonly ConcurrentQueue<ParallelCompressJob> _inQueue;
@@ -544,7 +544,9 @@ namespace Joveler.Compression.ZLib
                                 inputStartBytes += DeflateBlockFinish(job, inputStartBytes);
                             }
 
+#if DEBUG_PARALLEL
                             Console.WriteLine($"-- compressed #{job.SeqNum} : last=[{job.IsLastBlock}] in=[{job.InBuffer}] out=[{job.OutBuffer}] dict=[{job.DictBuffer}]");
+#endif
 
                             Debug.Assert(inputStartBytes == job.RawInputSize);
 
@@ -786,7 +788,9 @@ namespace Joveler.Compression.ZLib
                             // Write to BaseStream
                             _owner.BaseStream.Write(job.OutBuffer.Buf, 0, job.OutBuffer.Pos);
 
+#if DEBUG_PARALLEL
                             Console.WriteLine($"-- wrote #{job.SeqNum} : last=[{job.IsLastBlock}] in=[{job.InBuffer}] out=[{job.OutBuffer}] dict=[{job.DictBuffer}]");
+#endif
 
                             // Increase TotalIn & TotalOut
                             _owner.AddTotalIn(job.RawInputSize);
@@ -987,7 +991,7 @@ namespace Joveler.Compression.ZLib
         {
             if (blockSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(blockSize));
-            return Math.Max(blockSize, 128 * 1024);
+            return Math.Max(blockSize, 128 * 1024); // At least 128KB
         }
 
         internal static int ProcessFormatWindowBits(ZLibWindowBits windowBits, ZLibStreamOperateMode mode, ZLibOperateFormat format)

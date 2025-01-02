@@ -152,15 +152,7 @@ namespace Joveler.Compression.ZLib.Tests
                 compMs.Position = 0;
                 using (System.IO.Compression.DeflateStream bclStream = new System.IO.Compression.DeflateStream(compMs, CompressionMode.Decompress))
                 {
-                    try
-                    {
-                        bclStream.CopyTo(decompMs);
-                    }
-                    catch (InvalidDataException e)
-                    {
-                        Console.WriteLine($"compMs.Position = {compMs.Position}");
-                        throw;
-                    }
+                    bclStream.CopyTo(decompMs);
                 }
 
                 sampleFs.Position = 0;
