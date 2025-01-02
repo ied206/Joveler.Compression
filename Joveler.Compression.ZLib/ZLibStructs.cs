@@ -49,7 +49,7 @@ namespace Joveler.Compression.ZLib
     /// Return codes for the compression/decompression functions.
     /// Negative values are errors, positive values are used for special but normal events.
     /// </summary>
-    public enum ZLibRet
+    public enum ZLibRet: int
     {
         Ok = 0,
         StreamEnd = 1,
@@ -134,11 +134,33 @@ namespace Joveler.Compression.ZLib
     }
     #endregion
 
+    #region (Intended to be internal) ZLibOperateMode, ZLibOperateFormat
+    internal enum ZLibStreamOperateMode
+    {
+        Compress,
+        ParallelCompress,
+        Decompress,
+    }
+
+
+    public enum ZLibOperateFormat
+    {
+        Deflate,
+        ZLib,
+        GZip,
+        /// <summary>
+        /// Support both ZLib and GZip format in decompress mode.
+        /// <para>Only for decompress mode.</para>
+        /// </summary>
+        BothZLibGZip,
+    }
+    #endregion
+
     #region ZLibCompileFlags
     /// <summary>
     /// Flags indicating compile-time options.
     /// </summary>
-    internal class ZLibCompileFlags
+    public class ZLibCompileFlags
     {
         #region Constructor
         public ZLibCompileFlags(uint flags)

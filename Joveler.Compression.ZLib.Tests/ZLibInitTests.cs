@@ -55,6 +55,39 @@ namespace Joveler.Compression.ZLib.Tests
         {
             Console.WriteLine(ZLibInit.VersionString());
         }
+
+        [TestMethod]
+        public void CompileFlags()
+        {
+            ZLibCompileFlags flags = ZLibInit.CompileFlags();
+
+            Console.WriteLine("[*] Type sizes");
+            Console.WriteLine($"{nameof(flags.CUIntSize)} = {flags.CUIntSize}");
+            Console.WriteLine($"{nameof(flags.CULongSize)} = {flags.CULongSize}");
+            Console.WriteLine($"{nameof(flags.PtrSize)} = {flags.PtrSize}");
+            Console.WriteLine($"{nameof(flags.ZOffsetSize)} = {flags.ZOffsetSize}");
+            Console.WriteLine();
+
+            Console.WriteLine("[*] Compiler, assembler, and debug options");
+            Console.WriteLine($"{nameof(flags.IsDebug)} = {flags.IsDebug}");
+            Console.WriteLine($"{nameof(flags.IsWinApi)} = {flags.IsWinApi}");
+            Console.WriteLine();
+
+            Console.WriteLine("[*] One-time table building (smaller code, but not thread-safe if true)");
+            Console.WriteLine($"{nameof(flags.IsBuildFixed)} = {flags.IsBuildFixed}");
+            Console.WriteLine($"{nameof(flags.IsDynamicCrcTable)} = {flags.IsDynamicCrcTable}");
+            Console.WriteLine();
+
+            Console.WriteLine("[*] Library content (indicates missing functionality)");
+            Console.WriteLine($"{nameof(flags.NoGZCompress)} = {flags.NoGZCompress}");
+            Console.WriteLine($"{nameof(flags.NoGZip)} = {flags.NoGZip}");
+            Console.WriteLine();
+
+            Console.WriteLine("[*] Operation variations (changes in library functionality)");
+            Console.WriteLine($"{nameof(flags.PKZipBugWorkaround)} = {flags.PKZipBugWorkaround}");
+            Console.WriteLine($"{nameof(flags.FastestDeflateOnly)} = {flags.FastestDeflateOnly}");
+            Console.WriteLine();
+        }
     }
     #endregion
 }

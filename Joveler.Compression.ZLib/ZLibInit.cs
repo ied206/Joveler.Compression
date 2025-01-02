@@ -1,4 +1,5 @@
 ﻿/*
+    Written by Hajin Jang
     Copyright (C) 2017-present Hajin Jang
 
     zlib license
@@ -185,6 +186,15 @@ namespace Joveler.Compression.ZLib
         {
             Manager.EnsureLoaded();
             return Lib.NativeAbi.ZLibVersion();
+        }
+        #endregion
+
+        #region CompileFlags - (Static)
+        public static ZLibCompileFlags CompileFlags()
+        {
+            Manager.EnsureLoaded();
+            uint flags = Lib.NativeAbi.ZLibCompileFlags();
+            return new ZLibCompileFlags(flags);
         }
         #endregion
     }
