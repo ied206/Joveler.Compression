@@ -155,26 +155,34 @@ namespace Joveler.Compression.ZLib
                 throw new ObjectDisposedException("This stream had been disposed.");
             }
         }
+        private long _totalIn = 0;
         public long TotalIn
         {
             get
             {
+                if (_disposed)
+                    return _totalIn;
+                
                 if (_singleThreadStream != null)
-                    return _singleThreadStream.TotalIn;
+                    _totalIn = _singleThreadStream.TotalIn;
                 if (_parallelCompressStream != null)
-                    return _parallelCompressStream.TotalIn;
-                throw new ObjectDisposedException("This stream had been disposed.");
+                    _totalIn = _parallelCompressStream.TotalIn;
+                return _totalIn;
             }
         }
+        private long _totalOut = 0;
         public long TotalOut
         {
             get
             {
+                if (_disposed)
+                    return _totalOut;
+
                 if (_singleThreadStream != null)
-                    return _singleThreadStream.TotalOut;
+                    _totalOut =  _singleThreadStream.TotalOut;
                 if (_parallelCompressStream != null)
-                    return _parallelCompressStream.TotalOut;
-                throw new ObjectDisposedException("This stream had been disposed.");
+                    _totalOut = _parallelCompressStream.TotalOut;
+                return _totalOut;
             }
         }
 
@@ -182,7 +190,6 @@ namespace Joveler.Compression.ZLib
         private DeflateSingleThreadStream? _singleThreadStream = null;
         // Multithread Parallel Compress
         private DeflateParallelCompressStream? _parallelCompressStream = null;
-        private Stream? _activeStream = null;
 
         /// <summary>
         /// Default buffer size for internal buffer, to be used in single-threaded operation.
@@ -201,19 +208,16 @@ namespace Joveler.Compression.ZLib
         public DeflateStreamBase(Stream baseStream, ZLibCompressOptions compOpts, ZLibOperateFormat format)
         {
             _singleThreadStream = new DeflateSingleThreadStream(baseStream, compOpts, format);
-            _activeStream = _singleThreadStream;
         }
 
         public DeflateStreamBase(Stream baseStream, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
         {
             _parallelCompressStream = new DeflateParallelCompressStream(baseStream, pcompOpts, format);
-            _activeStream = _parallelCompressStream;
         }
 
         public DeflateStreamBase(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOperateFormat format)
         {
             _singleThreadStream = new DeflateSingleThreadStream(baseStream, decompOpts, format);
-            _activeStream = _singleThreadStream;
         }
         #endregion
 
@@ -233,16 +237,20 @@ namespace Joveler.Compression.ZLib
                 }
 
                 // Dispose unmanaged resources, and set large fields to null.
-                _activeStream = null;
-
                 if (_singleThreadStream != null)
                 {
+                    _totalIn = _singleThreadStream.TotalIn;
+                    _totalOut = _singleThreadStream.TotalOut;
+
                     _singleThreadStream.Dispose();
                     _singleThreadStream = null;
                 }
 
                 if (_parallelCompressStream != null)
                 {
+                    _totalIn = _parallelCompressStream.TotalIn;
+                    _totalOut = _parallelCompressStream.TotalOut;
+
                     _parallelCompressStream.Dispose();
                     _parallelCompressStream = null;
                 }
@@ -258,10 +266,10 @@ namespace Joveler.Compression.ZLib
         #region Stream Methods and Properties
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
-        {
-            if (_activeStream == null)
+        { // Parallel decompression is not yet supported.
+            if (_singleThreadStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
-            return _activeStream.Read(buffer, offset, count);
+            return _singleThreadStream.Read(buffer, offset, count);
         }
 
         /// <inheritdoc />
@@ -279,9 +287,19 @@ namespace Joveler.Compression.ZLib
         /// <inheritdoc />
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_activeStream == null)
-                throw new ObjectDisposedException("This stream had been disposed.");
-            _activeStream.Write(buffer, offset, count);
+            if (_parallelCompressStream != null)
+            {
+                _parallelCompressStream.Write(buffer, offset, count);
+                return;
+            }
+
+            if (_singleThreadStream != null)
+            {
+                _singleThreadStream.Write(buffer, offset, count);
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
@@ -309,15 +327,45 @@ namespace Joveler.Compression.ZLib
         /// <inheritdoc />
         public override unsafe void Flush()
         {
-            if (_activeStream == null)
-                throw new ObjectDisposedException("This stream had been disposed.");
-            _activeStream.Flush();
+            if (_parallelCompressStream != null)
+            {
+                _parallelCompressStream.Flush();
+                return;
+            }
+
+            if (_singleThreadStream != null)
+            {
+                _singleThreadStream.Flush();
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
-        public override bool CanRead => _activeStream != null && _activeStream.CanRead;
+        public override bool CanRead
+        {
+            get
+            {
+                if (_parallelCompressStream != null)
+                    return _parallelCompressStream.CanRead;
+                else if (_singleThreadStream != null)
+                    return _singleThreadStream.CanRead;
+                throw new ObjectDisposedException("This stream had been disposed.");
+            }
+        }
         /// <inheritdoc />
-        public override bool CanWrite => _activeStream != null && _activeStream.CanWrite;
+        public override bool CanWrite
+        {
+            get
+            {
+                if (_parallelCompressStream != null)
+                    return _parallelCompressStream.CanWrite;
+                else if (_singleThreadStream != null)
+                    return _singleThreadStream.CanWrite;
+                throw new ObjectDisposedException("This stream had been disposed.");
+            }
+        }
         /// <inheritdoc />
         public override bool CanSeek => false;
 

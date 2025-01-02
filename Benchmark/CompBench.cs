@@ -178,7 +178,7 @@ namespace Benchmark
             }
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(ZLibNgNativeJoveler) })]
+        [GlobalSetup(Targets = [nameof(ZLibNgNativeJoveler), nameof(ZLibNgParallelNativeJoveler), nameof(ZLibNgParallelTwoNativeJoveler)])]
         public void ZLibNgSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.ZLibNg);
@@ -186,7 +186,7 @@ namespace Benchmark
             GlobalSetup();
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(ZLibUpNativeJoveler) })]
+        [GlobalSetup(Targets = [nameof(ZLibUpNativeJoveler), nameof(ZLibUpParallelNativeJoveler), nameof(ZLibUpParallelTwoNativeJoveler)])]
         public void ZLibUpSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.ZLibUp);
@@ -262,6 +262,31 @@ namespace Benchmark
             return (double)compLen / rawData.Length;
         }
 
+        private double ZLibParallelNativeJoveler(int threads)
+        {
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Joveler.Compression.ZLib.ZLibParallelCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
+                {
+                    Level = NativeZLibLevelDict[Level],
+                    Threads = threads,
+                    LeaveOpen = true,
+                };
+
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts))
+                {
+                    rms.CopyTo(zs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+            return (double)compLen / rawData.Length;
+        }
+
         [Benchmark(Description = "zlib-ng (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.ZLib)]
         public double ZLibNgNativeJoveler()
@@ -274,6 +299,34 @@ namespace Benchmark
         public double ZLibUpNativeJoveler()
         {
             return ZLibNativeJoveler();
+        }
+
+        [Benchmark(Description = "zlib-ng-T1 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public double ZLibNgParallelNativeJoveler()
+        {
+            return ZLibParallelNativeJoveler(1);
+        }
+
+        [Benchmark(Description = "zlib-T1 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public double ZLibUpParallelNativeJoveler()
+        {
+            return ZLibParallelNativeJoveler(1);
+        }
+
+        [Benchmark(Description = "zlib-ng-T2 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public double ZLibNgParallelTwoNativeJoveler()
+        {
+            return ZLibParallelNativeJoveler(2);
+        }
+
+        [Benchmark(Description = "zlib-T2 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.ZLib)]
+        public double ZLibUpParallelTwoNativeJoveler()
+        {
+            return ZLibParallelNativeJoveler(2);
         }
 
         [Benchmark(Description = "zlib (n_BCL)")]
@@ -429,7 +482,7 @@ namespace Benchmark
         #endregion
 
         #region Benchmark - zstd
-        [Benchmark(Description = "zstd (m_Joveler)")]
+        [Benchmark(Description = "zstd (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.Zstd)]
         public double ZstdSingleNativeJoveler()
         {
@@ -456,7 +509,7 @@ namespace Benchmark
             return (double)compLen / rawData.Length;
         }
 
-        [Benchmark(Description = "zstd-T1 (m_Joveler)")]
+        [Benchmark(Description = "zstd-T1 (n_Joveler)")]
         [BenchmarkCategory(BenchConfig.Zstd)]
         public double ZstdMultiNativeJoveler()
         {
