@@ -51,33 +51,37 @@ namespace Joveler.Compression.LZ4
     internal struct FrameInfo
     {
         /// <summary>
-        /// max64KB, max256KB, max1MB, max4MB ; 0 == default
+        /// max64KB, max256KB, max1MB, max4MB; 0 == default (LZ4F_max64KB)
         /// </summary>
-        public FrameBlockSizeId BlockSizeId;
+        public FrameBlockSizeId BlockSizeId = FrameBlockSizeId.Max64KB;
         /// <summary>
-        /// LZ4F_blockLinked, LZ4F_blockIndependent ; 0 == default
+        /// LZ4F_blockLinked, LZ4F_blockIndependent; 0 == default (LZ4F_blockLinked)
         /// </summary>
-        public FrameBlockMode BlockMode;
+        public FrameBlockMode BlockMode = FrameBlockMode.BlockLinked;
         /// <summary>
-        /// if enabled, frame is terminated with a 32-bits checksum of decompressed data ; 0 == disabled (default)
+        /// 1: add a 32-bit checksum of frame's decompressed data; 0 == default (disabled)
         /// </summary>
-        public FrameContentChecksum ContentChecksumFlag;
+        public FrameContentChecksum ContentChecksumFlag = FrameContentChecksum.NoContentChecksum;
         /// <summary>
         /// read-only field : LZ4F_frame or LZ4F_skippableFrame
         /// </summary>
-        public FrameType FrameType;
+        public FrameType FrameType = FrameType.Frame;
         /// <summary>
         /// Size of uncompressed content ; 0 == unknown
         /// </summary>
-        public ulong ContentSize;
+        public ulong ContentSize = 0;
         /// <summary>
         /// Dictionary ID, sent by the compressor to help decoder select the correct dictionary; 0 == no dictID provided
         /// </summary>
-        public uint DictId;
+        public uint DictId = 0;
         /// <summary>
-        /// if enabled, each block is followed by a checksum of block's compressed data ; 0 == disabled (default)
+        /// 1: each block followed by a checksum of block's compressed data; 0 == default (disabled)
         /// </summary>
-        public FrameBlockChecksum BlockChecksumFlag;
+        public FrameBlockChecksum BlockChecksumFlag = FrameBlockChecksum.NoBlockChecksum;
+
+        public FrameInfo()
+        {
+        }
     }
     #endregion
 

@@ -22,11 +22,11 @@ while getopts "a:t:h" opt; do
         h)
             print_help
             exit 1
-        ;;
+            ;;
         :)
             print_help
             exit 1
-        ;;
+            ;;
     esac
 done
 # Parse <FILE_SRCDIR>
@@ -102,5 +102,6 @@ popd > /dev/null
 
 # Print dependency of binraies
 pushd "${DEST_DIR}" > /dev/null
+file "${DEST_DYNAMIC_LIB}"
 ${CHECKDEP} "${DEST_DYNAMIC_LIB}"
 popd > /dev/null

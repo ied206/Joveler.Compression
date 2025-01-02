@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
+    <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
+    
     <PackageId>Joveler.Compression.LZ4</PackageId>
     <Title>Joveler.Compression.LZ4</Title>
     <Version>4.1.0</Version>

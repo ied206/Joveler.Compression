@@ -461,6 +461,40 @@ namespace Joveler.Compression.XZ
         internal lzma_cputhreads LzmaCpuThreads;
         #endregion
 
+        #region Filter (DISABLED)
+#if LZMA_MEM_ENABLE
+        /// <summary>
+        /// Calculate recommended Block size for multithreaded .xz encoder
+        /// </summary>
+        /// <remarks>
+        /// This calculates a recommended Block size for multithreaded encoding given
+        /// a filter chain.This is used internally by lzma_stream_encoder_mt() to
+        /// determine the Block size if the block_size member is not set to the
+        /// special value of 0 in the lzma_mt options struct.
+        /// 
+        /// If one wishes to change the filters between Blocks, this function is
+        /// helpful to set the block_size member of the lzma_mt struct before calling
+        /// lzma_stream_encoder_mt(). Since the block_size member represents the
+        /// maximum possible Block size for the multithreaded.xz encoder, one can
+        /// use this function to find the maximum recommended Block size based on
+        /// all planned filter chains. Otherwise, the multithreaded encoder will
+        /// base its maximum Block size on the first filter chain used (if the
+        /// block_size member is not set), which may unnecessarily limit the Block
+        /// size for a later filter chain.
+        /// </remarks>
+        /// <param name="filters">
+        /// Array of filters terminated with .id == LZMA_VLI_UNKNOWN.
+        /// </param>
+        /// <returns>
+        /// Recommended Block size in bytes, or UINT64_MAX if an error occurred.
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong lzma_mt_block_size(
+            [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters);
+        internal lzma_mt_block_size LzmaMtBlockSize;
+#endif
+        #endregion
+
         #region Memory - Memusage, MemlimitGet, MemlimitSet (DISABLED)
 #if LZMA_MEM_ENABLE
         /// <summary>
@@ -552,9 +586,6 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr lzma_version_string();
         internal lzma_version_string LzmaVersionString;
-        #endregion
-
-        #region Memlimit - Memlimit
         #endregion
         #endregion
     }

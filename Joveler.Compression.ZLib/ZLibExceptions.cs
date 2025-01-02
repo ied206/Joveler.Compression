@@ -57,7 +57,7 @@ namespace Joveler.Compression.ZLib
 
         internal static void CheckReturnValue(ZLibRet ret, ZStreamBase zs = null)
         {
-            if (ret != ZLibRet.Ok)
+            if ((int)ret < 0)
             {
                 if (zs == null)
                     throw new ZLibException(ret);
@@ -82,6 +82,4 @@ namespace Joveler.Compression.ZLib
         #endregion
     }
     #endregion
-
-
 }
