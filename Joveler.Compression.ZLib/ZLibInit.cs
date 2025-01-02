@@ -1,4 +1,5 @@
 ﻿/*
+    Written by Hajin Jang
     Copyright (C) 2017-present Hajin Jang
 
     zlib license

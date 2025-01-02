@@ -1,6 +1,6 @@
 ﻿/*
     C# tests by Hajin Jang
-    Copyright (C) 2017-2020 Hajin Jang
+    Copyright (C) 2017-present Hajin Jang
 
     zlib license
 
@@ -59,6 +59,7 @@ namespace Joveler.Compression.ZLib.Tests
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: false);
             CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: false);
             CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: false);
+            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: false);
         }
 
         [TestMethod]
@@ -67,6 +68,7 @@ namespace Joveler.Compression.ZLib.Tests
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: true);
             CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: true);
             CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: true);
+            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: true);
         }
 
         [TestMethod]
@@ -75,7 +77,7 @@ namespace Joveler.Compression.ZLib.Tests
             CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, useSpan: false);
             CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, useSpan: false);
             CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, useSpan: false);
-            CompressTemplate("C.bin", ZLibCompLevel.BestSpeed, threads: 4, useSpan: true);
+            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, useSpan: false);
         }
 
         private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool useSpan)

@@ -1,6 +1,8 @@
 ﻿/*
    Derived from zlib header files (zlib license)
    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+
+   Written by Hajin Jang
    Copyright (C) 2017-present Hajin Jang
 
    zlib license

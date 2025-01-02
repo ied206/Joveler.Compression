@@ -1,12 +1,31 @@
 ﻿#nullable enable
 
+/*   
+    Written by Hajin Jang
+    Copyright (C) 2024-present Hajin Jang
+
+    zlib license
+
+    This software is provided 'as-is', without any express or implied
+    warranty.  In no event will the authors be held liable for any damages
+    arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+       claim that you wrote the original software. If you use this software
+       in a product, an acknowledgment in the product documentation would be
+       appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+       misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+*/
+
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Joveler.Compression.ZLib
 {
@@ -14,8 +33,10 @@ namespace Joveler.Compression.ZLib
     {
         private readonly ArrayPool<byte> _pool;
         private byte[] _buf;
-        private int _pos;
-        private int _size;
+        // First writable index of the buffer. Have a range of [0..Size]. 
+        // If _pos == _size, the buffer is full.
+        private int _pos = 0;
+        private int _size = 0;
 
         private bool _disposed = false;
         public bool Disposed => _disposed;
@@ -23,28 +44,29 @@ namespace Joveler.Compression.ZLib
         public byte[] Buf => _buf;
         /// <summary>
         /// Position of the buffer.
+        /// Have a range of [0..Size].
         /// </summary>
         /// <remarks>
         /// Pos is settable, for scenario of manipulating the buffer with a pointer.
         /// </remarks>
-        public int Pos
+        public int Pos 
         { 
             get => _pos;
             set
             {
-                if (value < 0 || _size <= value)
+                if (value < 0 || _size < value)
                     throw new ArgumentOutOfRangeException(nameof(Pos));
                 _pos = value;
             }
         }
         public int Size => _size;
         
-        public Span<byte> Span => Buf.AsSpan(0, _size);
-        public ReadOnlySpan<byte> ReadablePortionSpan => Buf.AsSpan(0, _pos);
-        public Span<byte> WritablePortionSpan => Buf.AsSpan(_pos, _size - _pos);
+        public Span<byte> Span => _buf.AsSpan(0, _size);
+        public ReadOnlySpan<byte> ReadablePortionSpan => _buf.AsSpan(0, _pos);
+        public Span<byte> WritablePortionSpan => _buf.AsSpan(_pos, _size - _pos);
 
         public bool IsEmpty => _pos == 0;
-        public bool IsFull => _size <= _pos + 1;
+        public bool IsFull => _size == _pos;
 
         public PooledBuffer(ArrayPool<byte> pool, int size)
         {
@@ -215,13 +237,14 @@ namespace Joveler.Compression.ZLib
 
             _buf = newBuffer;
             _pos -= len;
+            Debug.Assert(0 <= _pos && _pos <= _size);
 
             return true;
         }
 
         public override string ToString()
         {
-            return $"{nameof(PooledBuffer)} [{_pos,7}/{_size,7}] (buf: {_buf.Length})";
+            return $"BUF [{_pos,7}/{_size,7}] (real: {_buf.Length})";
         }
     }
 }

@@ -1,14 +1,10 @@
-﻿// #nullable enable 
-#nullable enable
+﻿#nullable enable
 
 /*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
-    C# Wrapper based on zlibnet v1.3.3 (https://zlibnet.codeplex.com/)
-    Copyright (C) @hardon (https://www.codeplex.com/site/users/view/hardon)
-    
-    Maintained by Hajin Jang
+    Written by Hajin Jang
     Copyright (C) 2017-present Hajin Jang
 
     zlib license
@@ -32,14 +28,8 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-// ReSharper disable UnusedMember.Global
 
 namespace Joveler.Compression.ZLib
 {

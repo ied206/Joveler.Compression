@@ -1,4 +1,27 @@
-﻿#nullable enable
+﻿#nullable enable 
+
+/*   
+    Written by Hajin Jang
+    Copyright (C) 2024-present Hajin Jang
+
+    zlib license
+
+    This software is provided 'as-is', without any express or implied
+    warranty.  In no event will the authors be held liable for any damages
+    arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+       claim that you wrote the original software. If you use this software
+       in a product, an acknowledgment in the product documentation would be
+       appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+       misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+*/
 
 using Joveler.Compression.ZLib.Checksum;
 using System;
@@ -483,16 +506,50 @@ namespace Joveler.Compression.ZLib
                             }
 
                             // [Stage 11] Compress (or finish) the input block
+                            uint inputStartBytes = 0;
                             if (!job.IsLastBlock)
-                            { // TODO: bit 단위 조정을 위한 deflatePending, deflatePrime 작업 구현
-                                DeflateBlock(job, ZLibFlush.SyncFlush);
+                            { // Deflated block will end on a byte boundary, using a sync marker if necessary (SyncFlush)
+                                // ADVACNED: Bit-level output manipulation.
+                                // SIMPLE: In pre zlib 1.2.6, just call DeflateBlock once with ZLibFlush.SyncFlush.
+
+                                // After Z_BLOCK, Up to 7 bits of output data are waiting to be written.
+                                inputStartBytes = DeflateBlock(job, 0, ZLibFlush.Block);
+
+                                // How many bits are waiting to be written?
+                                int bits = 0;
+                                ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
+                                ZLibException.CheckReturnValue(ret, _zs);
+
+                                // Add enough empty blocks to get to a byte boundary
+                                if (0 < (bits & 1)) // 1 bit is waiting to be written
+                                { // Flush the bit-level boundary
+                                    inputStartBytes += DeflateBlock(job, inputStartBytes, ZLibFlush.SyncFlush);
+                                }
+                                else if (0 < (bits & 7)) // 3 bits or more are waiting to be written
+                                { // Add static empty blocks
+                                    do
+                                    { // Insert bits to next output block
+                                        // Next output will start with bits leftover from a previous deflate() call.
+                                        // 10 bits
+                                        ret = ZLibInit.Lib.NativeAbi.DeflatePrime(_zs, 10, 2);
+                                        ZLibException.CheckReturnValue(ret, _zs);
+
+                                        // Still are 3 bits or more waiting to be written?
+                                        ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
+                                        ZLibException.CheckReturnValue(ret, _zs);
+                                    }
+                                    while (0 < (bits & 7));
+                                    inputStartBytes += DeflateBlock(job, inputStartBytes, ZLibFlush.Block);
+                                }
                             }
                             else
                             { // Finish the deflate stream
-                                DeflateBlockFinish(job);
+                                inputStartBytes += DeflateBlockFinish(job, inputStartBytes);
                             }
 
                             Console.WriteLine($"-- compressed #{job.SeqNum} : last=[{job.IsLastBlock}] in=[{job.InBuffer}] out=[{job.OutBuffer}] dict=[{job.DictBuffer}]");
+
+                            Debug.Assert(inputStartBytes == job.RawInputSize);
 
                             // [Stage 12] Insert compressed data to linked list
                             _owner.EnqueueOutList(job);
@@ -517,12 +574,14 @@ namespace Joveler.Compression.ZLib
                 }
             }
 
-            private unsafe void DeflateBlock(ParallelCompressJob job, ZLibFlush flush)
+            private unsafe uint DeflateBlock(ParallelCompressJob job, uint inputStartBytes, ZLibFlush flush)
             {
+                uint bytesRead = 0;
+
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
-                    _zs!.NextIn = inBufPtr;
-                    _zs.AvailIn = (uint)job.InBuffer.Pos;
+                    _zs!.NextIn = inBufPtr + inputStartBytes;
+                    _zs.AvailIn = (uint)job.InBuffer.Pos - inputStartBytes;
 
                     // Loop as long as the output buffer is not full after running deflate()
                     do
@@ -541,9 +600,12 @@ namespace Joveler.Compression.ZLib
                             _zs.NextOut = outBufPtr + job.OutBuffer.Pos;
                             _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.Pos);
 
-                            uint outCount = _zs.AvailOut;
+                            uint beforeAvailIn = _zs.AvailIn;
+                            uint beforeAvailOut = _zs.AvailOut;
                             ZLibRet ret = ZLibInit.Lib.NativeAbi.Deflate(_zs, flush);
-                            uint bytesWritten = outCount - _zs.AvailOut;
+                            bytesRead += beforeAvailIn - _zs.AvailIn;
+                            uint bytesWritten = beforeAvailOut - _zs.AvailOut;
+
                             job.OutBuffer.Pos += (int)bytesWritten;
 
                             ZLibException.CheckReturnValue(ret, _zs);
@@ -553,14 +615,18 @@ namespace Joveler.Compression.ZLib
 
                     Debug.Assert(_zs.AvailIn == 0);
                 }
+
+                return bytesRead;
             }
 
-            private unsafe void DeflateBlockFinish(ParallelCompressJob job)
+            private unsafe uint DeflateBlockFinish(ParallelCompressJob job, uint inputStartBytes)
             {
+                uint bytesRead = 0;
+
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
-                    _zs!.NextIn = inBufPtr;
-                    _zs.AvailIn = (uint)job.InBuffer.Pos;
+                    _zs!.NextIn = inBufPtr + inputStartBytes;
+                    _zs.AvailIn = (uint)job.InBuffer.Pos - inputStartBytes;
 
                     // Loop as long as the output buffer is not full after running deflate()
                     ZLibRet ret = ZLibRet.Ok;
@@ -579,9 +645,12 @@ namespace Joveler.Compression.ZLib
                             _zs.NextOut = outBufPtr + job.OutBuffer.Pos;
                             _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.Pos);
 
-                            uint outCount = _zs.AvailOut;
+                            uint beforeAvailIn = _zs.AvailIn;
+                            uint beforeAvailOut = _zs.AvailOut;
                             ret = ZLibInit.Lib.NativeAbi.Deflate(_zs, ZLibFlush.Finish);
-                            uint bytesWritten = outCount - _zs.AvailOut;
+                            bytesRead += beforeAvailIn - _zs.AvailIn;
+                            uint bytesWritten = beforeAvailOut - _zs.AvailOut;
+
                             job.OutBuffer.Pos += (int)bytesWritten;
 
                             ZLibException.CheckReturnValue(ret, _zs);
@@ -590,6 +659,8 @@ namespace Joveler.Compression.ZLib
 
                     Debug.Assert(_zs.AvailIn == 0);
                 }
+
+                return bytesRead;
             }
 
             private void Dispose(bool disposing)
