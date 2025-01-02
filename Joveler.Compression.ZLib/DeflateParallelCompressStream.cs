@@ -25,7 +25,6 @@
 
 using Joveler.Compression.ZLib.Checksum;
 using System;
-using System.Linq;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
@@ -182,9 +181,7 @@ namespace Joveler.Compression.ZLib
                 }
 
                 while (_inQueue.TryDequeue(out ParallelCompressJob? inJob))
-                {
-                    inJob.Dispose();
-                }
+                    inJob?.Dispose();
 
                 lock (_outListLock)
                 {
@@ -472,7 +469,7 @@ namespace Joveler.Compression.ZLib
                     while (_owner._inQueue.TryDequeue(out ParallelCompressJob? job) && job != null)
                     {
                         // If the input is the EOF block, break the loop immediately
-                        if (job.SeqNum == ParallelCompressJob.EofBlockSeqNum)
+                        if (job.IsEofBlock)
                         {
                             job.Dispose();
 
@@ -586,13 +583,12 @@ namespace Joveler.Compression.ZLib
                     // Loop as long as the output buffer is not full after running deflate()
                     do
                     {
-                        // Expand the outBuffer if the buffer is full.
-                        // (One compressed version of inBuffer data must fit in one outBuffer)
+                        // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
-                        { // Expand the JobBuffer to multiple of 2.
-                            // TODO: Better newSize calculation logic
-                            if (!job.OutBuffer.Expand(job.OutBuffer.Size * 2))
-                                throw new OutOfMemoryException($"Failed to expand [{nameof(job.OutBuffer)}] to [{job.OutBuffer.Size * 2}] bytes.");
+                        { // Expand the outBuffer if the buffer is full.
+                            int newSize = ParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            if (!job.OutBuffer.Expand(newSize))
+                                throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
 
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
@@ -632,12 +628,12 @@ namespace Joveler.Compression.ZLib
                     ZLibRet ret = ZLibRet.Ok;
                     while (ret != ZLibRet.StreamEnd)
                     {
-                        // Expand the outBuffer if the buffer is full.
-                        // (One compressed version of inBuffer data must fit in one outBuffer)
+                        // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
-                        { // Expand the JobBuffer to multiple of 2.
-                            if (!job.OutBuffer.Expand(job.OutBuffer.Size * 2))
-                                throw new OutOfMemoryException($"Failed to expand [{nameof(job.OutBuffer)}] to [{job.OutBuffer.Size * 2}] bytes.");
+                        { // Expand the outBuffer if the buffer is full.
+                            int newSize = ParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            if (!job.OutBuffer.Expand(newSize))
+                                throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
 
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
@@ -679,6 +675,7 @@ namespace Joveler.Compression.ZLib
                 _zs = null;
 
                 ReadSignal.Dispose();
+                WaitingSignal.Dispose();
                 AbortSignal.Dispose();
 
                 _disposed = true;

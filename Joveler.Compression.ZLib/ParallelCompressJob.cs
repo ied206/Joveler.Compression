@@ -35,6 +35,7 @@ namespace Joveler.Compression.ZLib
     {
         public long SeqNum { get; }
         public bool IsLastBlock { get; set; }
+        public bool IsEofBlock => SeqNum == EofBlockSeqNum;
 
         public PooledBuffer InBuffer { get; }
         public PooledBuffer DictBuffer { get; }
@@ -125,6 +126,38 @@ namespace Joveler.Compression.ZLib
             OutBuffer.Dispose();
 
             _disposed = true;
+        }
+
+        /// <summary>
+        /// Return 1.5x of the oldSize, with some safety checks.
+        /// </summary>
+        /// <param name="oldSize"></param>
+        /// <returns>New size to be used to increase the buffer.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static int CalcBufferExpandSize(int oldSize)
+        {
+            if (oldSize < 0)
+                throw new ArgumentOutOfRangeException(nameof(oldSize));
+            if (oldSize == 0) // Return at least 32KB
+                return DictWindowSize;
+
+            // return 1.5x of the oldSize
+            uint oldVal = (uint)oldSize;
+            uint newVal;
+            try
+            {
+                newVal = checked(oldVal + (oldVal >> 1));
+            }
+            catch (OverflowException)
+            { // Overflow? return the max value (would not be likely)
+                return int.MaxValue;
+            }
+
+            // .NET runtime maxes out plain buffer size at int.MaxValue
+            if (int.MaxValue < newVal)
+                return int.MaxValue;
+
+            return (int)newVal;
         }
     }
 }
