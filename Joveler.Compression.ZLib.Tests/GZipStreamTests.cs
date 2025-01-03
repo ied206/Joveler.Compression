@@ -23,6 +23,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers;
 using System.IO;
 using System.Linq;
 
@@ -173,6 +174,82 @@ namespace Joveler.Compression.ZLib.Tests
                     File.Delete(tempArchiveFile);
                 if (File.Exists(tempDecompFile))
                     File.Delete(tempDecompFile);
+            }
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        [TestCategory("Joveler.Compression.ZLib")]
+        public void MemDiagCompress()
+        {
+            MemDiagCompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1);
+            MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1);
+            MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1);
+            MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1);
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        [TestCategory("Joveler.Compression.ZLib")]
+        public void MemDiagCompressParallel()
+        {
+            MemDiagCompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2);
+            MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
+            MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
+            MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+        }
+
+        private static void MemDiagCompressTemplate(string sampleFileName, ZLibCompLevel level, int threads)
+        {
+            long beforeMemUsage = GC.GetTotalMemory(true);
+
+            try
+            {
+                string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+                
+                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (MemoryStream compMs = new MemoryStream())
+                {
+                    ArrayPool<byte> pool = ArrayPool<byte>.Create();
+
+                    GZipStream zs;
+                    if (threads < 0)
+                    {
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
+                        {
+                            Level = level,
+                            LeaveOpen = true,
+                            BufferPool = pool,
+                        };
+                        zs = new GZipStream(compMs, compOpts);
+                    }
+                    else
+                    {
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
+                            Level = level,
+                            LeaveOpen = true,
+                            Threads = threads,
+                            BufferPool = pool,
+                        };
+                        zs = new GZipStream(compMs, pcompOpts);
+                    }
+
+                    using (zs)
+                    {
+                        sampleFs.CopyTo(zs);
+                    }
+
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
+                    Console.WriteLine($"[Compressed] expected=[{compMs.Length,7}] actual=[{zs.TotalOut,7}]");
+                }
+            }
+            finally
+            {
+                long afterMemUsage = GC.GetTotalMemory(true);
+
+                Console.WriteLine($"[Before] {beforeMemUsage,7}");
+                Console.WriteLine($"[After ] {afterMemUsage,7}");
             }
         }
         #endregion

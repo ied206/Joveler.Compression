@@ -179,7 +179,7 @@ namespace Joveler.Compression.ZLib
                     return _totalOut;
 
                 if (_singleThreadStream != null)
-                    _totalOut =  _singleThreadStream.TotalOut;
+                    _totalOut = _singleThreadStream.TotalOut;
                 if (_parallelCompressStream != null)
                     _totalOut = _parallelCompressStream.TotalOut;
                 return _totalOut;
@@ -239,19 +239,21 @@ namespace Joveler.Compression.ZLib
                 // Dispose unmanaged resources, and set large fields to null.
                 if (_singleThreadStream != null)
                 {
+                    _singleThreadStream.Dispose();
+
                     _totalIn = _singleThreadStream.TotalIn;
                     _totalOut = _singleThreadStream.TotalOut;
 
-                    _singleThreadStream.Dispose();
                     _singleThreadStream = null;
                 }
 
                 if (_parallelCompressStream != null)
                 {
+                    _parallelCompressStream.Dispose();
+
                     _totalIn = _parallelCompressStream.TotalIn;
                     _totalOut = _parallelCompressStream.TotalOut;
 
-                    _parallelCompressStream.Dispose();
                     _parallelCompressStream = null;
                 }
 

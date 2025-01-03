@@ -23,8 +23,10 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
+using Joveler.Compression.ZLib.Buffer;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 
 namespace Joveler.Compression.ZLib
 {
@@ -37,8 +39,14 @@ namespace Joveler.Compression.ZLib
         public bool IsLastBlock { get; set; }
         public bool IsEofBlock => SeqNum == EofBlockSeqNum;
 
-        public PooledBuffer InBuffer { get; }
-        public PooledBuffer DictBuffer { get; }
+        /// <summary>
+        /// Acquired in the constructor, released in CompressThreadMain().
+        /// </summary>
+        public ReferableBuffer InBuffer { get; }
+        /// <summary>
+        /// Acquired in the EnqueueInputData(), released in CompressThreadMain().
+        /// </summary>
+        public ReferableBuffer? DictBuffer { get; }
         public PooledBuffer OutBuffer { get; }
 
         public int RawInputSize { get; set; } = 0;
@@ -46,7 +54,7 @@ namespace Joveler.Compression.ZLib
 
         private bool _disposed = false;
 
-        private const int DictWindowSize = 32 * 1024;
+        public const int DictWindowSize = 32 * 1024;
 
         /// <summary>
         /// Seq of -1 means the eof block.
@@ -58,45 +66,56 @@ namespace Joveler.Compression.ZLib
         public const int EofBlockSeqNum = -1;
 
         /// <summary>
-        /// Create an normal job, which contains a block of input.
-        /// Most of the jobs is a normal job.
+        /// Create an first/normal/final job which contains two block of input, one being the current data and another as a dictionary (last input).
+        /// Most of the jobs are a normal job.
         /// </summary>
         /// <remarks>
-        /// N * NormalJob -> FinalJob -> Threads * EofJob
+        /// FirstJob -> N * NormalJob -> FinalJob -> Threads * EofJob
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
         /// <param name="inBufferSize"></param>
+        /// <param name="dictBuffer">
+        /// dictBuffer is set to null in first block.
+        /// In other blocks, dictBuffer is set to the previous block's InBuffer.
+        /// </param>
         /// <param name="outBufferSize"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, int outBufferSize)
+        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
             SeqNum = seqNum;
 
-            InBuffer = new PooledBuffer(pool, inBufferSize);
-            DictBuffer = new PooledBuffer(pool, DictWindowSize);
+            Debug.Assert(DictWindowSize <= inBufferSize);
+            Debug.Assert(inBufferSize <= outBufferSize);
+
+            InBuffer = new ReferableBuffer(pool, inBufferSize);
+            DictBuffer = dictBuffer;
             OutBuffer = new PooledBuffer(pool, outBufferSize);
+
+            InBuffer.AcquireRef();
+            DictBuffer?.AcquireRef();
 
             IsLastBlock = false;
         }
 
         /// <summary>
-        /// Create an empty finalJob, which is the last block of the input.
-        /// WorkerThread will run deflate() with ZLib.Finish.
+        /// Create an empty eofJob, which terminates the worker threads.
         /// </summary>
         /// <remarks>
-        /// N * NormalJob -> FinalJob -> Threads * EofJob
+        /// FirstJob -> N * NormalJob -> FinalJob -> Threads * EofJob
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int outBufferSize)
+        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
         {
             SeqNum = seqNum;
 
-            InBuffer = new PooledBuffer(pool);
-            DictBuffer = new PooledBuffer(pool, DictWindowSize);
-            OutBuffer = new PooledBuffer(pool, outBufferSize);
+            InBuffer = new ReferableBuffer(pool);
+            DictBuffer = null;
+            OutBuffer = new PooledBuffer(pool);
 
-            IsLastBlock = true;
+            InBuffer.AcquireRef();
+
+            IsLastBlock = false;
         }
 
         ~ParallelCompressJob()
@@ -121,8 +140,10 @@ namespace Joveler.Compression.ZLib
             }
 
             // Dispose unmanaged resources, and set large fields to null.
-            InBuffer.Dispose();
-            DictBuffer.Dispose();
+            if (!InBuffer.Disposed)
+                InBuffer.ReleaseRef();  // ReleaseRef calls Dispose when necessary
+            if (DictBuffer != null && !DictBuffer.Disposed)
+                DictBuffer?.ReleaseRef(); // ReleaseRef calls Dispose when necessary
             OutBuffer.Dispose();
 
             _disposed = true;
