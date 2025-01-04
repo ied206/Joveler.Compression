@@ -519,7 +519,7 @@ namespace Joveler.Compression.ZLib
 
             // Throw if any exception has occured in background threads.
             // Check if before thread join to avoid unknown deadlock.
-            if (_backgroundExceptionSignal.WaitOne(0))
+            if (HasBackgroundExceptions)
                 throw new AggregateException(BackgroundExceptions);
 
             // Wait until all worker threads to finish
@@ -531,7 +531,7 @@ namespace Joveler.Compression.ZLib
             _writerThread.Join();
 
             // Check one more time
-            if (_backgroundExceptionSignal.WaitOne(0))
+            if (HasBackgroundExceptions)
                 throw new AggregateException(BackgroundExceptions);
         }
 
@@ -553,7 +553,7 @@ namespace Joveler.Compression.ZLib
 
             // Throw if any exception has occured in background threads.
             // Check if before thread join to avoid unknown deadlock.
-            if (_backgroundExceptionSignal.WaitOne(0))
+            if (HasBackgroundExceptions)
                 throw new AggregateException(BackgroundExceptions);
 
             // Wait until all worker threads to finish
@@ -565,7 +565,7 @@ namespace Joveler.Compression.ZLib
             _writerThread.Join();
 
             // Check one more time
-            if (_backgroundExceptionSignal.WaitOne(0))
+            if (HasBackgroundExceptions)
                 throw new AggregateException(BackgroundExceptions);
         }
 
@@ -633,16 +633,16 @@ namespace Joveler.Compression.ZLib
                     bool exitLoop = false;
                     while (true)
                     {
+                        // If the abort signal is set, break the loop
+                        if (AbortSignal.WaitOne(0))
+                            break;
+
                         // Signal that this workerThread is waiting for the next job
                         // Wait for the next job to come in
                         WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
 
                         // Reset the waiting signal
                         WaitingSignal.Reset();
-
-                        // If the abort signal is set, break the loop
-                        if (AbortSignal.WaitOne(0))
-                            break;
 
                         // Loop until the input queue is empty
                         while (_owner._inQueue.TryDequeue(out ParallelCompressJob? job) && job != null)
