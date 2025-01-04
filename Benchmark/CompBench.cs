@@ -268,7 +268,7 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
-                Joveler.Compression.ZLib.ZLibParallelCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
+                Joveler.Compression.ZLib.ZLibThreadedCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibThreadedCompressOptions()
                 {
                     Level = NativeZLibLevelDict[Level],
                     Threads = threads,

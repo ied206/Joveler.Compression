@@ -130,7 +130,7 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
@@ -242,7 +242,7 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
@@ -265,6 +265,49 @@ namespace Joveler.Compression.ZLib.Tests
                 Console.WriteLine($"[Before] {beforeMemUsage,7}");
                 Console.WriteLine($"[After ] {afterMemUsage,7}");
             }
+        }
+
+        [TestMethod]
+        public void CompressParallelException()
+        {
+            CompressParallelExceptionTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2);
+            CompressParallelExceptionTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
+            CompressParallelExceptionTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
+            CompressParallelExceptionTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+        }
+
+        private static void CompressParallelExceptionTemplate(string sampleFileName, ZLibCompLevel level, int threads)
+        {
+            bool exceptThrown = false;
+
+            string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+            using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (MemoryStream compMs = new MemoryStream())
+            {
+                ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                {
+                    Level = level,
+                    LeaveOpen = true,
+                    Threads = threads,
+                };
+
+                try
+                {
+                    using (ZLibStream zs = new ZLibStream(compMs, pcompOpts))
+                    {
+                        sampleFs.CopyTo(zs);
+                        compMs.Dispose();
+                    } // zs.Dispose() must throw exception.
+                }
+                catch (AggregateException ex)
+                {
+                    exceptThrown = true;
+                    Console.WriteLine(ex);
+                }
+            }
+
+            Assert.IsTrue(exceptThrown);
         }
         #endregion
 

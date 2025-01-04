@@ -1,6 +1,4 @@
-﻿#nullable enable 
-
-/*
+﻿/*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
@@ -38,11 +36,73 @@ using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.ZLib
 {
-    #region DeflateNoThreadStream
+    #region StreamOptions
+    public sealed class ZLibCompressOptions
+    {
+        /// <summary>
+        /// Compression level. The Default is `ZLibCompLevel.Default`.
+        /// </summary>
+        public ZLibCompLevel Level { get; set; } = ZLibCompLevel.Default;
+        /// <summary>
+        /// The base two logarithm of the window size (the size of the history buffer).  
+        /// It should be in the range from 9 to 15. The default value is 15.
+        /// Larger values of this parameter result in better compression at the expense of memory usage.
+        /// </summary>
+        /// <remarks>
+        /// C library allows value of 8 but it have been prohibitted in here due to multiple issues.
+        /// </remarks>
+        public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
+        /// <summary>
+        /// Specifies how much memory should be allocated for the internal compression state.
+        /// 1 uses minimum memory but is slow and reduces compression ratio; 9 uses maximum memory for optimal speed.
+        /// The default value is 8.
+        /// </summary>
+        public ZLibMemLevel MemLevel { get; set; } = ZLibMemLevel.Default;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = DeflateStreamBase.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+        /// <summary>
+        /// Buffer pool to use for internal buffer.
+        /// </summary>
+        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+    }
+
+    public sealed class ZLibDecompressOptions
+    {
+        /// <summary>
+        /// The base two logarithm of the window size (the size of the history buffer).  
+        /// It should be in the range from 9 to 15. The default value is 15.
+        /// WindowBits must be greater than or equal to the value provided when the stream was compressed, or the decompress will fail.
+        /// </summary>
+        /// <remarks>
+        /// For maximum compatibility, using ZLibWindowBits.Default (15) is recommended.
+        /// </remarks>
+        public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
+        /// <summary>
+        /// Size of the internal buffer.
+        /// </summary>
+        public int BufferSize { get; set; } = DeflateStreamBase.DefaultBufferSize;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+        /// <summary>
+        /// Buffer pool to use for internal buffer.
+        /// </summary>
+        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+    }
+    #endregion
+
+    #region DeflateSerialStream
     /// <summary>
     /// The stream which compresses or decompresses zlib-related stream format in single-thread.
     /// </summary>
-    internal sealed class DeflateSingleThreadStream : Stream
+    internal sealed class DeflateSerialStream : Stream
     {
         #region Fields and Properties
         private readonly ZLibStreamOperateMode _mode;
@@ -79,7 +139,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Create compressing DeflateStream.
         /// </summary>
-        public DeflateSingleThreadStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibOperateFormat format)
+        public DeflateSerialStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -94,8 +154,8 @@ namespace Joveler.Compression.ZLib
             _workBuffer = new PooledBuffer(pool, _bufferSize);
 
             // Check and set compress options
-            int windowBits = ProcessFormatWindowBits(compOpts.WindowBits, _mode, format);
-            CheckMemLevel(compOpts.MemLevel);
+            int windowBits = ZLibLoader.ProcessFormatWindowBits(compOpts.WindowBits, _mode, format);
+            ZLibLoader.CheckMemLevel(compOpts.MemLevel);
 
             _zs = ZLibInit.Lib.CreateZStream();
             _zsPin = GCHandle.Alloc(_zs, GCHandleType.Pinned);
@@ -104,7 +164,7 @@ namespace Joveler.Compression.ZLib
             ZLibException.CheckReturnValue(ret, _zs);
         }
 
-        public DeflateSingleThreadStream(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOperateFormat format)
+        public DeflateSerialStream(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -122,14 +182,14 @@ namespace Joveler.Compression.ZLib
             _zs = ZLibInit.Lib.CreateZStream();
             _zsPin = GCHandle.Alloc(_zs, GCHandleType.Pinned);
 
-            int windowBits = ProcessFormatWindowBits(decompOpts.WindowBits, _mode, format);
+            int windowBits = ZLibLoader.ProcessFormatWindowBits(decompOpts.WindowBits, _mode, format);
             ZLibRet ret = ZLibInit.Lib.NativeAbi.InflateInit(_zs, windowBits);
             ZLibException.CheckReturnValue(ret, _zs);
         }
         #endregion
 
         #region Disposable Pattern
-        ~DeflateSingleThreadStream()
+        ~DeflateSerialStream()
         {
             Dispose(false);
         }
@@ -177,7 +237,7 @@ namespace Joveler.Compression.ZLib
         { // For Decompress
             if (_mode != ZLibStreamOperateMode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
-            CheckReadWriteArgs(buffer, offset, count);
+            ZLibLoader.CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
 
@@ -249,7 +309,7 @@ namespace Joveler.Compression.ZLib
         {
             if (_mode != ZLibStreamOperateMode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
-            CheckReadWriteArgs(buffer, offset, count);
+            ZLibLoader.CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 
@@ -300,7 +360,7 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        public unsafe void FinishWrite()
+        private unsafe void FinishWrite()
         {
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
@@ -424,59 +484,11 @@ namespace Joveler.Compression.ZLib
 
         #region (internal, private) Check Arguments
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count));
-            if (buffer.Length - offset < count)
-                throw new ArgumentOutOfRangeException(nameof(count));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int CheckBufferSize(int bufferSize)
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
             return Math.Max(bufferSize, 4096);
-        }
-
-        internal static int ProcessFormatWindowBits(ZLibWindowBits windowBits, ZLibStreamOperateMode mode, ZLibOperateFormat format)
-        {
-            if (!Enum.IsDefined(typeof(ZLibWindowBits), windowBits))
-                throw new ArgumentOutOfRangeException(nameof(windowBits));
-
-            int bits = (int)windowBits;
-            switch (format)
-            { 
-                case ZLibOperateFormat.Deflate:
-                    // -1 ~ -15 process raw deflate data
-                    return bits * -1;
-                case ZLibOperateFormat.GZip:
-                    // 16 ~ 31, i.e. 16 added to 0..15: process gzip-wrapped deflate data (RFC 1952)
-                    return bits += 16;
-                case ZLibOperateFormat.ZLib:
-                    // 0 ~ 15: zlib format
-                    return bits;
-                case ZLibOperateFormat.BothZLibGZip:
-                    // 32 ~ 47 (32 added to 0..15): automatically detect either a gzip or zlib header (but not raw deflate data), and decompress accordingly.
-                    if (mode == ZLibStreamOperateMode.Decompress)
-                        return bits += 32;
-                    else
-                        throw new ArgumentException(nameof(format));
-                default:
-                    throw new ArgumentException(nameof(format));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void CheckMemLevel(ZLibMemLevel memLevel)
-        {
-            if (!Enum.IsDefined(typeof(ZLibMemLevel), memLevel))
-                throw new ArgumentOutOfRangeException(nameof(memLevel));
         }
         #endregion
     }

@@ -98,6 +98,9 @@ namespace Joveler.Compression.ZLib.Checksum
         public Crc32Algorithm()
         {
             Initialize();
+
+            if (_crc32 == null)
+                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
         }
 
         public override void Initialize()

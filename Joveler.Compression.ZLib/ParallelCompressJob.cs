@@ -1,6 +1,4 @@
-﻿#nullable enable 
-
-/*   
+﻿/*   
     Written by Hajin Jang
     Copyright (C) 2024-present Hajin Jang
 

@@ -4,6 +4,7 @@
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
+    <nullable>enable</nullable>
     <Platforms>AnyCPU</Platforms>
     <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
     
@@ -25,7 +26,7 @@ Supports Windows, Linux and macOS.</Description>
 - Supports multiple zlib ABIs - 'zlib (cdecl)' (default), 'zlib (stdcall)', 'zlib-ng (cdecl)'.
 - (BREAKING CHANGE) `DeflateStream`, `ZLibStream`, `GZipStream` and helper classes are now sealed for better performance.
 - Add `ZLibInit.TryGlobalCleanup()`, which tries to silently unload native zlib instance even though if it has not been loaded.
-- Retargets .NET Framework 4.6.</PackageReleaseNotes>    
+- Retargets .NET Framework 4.6.</PackageReleaseNotes>
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

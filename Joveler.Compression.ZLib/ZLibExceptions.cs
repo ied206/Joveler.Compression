@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-/*
+﻿/*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
@@ -46,7 +44,7 @@ namespace Joveler.Compression.ZLib
             ReturnCode = errorCode;
         }
 
-        public ZLibException(ZLibRet errorCode, string msg)
+        public ZLibException(ZLibRet errorCode, string? msg)
             : base(ForgeErrorMessage(errorCode, msg))
         {
             ReturnCode = errorCode;
@@ -54,7 +52,7 @@ namespace Joveler.Compression.ZLib
 
         private static string ForgeErrorMessage(ZLibRet errorCode, string? msg = null)
         {
-            return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
+            return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg ?? ""}";
         }
 
         internal static void CheckReturnValue(ZLibRet ret, ZStreamBase? zs = null)

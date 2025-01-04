@@ -99,6 +99,9 @@ namespace Joveler.Compression.ZLib.Checksum
         public Adler32Algorithm()
         {
             Initialize();
+
+            if (_adler32 == null)
+                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
         }
 
         public override void Initialize()

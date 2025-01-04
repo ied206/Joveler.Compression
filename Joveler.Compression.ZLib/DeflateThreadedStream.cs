@@ -1,6 +1,4 @@
-﻿#nullable enable 
-
-// #define DEBUG_PARALLEL
+﻿// #define DEBUG_PARALLEL
 
 /*   
     Written by Hajin Jang
@@ -37,16 +35,73 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace Joveler.Compression.ZLib
 {
-    internal sealed class DeflateParallelCompressStream : Stream
+    public sealed class ZLibThreadedCompressOptions
+    {
+        /// <summary>
+        /// Compression level. The Default is `ZLibCompLevel.Default`.
+        /// </summary>
+        public ZLibCompLevel Level { get; set; } = ZLibCompLevel.Default;
+        /// <summary>
+        /// The base two logarithm of the window size (the size of the history buffer).  
+        /// It should be in the range from 9 to 15. The default value is 15.
+        /// Larger values of this parameter result in better compression at the expense of memory usage.
+        /// </summary>
+        /// <remarks>
+        /// C library allows value of 8 but it have been prohibitted in here due to multiple issues.
+        /// </remarks>
+        public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
+        /// <summary>
+        /// Specifies how much memory should be allocated for the internal compression state.
+        /// 1 uses minimum memory but is slow and reduces compression ratio; 9 uses maximum memory for optimal speed.
+        /// The default value is 8.
+        /// </summary>
+        public ZLibMemLevel MemLevel { get; set; } = ZLibMemLevel.Default;
+        /// <summary>
+        /// The number of threads to use for parallel compression.
+        /// </summary>
+        public int Threads { get; set; } = 1;
+        /// <summary>
+        /// Size of the compress block, which would be a unit of data to be compressed.
+        /// </summary>
+        public int BlockSize { get; set; } = DeflateThreadedStream.DefaultBlockSize;
+        /// <summary>
+        /// <para>Control timeout to allow Write() to return early.<br/>
+        /// In parallel compression, Write() may block until the data is compressed.
+        /// </para>
+        /// <para>
+        /// Set to null to return immdiately after queueing the input data.<br/>
+        /// Compression and writing to the base stream will be done in background.
+        /// </para>
+        /// <para>
+        /// Set to 0 to block until the data is compressed.
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// Timeout value is kept as best effort, and it may block longer time.
+        /// </remarks>
+        public TimeSpan? WriteTimeout { get; set; } = null;
+        /// <summary>
+        /// Buffer pool to use for internal buffers.
+        /// </summary>
+        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
+    }
+
+     internal sealed class DeflateThreadedStream : Stream
     {
         #region Fields and Properties
         private readonly ZLibOperateFormat _format;
         private readonly ZLibCompLevel _compLevel;
         private readonly ZLibWindowBits _windowBits;
+        private readonly TimeSpan? _writeTimeout;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
@@ -65,14 +120,47 @@ namespace Joveler.Compression.ZLib
         private readonly Thread _writerThread;
         private readonly WriterThreadProc _writerThreadProc;
 
+        private readonly AutoResetEvent _backgroundExceptionSignal = new AutoResetEvent(false);
+        private readonly object _backgroundExceptionsLock = new object();
+        private readonly List<Exception> _backgroundExceptions = new List<Exception>();
+        /// <summary>
+        /// Returns true if any exception has been fired in the background threads.
+        /// </summary>
+        public bool HasBackgroundExceptions
+        {
+            get
+            {
+                lock (_backgroundExceptionsLock)
+                    return 0 < _backgroundExceptions.Count;
+            }
+        }
+        /// <summary>
+        /// Return the exceptions occured in the background threads.
+        /// </summary>
+        /// <remarks>
+        /// Returned exceptions are cleared from the internal list.
+        /// </remarks>
+        public Exception[] BackgroundExceptions
+        {
+            get
+            {
+                lock (_backgroundExceptionsLock)
+                {
+                    Exception[] execpts = _backgroundExceptions.ToArray();
+                    _backgroundExceptions.Clear();
+                    return execpts;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Also represents the number of blocks passed to the worker threads.
+        /// </summary>
         private long _seqNum = 0;
         private bool _finalEnqueued = false;
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
-        private static int CalcOutBlockSize(int rawBlockSize)
-        { // 17/16 * rawBlockSize + 32KB
-            return rawBlockSize + (rawBlockSize >> 4) + ParallelCompressJob.DictWindowSize;
-        }
+        private static int CalcOutBlockSize(int rawBlockSize) => rawBlockSize + (rawBlockSize >> 3); // 9/8 * rawBlockSize
 
         private readonly ConcurrentQueue<ParallelCompressJob> _inQueue;
         private readonly object _outListLock;
@@ -85,11 +173,12 @@ namespace Joveler.Compression.ZLib
         private ReferableBuffer? _nextDictBuffer;
 
         private readonly ArrayPool<byte> _pool;
-
+        
         /// <summary>
         /// Default Block Size 
         /// </summary>
         internal const int DefaultBlockSize = 128 * 1024; // pigz uses 128KB for block size
+        internal readonly TimeSpan MinWriteTimeout = TimeSpan.FromMilliseconds(100);
 
         private static ChecksumBase<uint>? FormatChecksum(ZLibOperateFormat format)
         {
@@ -105,9 +194,9 @@ namespace Joveler.Compression.ZLib
 
         #region Constructor
         /// <summary>
-        /// Create compressing DeflateStream.
+        /// Create parallel-compressing DeflateStream.
         /// </summary>
-        public DeflateParallelCompressStream(Stream baseStream, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
+        public DeflateThreadedStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -119,9 +208,14 @@ namespace Joveler.Compression.ZLib
             _format = format;
             _compLevel = pcompOpts.Level;
             _windowBits = pcompOpts.WindowBits;
+            _writeTimeout = pcompOpts.WriteTimeout;
+            if (_writeTimeout != null && _writeTimeout < MinWriteTimeout)
+                _writeTimeout = MinWriteTimeout;
 
             int threadCount = pcompOpts.Threads;
-            if (threadCount == 0)
+            if (threadCount < 0)
+                throw new ArgumentOutOfRangeException(nameof(pcompOpts.Threads), "Thread count must be greater than or equal to 0(auto).");
+            else if (threadCount == 0)
                 threadCount = Environment.ProcessorCount;
 
             _workerThreads = new Thread[threadCount];
@@ -144,11 +238,6 @@ namespace Joveler.Compression.ZLib
             // Write the header
             WriteHeader();
 
-            // Create write thread
-            _writerThreadProc = new WriterThreadProc(this);
-            _writerThread = new Thread(_writerThreadProc.WriterThreadMain);
-            _writerThread.Start();
-
             // Create worker threads
             for (int i = 0; i < _workerThreads.Length; i++)
             {
@@ -159,11 +248,16 @@ namespace Joveler.Compression.ZLib
                 workerThread.Start();
                 _workerThreads[i] = workerThread;
             }
+
+            // Create write thread
+            _writerThreadProc = new WriterThreadProc(this);
+            _writerThread = new Thread(_writerThreadProc.WriterThreadMain);
+            _writerThread.Start();
         }
         #endregion
 
         #region Disposable Pattern
-        ~DeflateParallelCompressStream()
+        ~DeflateThreadedStream()
         {
             Dispose(false);
         }
@@ -179,8 +273,7 @@ namespace Joveler.Compression.ZLib
 
                 // If ZLibException has been fired, throw exception after dispoing the resources.
                 try
-                {
-                    // Finalize compression
+                { // Finalize compression
                     FinishWrite();
                 }
                 finally
@@ -219,7 +312,7 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
-        #region MainThread - Write: push raw data into the worker threads
+        #region MainThread - Write: push raw data into the worker threads, and wait until getting the output
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         { // For Decompress
@@ -239,7 +332,7 @@ namespace Joveler.Compression.ZLib
         /// <inheritdoc />
         public override void Write(byte[] buffer, int offset, int count)
         {
-            CheckReadWriteArgs(buffer, offset, count);
+            ZLibLoader.CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 
@@ -261,7 +354,7 @@ namespace Joveler.Compression.ZLib
             {
                 bytesWritten += _inputBuffer.Write(span.Slice(bytesWritten), false);
 
-                // [Stage 11 If the input buffer is full -> enqueue the job, and reset the input buffer.
+                // [Stage 11] If the input buffer is full -> enqueue the job, and reset the input buffer.
                 if (_inputBuffer.IsFull)
                 {
                     EnqueueInputBuffer(false);
@@ -272,8 +365,14 @@ namespace Joveler.Compression.ZLib
 
             // [Stage 12] Signal the worker threads
             // Alert the worker thread to resume compressing
-            if (enqueued)
-                SetWorkerThreadReadSignal();
+            if (!enqueued)
+                return;
+            SetWorkerThreadReadSignal();
+
+            // [Stage 13] Wait until the output is ready
+            if (_writeTimeout == null)
+                return;
+            WaitUntilWriteDone(_seqNum, _writeTimeout.Value);
         }
 
         private void EnqueueInputBuffer(bool isFinal)
@@ -285,7 +384,7 @@ namespace Joveler.Compression.ZLib
             // First   block: _nextDictBuffer == null
             // Nor/Fin block: _nextDictBuffer != null, 1 <= _nextDictBuffer._refCount <= 2
 
-            Debug.Assert(_seqNum == 0 && _nextDictBuffer == null || 
+            Debug.Assert(_seqNum == 0 && _nextDictBuffer == null ||
                 _seqNum != 0 && _nextDictBuffer != null && !_nextDictBuffer.Disposed);
 
             _finalEnqueued |= isFinal;
@@ -326,7 +425,7 @@ namespace Joveler.Compression.ZLib
                     ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.ReadablePortionSpan.Slice(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
                     copyDictBuffer.Write(lastDictSpan);
                     _nextDictBuffer.ReleaseRef();
-                        
+
                     copyDictBuffer.Write(job.InBuffer.ReadablePortionSpan);
 
                     Debug.Assert(copyDictBuffer.DataEndIdx == ParallelCompressJob.DictWindowSize);
@@ -391,7 +490,6 @@ namespace Joveler.Compression.ZLib
 
             Debug.Assert(_inputBuffer.DataStartIdx == 0);
 
-
             // Flush the remaining input buffer into compress worker threads.
             if (!_inputBuffer.IsEmpty)
             {
@@ -402,26 +500,7 @@ namespace Joveler.Compression.ZLib
             }
 
             // Wait until all threads are idle.
-            while (true)
-            {
-                // [Idle state]
-                // - Queues
-                //   * inQueue: 0
-                //   * outList: 0
-                // - WorkerThread
-                //   * readSignal: false
-                //   * waitingSignal: true
-                // - WriterThread
-                //   * writeSignal: false
-                //   * waitingSignal: true
-                int outCount;
-                lock (_outListLock)
-                    outCount = _outList.Count;
-
-                if (_inQueue.Count == 0 && outCount == 0 &&
-                    IsAllWorkerThreadWaitSignalSet(null) && _writerThreadProc.WaitingSignal.WaitOne())
-                    break;
-            }
+            WaitUntilWriteDone(_seqNum, TimeSpan.Zero);
 
             // Flush the remaining compressed data into BaseStream
             BaseStream.Flush();
@@ -429,9 +508,12 @@ namespace Joveler.Compression.ZLib
 
         public void Abort()
         {
-            // Signal the workerThreads and writerThread to abort
+            // Signal the workerThreads and writerThread to abort.
+            // If threads are waiting for the read/write signal, release them.
             SetWorkerThreadAbortSignal();
+            SetWorkerThreadReadSignal();
             _writerThreadProc.AbortSignal.Set();
+            _writerThreadProc.WriteSignal.Set();
 
             // Wait until all worker threads to finish
             foreach (Thread thread in _workerThreads)
@@ -440,6 +522,10 @@ namespace Joveler.Compression.ZLib
             // Now all worker threads are terminated.
             // Wait until writerThread finishes.
             _writerThread.Join();
+
+            // Throw if any exception has occured in background threads
+            if (_backgroundExceptionSignal.WaitOne(0))
+                throw new AggregateException(BackgroundExceptions);
         }
 
         private void FinishWrite()
@@ -465,13 +551,34 @@ namespace Joveler.Compression.ZLib
             // Now final block is being processed by the writerThread.
             // Wait until writerThread finishes.
             _writerThread.Join();
+
+            // Throw if any exception has occured in background threads
+            if (_backgroundExceptionSignal.WaitOne(0))
+                throw new AggregateException(BackgroundExceptions);
+        }
+
+        private void WaitUntilWriteDone(long checkSeqNum, TimeSpan timeout)
+        {
+            while (true)
+            {
+                // Throw if any exception has occured in background threads
+                if (_backgroundExceptionSignal.WaitOne(0))
+                    throw new AggregateException(BackgroundExceptions);
+
+                if (checkSeqNum <= _writerThreadProc.SeqNum &&
+                    timeout == TimeSpan.Zero ? _writerThreadProc.WaitingSignal.WaitOne() : _writerThreadProc.WaitingSignal.WaitOne(timeout))
+                    break;
+
+                // If we waited once, we have to return ASAP in next signal check.
+                timeout = MinWriteTimeout;
+            }
         }
         #endregion
 
         #region class CompressThreadProc
         internal sealed class CompressThreadProc : IDisposable
         {
-            private readonly DeflateParallelCompressStream _owner;
+            private readonly DeflateThreadedStream _owner;
 
             public readonly AutoResetEvent ReadSignal = new AutoResetEvent(false);
             public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
@@ -484,7 +591,7 @@ namespace Joveler.Compression.ZLib
 
             private bool _disposed = false;
 
-            public CompressThreadProc(DeflateParallelCompressStream owner)
+            public CompressThreadProc(DeflateThreadedStream owner)
             {
                 _owner = owner;
                 _blockChecksum = FormatChecksum(owner._format);
@@ -505,152 +612,167 @@ namespace Joveler.Compression.ZLib
 
             public unsafe void CompressThreadMain()
             {
-                if (_zs == null)
-                    throw new NullReferenceException($"[{nameof(_zs)}] is null.");
-
-                ZLibRet ret;
-                bool exitLoop = false;
-                while (true)
+                try
                 {
-                    // Signal that this workerThread is waiting for the next job
-                    // Wait for the next job to come in
-                    WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
+                    if (_zs == null)
+                        throw new ObjectDisposedException($"[{nameof(_zs)}] is null.");
 
-                    // Reset the waiting signal
-                    WaitingSignal.Reset();
-
-                    // Loop until the input queue is empty
-                    while (_owner._inQueue.TryDequeue(out ParallelCompressJob? job) && job != null)
+                    ZLibRet ret;
+                    bool exitLoop = false;
+                    while (true)
                     {
-                        // If the input is the EOF block, break the loop immediately
-                        if (job.IsEofBlock)
-                        {
-                            // [RefCount]
-                            // EOF block: job.InBuffer._refCount == 1,    job.DictBuffer = null
+                        // Signal that this workerThread is waiting for the next job
+                        // Wait for the next job to come in
+                        WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
 
-                            job.Dispose();
-
-                            // [RefCount]
-                            // EOF block: job.InBuffer._refCount == 0(D), job.DictBuffer = null
-
-                            exitLoop = true;
-                            break;
-                        }
-
-                        try
-                        {
-                            // [RefCount]
-                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
-                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 1 <= job.DictBuffer._refCount <= 3
-                            // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 1
-
-                            // [Stage 02] Reset the zstream, and set the compression level again
-                            ret = ZLibInit.Lib.NativeAbi.DeflateReset(_zs);
-                            ZLibException.CheckReturnValue(ret, _zs);
-                            ret = ZLibInit.Lib.NativeAbi.DeflateParams(_zs, (int)_owner._compLevel, (int)ZLibCompStrategy.Default);
-                            ZLibException.CheckReturnValue(ret, _zs);
-
-                            if (job.DictBuffer != null)
-                            {
-                                // [IMPORTANT]
-                                // job.DictBuffer is a reference of last job's InBuffer, so DictBuffer.{DataStartIdx,DataSize} must be ignored.
-                                // Use Buf directly to avoid corruping/corrupted by DataStartIdx.
-                                // {In,Dict}Buffer.DataEndIdx is not changed by another worker thread, so it is safe to use.
-                                Debug.Assert(!job.DictBuffer.Disposed);
-
-                                int dictSize = Math.Min(job.DictBuffer.DataEndIdx, ParallelCompressJob.DictWindowSize);
-                                int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
-
-                                // [Stage 03] Set dictionary (last 32KB of the previous input)
-                                fixed (byte* dictPtr = job.DictBuffer.Buf)
-                                {
-                                    ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(_zs, dictPtr + dictStartPos, (uint)dictSize);
-                                    ZLibException.CheckReturnValue(ret, _zs);
-                                }
-                            }
-
-                            // [Stage 10] Calculate checksum
-                            if (_blockChecksum != null)
-                            {
-                                Debug.Assert(!job.InBuffer.Disposed);
-                                Debug.Assert(job.InBuffer.DataStartIdx == 0);
-                                Debug.Assert(job.InBuffer.DataEndIdx == job.RawInputSize);
-
-                                _blockChecksum.Reset();
-                                job.Checksum = _blockChecksum.Append(job.InBuffer.Buf, 0, job.InBuffer.DataEndIdx);
-                            }
-
-                            // [Stage 11] Compress (or finish) the input block
-                            if (!job.IsLastBlock)
-                            { // Deflated block will end on a byte boundary, using a sync marker if necessary (SyncFlush)
-                                // ADVACNED: Bit-level output manipulation.
-                                // SIMPLE: In pre zlib 1.2.6, just call DeflateBlock once with ZLibFlush.SyncFlush.
-
-                                // After Z_BLOCK, Up to 7 bits of output data are waiting to be written.
-                                DeflateBlock(job, ZLibFlush.Block);
-
-                                // How many bits are waiting to be written?
-                                int bits = 0;
-                                ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
-                                ZLibException.CheckReturnValue(ret, _zs);
-
-                                // Add enough empty blocks to get to a byte boundary
-                                if (0 < (bits & 1)) // 1 bit is waiting to be written
-                                { // Flush the bit-level boundary
-                                    DeflateBlock(job, ZLibFlush.SyncFlush);
-                                }
-                                else if (0 < (bits & 7)) // 3 bits or more are waiting to be written
-                                { // Add static empty blocks
-                                    do
-                                    { // Insert bits to next output block
-                                        // Next output will start with bits leftover from a previous deflate() call.
-                                        // 10 bits
-                                        ret = ZLibInit.Lib.NativeAbi.DeflatePrime(_zs, 10, 2);
-                                        ZLibException.CheckReturnValue(ret, _zs);
-
-                                        // Still are 3 bits or more waiting to be written?
-                                        ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
-                                        ZLibException.CheckReturnValue(ret, _zs);
-                                    }
-                                    while (0 < (bits & 7));
-                                    DeflateBlock(job, ZLibFlush.Block);
-                                }
-                            }
-                            else
-                            { // Finish the deflate stream
-                                DeflateBlockFinish(job);
-                            }
-
-#if DEBUG_PARALLEL
-                            Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
-#endif
-
-                            Debug.Assert(job.InBuffer.DataStartIdx == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
-
-                            // [Stage 12] Insert compressed data to linked list
-                            _owner.EnqueueOutList(job);
-                        }
-                        finally
-                        {
-                            // Free unnecessary resources
-                            job.DictBuffer?.ReleaseRef();
-
-                            // [RefCount]
-                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
-                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
-                            // Nor/Fin block (32K<):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
-                        }
+                        // Reset the waiting signal
+                        WaitingSignal.Reset();
 
                         // If the abort signal is set, break the loop
                         if (AbortSignal.WaitOne(0))
-                        {
-                            exitLoop = true;
                             break;
+
+                        // Loop until the input queue is empty
+                        while (_owner._inQueue.TryDequeue(out ParallelCompressJob? job) && job != null)
+                        {
+                            // If the input is the EOF block, break the loop immediately
+                            if (job.IsEofBlock)
+                            {
+                                // [RefCount]
+                                // EOF block: job.InBuffer._refCount == 1,    job.DictBuffer = null
+
+                                job.Dispose();
+
+                                // [RefCount]
+                                // EOF block: job.InBuffer._refCount == 0(D), job.DictBuffer = null
+
+                                exitLoop = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                // [RefCount]
+                                // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                                // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 1 <= job.DictBuffer._refCount <= 3
+                                // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 1
+
+                                // [Stage 02] Reset the zstream, and set the compression level again
+                                ret = ZLibInit.Lib.NativeAbi.DeflateReset(_zs);
+                                ZLibException.CheckReturnValue(ret, _zs);
+                                ret = ZLibInit.Lib.NativeAbi.DeflateParams(_zs, (int)_owner._compLevel, (int)ZLibCompStrategy.Default);
+                                ZLibException.CheckReturnValue(ret, _zs);
+
+                                if (job.DictBuffer != null)
+                                {
+                                    // [IMPORTANT]
+                                    // job.DictBuffer is a reference of last job's InBuffer, so DictBuffer.{DataStartIdx,DataSize} must be ignored.
+                                    // Use Buf directly to avoid corruping/corrupted by DataStartIdx.
+                                    // {In,Dict}Buffer.DataEndIdx is not changed by another worker thread, so it is safe to use.
+                                    Debug.Assert(!job.DictBuffer.Disposed);
+
+                                    int dictSize = Math.Min(job.DictBuffer.DataEndIdx, ParallelCompressJob.DictWindowSize);
+                                    int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
+
+                                    // [Stage 03] Set dictionary (last 32KB of the previous input)
+                                    fixed (byte* dictPtr = job.DictBuffer.Buf)
+                                    {
+                                        ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(_zs, dictPtr + dictStartPos, (uint)dictSize);
+                                        ZLibException.CheckReturnValue(ret, _zs);
+                                    }
+                                }
+
+                                // [Stage 10] Calculate checksum
+                                if (_blockChecksum != null)
+                                {
+                                    Debug.Assert(!job.InBuffer.Disposed);
+                                    Debug.Assert(job.InBuffer.DataStartIdx == 0);
+                                    Debug.Assert(job.InBuffer.DataEndIdx == job.RawInputSize);
+
+                                    _blockChecksum.Reset();
+                                    job.Checksum = _blockChecksum.Append(job.InBuffer.Buf, 0, job.InBuffer.DataEndIdx);
+                                }
+
+                                // [Stage 11] Compress (or finish) the input block
+                                if (!job.IsLastBlock)
+                                { // Deflated block will end on a byte boundary, using a sync marker if necessary (SyncFlush)
+                                  // ADVACNED: Bit-level output manipulation.
+                                  // SIMPLE: In pre zlib 1.2.6, just call DeflateBlock once with ZLibFlush.SyncFlush.
+
+                                    // After Z_BLOCK, Up to 7 bits of output data are waiting to be written.
+                                    DeflateBlock(job, ZLibFlush.Block);
+
+                                    // How many bits are waiting to be written?
+                                    int bits = 0;
+                                    ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
+                                    ZLibException.CheckReturnValue(ret, _zs);
+
+                                    // Add enough empty blocks to get to a byte boundary
+                                    if (0 < (bits & 1)) // 1 bit is waiting to be written
+                                    { // Flush the bit-level boundary
+                                        DeflateBlock(job, ZLibFlush.SyncFlush);
+                                    }
+                                    else if (0 < (bits & 7)) // 3 bits or more are waiting to be written
+                                    { // Add static empty blocks
+                                        do
+                                        { // Insert bits to next output block
+                                          // Next output will start with bits leftover from a previous deflate() call.
+                                          // 10 bits
+                                            ret = ZLibInit.Lib.NativeAbi.DeflatePrime(_zs, 10, 2);
+                                            ZLibException.CheckReturnValue(ret, _zs);
+
+                                            // Still are 3 bits or more waiting to be written?
+                                            ret = ZLibInit.Lib.NativeAbi.DeflatePending(_zs, null, &bits);
+                                            ZLibException.CheckReturnValue(ret, _zs);
+                                        }
+                                        while (0 < (bits & 7));
+                                        DeflateBlock(job, ZLibFlush.Block);
+                                    }
+                                }
+                                else
+                                { // Finish the deflate stream
+                                    DeflateBlockFinish(job);
+                                }
+
+#if DEBUG_PARALLEL
+                                Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
+#endif
+
+                                Debug.Assert(job.InBuffer.DataStartIdx == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
+
+                                // [Stage 12] Insert compressed data to linked list
+                                _owner.EnqueueOutList(job);
+                            }
+                            finally
+                            {
+                                // Free unnecessary resources
+                                job.DictBuffer?.ReleaseRef();
+
+                                // [RefCount]
+                                // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                                // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
+                                // Nor/Fin block (32K<):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
+                            }
+
+                            // If the abort signal is set, break the loop
+                            if (AbortSignal.WaitOne(0))
+                            {
+                                exitLoop = true;
+                                break;
+                            }
                         }
+
+                        if (exitLoop)
+                            break;
                     }
 
-                    if (exitLoop)
-                        break;
+                    WaitingSignal.Set();
+                }
+                catch (Exception e)
+                { // If any Exception has occured, abort the whole process.
+                    WaitingSignal.Set();
+
+                    _owner.HandleBackgroundException(e);
                 }
             }
 
@@ -696,7 +818,7 @@ namespace Joveler.Compression.ZLib
 
                             ZLibException.CheckReturnValue(ret, _zs);
                         }
-                    } 
+                    }
                     while (_zs.AvailOut == 0);
 
                     Debug.Assert(_zs.AvailIn == 0);
@@ -763,9 +885,12 @@ namespace Joveler.Compression.ZLib
                 }
 
                 // Dispose unmanaged resources, and set large fields to null.
-                ZLibInit.Lib.NativeAbi.DeflateEnd(_zs);
-                _zsPin.Free();
-                _zs = null;
+                if (_zs != null)
+                {
+                    ZLibInit.Lib.NativeAbi.DeflateEnd(_zs);
+                    _zsPin.Free();
+                    _zs = null;
+                }
 
                 ReadSignal.Dispose();
                 WaitingSignal.Dispose();
@@ -812,12 +937,18 @@ namespace Joveler.Compression.ZLib
             }
             return isAllWaiting;
         }
-#endregion
+        #endregion
 
         #region class WriterThreadProc
         internal sealed class WriterThreadProc : IDisposable
         {
-            private readonly DeflateParallelCompressStream _owner;
+            private readonly DeflateThreadedStream _owner;
+
+            private long _seqNum = 0;
+            /// <summary>
+            /// Also represents the number of blocks written to the BaseStream.
+            /// </summary>
+            public long SeqNum => Interlocked.Read(ref _seqNum);
 
             public readonly AutoResetEvent WriteSignal = new AutoResetEvent(false);
             public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
@@ -827,7 +958,7 @@ namespace Joveler.Compression.ZLib
 
             private readonly ChecksumBase<uint>? _writeChecksum;
 
-            public WriterThreadProc(DeflateParallelCompressStream owner)
+            public WriterThreadProc(DeflateThreadedStream owner)
             {
                 _owner = owner;
                 _writeChecksum = FormatChecksum(owner._format);
@@ -843,88 +974,102 @@ namespace Joveler.Compression.ZLib
             /// </summary>
             public unsafe void WriterThreadMain()
             {
-                if (_owner.BaseStream == null)
-                    throw new ObjectDisposedException("This stream had been disposed.");
-
-                long findSeqNum = 0;
-                bool exitLoop = false;
-                while (true)
+                try 
                 {
-                    // Signal about the waiting
-                    // Wait for the write signal at least once
-                    WaitHandle.SignalAndWait(WaitingSignal, WriteSignal);
+                    if (_owner.BaseStream == null)
+                        throw new ObjectDisposedException("This stream had been disposed.");
 
-                    // Reset the waiting signal
-                    WaitingSignal.Reset();
-
-                    // Loop until the write queue is empty
-                    LinkedListNode<ParallelCompressJob>? outJobNode = null;
-                    do
+                    bool exitLoop = false;
+                    while (true)
                     {
-                        // Get next OutJob
-                        lock (_owner._outListLock)
+                        // Loop until the write queue is empty
+                        LinkedListNode<ParallelCompressJob>? outJobNode = null;
+                        do
                         {
-                            outJobNode = _owner._outList.First;
-                            if (outJobNode == null) // Reached end of the write queue -> then goes to the outer loop
-                                break;
-                            if (outJobNode.Value.SeqNum != findSeqNum) // The next job is not the expected one -> wait for the next signal
-                                break;
-                            _owner._outList.RemoveFirst();
-                        }
+                            // Get next OutJob
+                            lock (_owner._outListLock)
+                            {
+                                outJobNode = _owner._outList.First;
+                                if (outJobNode == null) // Reached end of the write queue -> then goes to the outer loop
+                                    break;
+                                if (outJobNode.Value.SeqNum != _seqNum) // The next job is not the expected one -> wait for the next signal
+                                    break;
+                                _owner._outList.RemoveFirst();
+                            }
 
-                        findSeqNum += 1;
-
-                        using (ParallelCompressJob job = outJobNode.Value)
-                        {
-                            // Write to BaseStream
-                            _owner.BaseStream.Write(job.OutBuffer.Buf, 0, job.OutBuffer.DataEndIdx);
+                            using (ParallelCompressJob job = outJobNode.Value)
+                            {
+                                // Write to BaseStream
+                                _owner.BaseStream.Write(job.OutBuffer.Buf, 0, job.OutBuffer.DataEndIdx);
 
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"-- wrote (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}]");
+                                Console.WriteLine($"-- wrote (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}]");
 #endif
 
-                            // Increase TotalIn & TotalOut
-                            _owner.AddTotalIn(job.RawInputSize);
-                            _owner.AddTotalOut(job.OutBuffer.ReadableSize);
+                                // Increase TotalIn & TotalOut
+                                _owner.AddTotalIn(job.RawInputSize);
+                                _owner.AddTotalOut(job.OutBuffer.ReadableSize);
 
-                            // Combine the checksum (if necessary)
-                            if (0 < job.RawInputSize)
-                                _writeChecksum?.Combine(job.Checksum, job.RawInputSize);
+                                // Combine the checksum (if necessary)
+                                if (0 < job.RawInputSize)
+                                    _writeChecksum?.Combine(job.Checksum, job.RawInputSize);
 
-                            // Exit if the last block is reached
-                            if (job.IsLastBlock)
+                                // Exit if the last block is reached
+                                if (job.IsLastBlock)
+                                {
+                                    exitLoop = true;
+                                    break;
+                                }
+
+                                // [RefCount]
+                                // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                                // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
+                                // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
+                            }
+
+                            _seqNum += 1;
+
+                            // [RefCount]
+                            // First  block:          0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
+                            // Nor/Fin block (32K<=): 0(D) <= job.InBuffer._refCount <= 2, 0(D) <= job.DictBuffers._refCount <= 1
+                            // Nor/Fin block (<32K):  job.InBuffer._refCount == 0(D),      job.DictBuffer._refCount == 0(D)
+
+                            // If the abort signal is set, break the loop
+                            if (AbortSignal.WaitOne(0))
                             {
                                 exitLoop = true;
                                 break;
                             }
-
-                            // [RefCount]
-                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
-                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
-                            // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
                         }
+                        while (outJobNode != null);
 
-                        // [RefCount]
-                        // First  block:          0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
-                        // Nor/Fin block (32K<=): 0(D) <= job.InBuffer._refCount <= 2, 0(D) <= job.DictBuffers._refCount <= 1
-                        // Nor/Fin block (<32K):  job.InBuffer._refCount == 0(D),      job.DictBuffer._refCount == 0(D)
+                        if (exitLoop)
+                            break;
+
+                        // Signal about the waiting
+                        // Wait for the write signal at least once
+                        WaitHandle.SignalAndWait(WaitingSignal, WriteSignal);
+
+                        // Reset the waiting signal
+                        WaitingSignal.Reset();
 
                         // If the abort signal is set, break the loop
                         if (AbortSignal.WaitOne(0))
-                        {
-                            exitLoop = true;
                             break;
-                        }
                     }
-                    while (outJobNode != null);
 
-                    if (exitLoop)
-                        break;
+                    // Finalize the stream - write the trailer (zlib, gzip only)
+                    if (_writeChecksum != null)
+                        _owner.WriteTrailer(_writeChecksum.Checksum, _owner.TotalIn);
+
+                    WaitingSignal.Set();
                 }
-
-                // Finalize the stream - write the trailer (zlib, gzip only)
-                if (_writeChecksum != null)
-                    _owner.WriteTrailer(_writeChecksum.Checksum, _owner.TotalIn);
+                catch (Exception e)
+                { // If any Exception has occured, abort the whole process.
+                    WaitingSignal.Set();
+                    
+                    _owner.HandleBackgroundException(e);
+                }
             }
 
             private void Dispose(bool disposing)
@@ -1035,6 +1180,28 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
 
+        #region Background Thread Exception Handling
+        /// <summary>
+        /// This method can be called from any background threads.
+        /// DO NOT JOIN the background threads in this method.
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="isFatal"></param>
+        private void HandleBackgroundException(Exception e)
+        {
+            lock (_backgroundExceptionsLock)
+                _backgroundExceptions.Add(e);
+            _backgroundExceptionSignal.Set();
+
+            // Signal the workerThreads and writerThread to abort.
+            // If threads are waiting for the read/write signal, release them.
+            SetWorkerThreadAbortSignal();
+            SetWorkerThreadReadSignal();
+            _writerThreadProc.AbortSignal.Set();
+            _writerThreadProc.WriteSignal.Set();
+        }
+        #endregion
+
         #region Stream Properties
         /// <inheritdoc />
         public override bool CanRead => false;
@@ -1075,59 +1242,11 @@ namespace Joveler.Compression.ZLib
 
         #region (internal, private) Check Arguments
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count));
-            if (buffer.Length - offset < count)
-                throw new ArgumentOutOfRangeException(nameof(count));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int CheckBlockSize(int blockSize)
         {
             if (blockSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(blockSize));
-            return Math.Max(blockSize, 128 * 1024); // At least 128KB
-        }
-
-        internal static int ProcessFormatWindowBits(ZLibWindowBits windowBits, ZLibStreamOperateMode mode, ZLibOperateFormat format)
-        {
-            if (!Enum.IsDefined(typeof(ZLibWindowBits), windowBits))
-                throw new ArgumentOutOfRangeException(nameof(windowBits));
-
-            int bits = (int)windowBits;
-            switch (format)
-            {
-                case ZLibOperateFormat.Deflate:
-                    // -1 ~ -15 process raw deflate data
-                    return bits * -1;
-                case ZLibOperateFormat.GZip:
-                    // 16 ~ 31, i.e. 16 added to 0..15: process gzip-wrapped deflate data (RFC 1952)
-                    return bits += 16;
-                case ZLibOperateFormat.ZLib:
-                    // 0 ~ 15: zlib format
-                    return bits;
-                case ZLibOperateFormat.BothZLibGZip:
-                    // 32 ~ 47 (32 added to 0..15): automatically detect either a gzip or zlib header (but not raw deflate data), and decompress accordingly.
-                    if (mode == ZLibStreamOperateMode.Decompress)
-                        return bits += 32;
-                    else
-                        throw new ArgumentException(nameof(format));
-                default:
-                    throw new ArgumentException(nameof(format));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void CheckMemLevel(ZLibMemLevel memLevel)
-        {
-            if (!Enum.IsDefined(typeof(ZLibMemLevel), memLevel))
-                throw new ArgumentOutOfRangeException(nameof(memLevel));
+            return Math.Max(blockSize, DefaultBlockSize); // At least 128KB
         }
         #endregion
     }

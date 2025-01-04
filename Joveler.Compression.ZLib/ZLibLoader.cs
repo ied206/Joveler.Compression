@@ -42,7 +42,8 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Native ABI configurations
-        internal ZLibNativeAbi NativeAbi;
+        internal ZLibNativeAbi NativeAbi => _nativeAbi ?? throw new InvalidOperationException($"Please call {nameof(LoadFunctions)}() first.");
+        private ZLibNativeAbi? _nativeAbi;
 
         /// <summary>
         /// Does the loaded native library use stdcall calling convention?
@@ -90,14 +91,14 @@ namespace Joveler.Compression.ZLib
             {
                 if (PlatformLongSize == PlatformLongSize.Long64)
                 {
-                    NativeAbi = new ZLibNgNativeAbiL64(this);
+                    _nativeAbi = new ZLibNgNativeAbiL64(this);
                 }
                 else if (PlatformLongSize == PlatformLongSize.Long32)
                 {
                     if (UseStdcall)
-                        NativeAbi = new ZLibNgNativeAbiStdcallL32(this);
+                        _nativeAbi = new ZLibNgNativeAbiStdcallL32(this);
                     else
-                        NativeAbi = new ZLibNgNativeAbiCdeclL32(this);
+                        _nativeAbi = new ZLibNgNativeAbiCdeclL32(this);
                 }
                 else
                 {
@@ -108,14 +109,14 @@ namespace Joveler.Compression.ZLib
             {
                 if (PlatformLongSize == PlatformLongSize.Long64)
                 {
-                    NativeAbi = new ZLibNativeAbiL64(this);
+                    _nativeAbi = new ZLibNativeAbiL64(this);
                 }
                 else if (PlatformLongSize == PlatformLongSize.Long32)
                 {
                     if (UseStdcall)
-                        NativeAbi = new ZLibNativeAbiStdcallL32(this);
+                        _nativeAbi = new ZLibNativeAbiStdcallL32(this);
                     else
-                        NativeAbi = new ZLibNativeAbiCdeclL32(this);
+                        _nativeAbi = new ZLibNativeAbiCdeclL32(this);
                 }
                 else
                 {
@@ -123,15 +124,18 @@ namespace Joveler.Compression.ZLib
                 }
             }
 
-            NativeAbi.LoadFunctions();
+            _nativeAbi.LoadFunctions();
 
             ValidateNativeAbi();
         }
 
         protected override void ResetFunctions()
         {
-            NativeAbi.ResetFunctions();
-            NativeAbi = null;
+            if (_nativeAbi == null)
+                return;
+
+            _nativeAbi.ResetFunctions();
+            _nativeAbi = null;
         }
         #endregion
 
@@ -200,6 +204,52 @@ namespace Joveler.Compression.ZLib
             // Required for compression level
             if (flags.FastestDeflateOnly)
                 throw new ZLibNativeAbiException(nameof(ZLibCompileFlags.FastestDeflateOnly));
+        }
+        #endregion
+
+        #region Helper Methods
+        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (count < 0 || buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        internal static int ProcessFormatWindowBits(ZLibWindowBits windowBits, ZLibStreamOperateMode mode, ZLibOperateFormat format)
+        {
+            if (!Enum.IsDefined(typeof(ZLibWindowBits), windowBits))
+                throw new ArgumentOutOfRangeException(nameof(windowBits));
+
+            int bits = (int)windowBits;
+            switch (format)
+            {
+                case ZLibOperateFormat.Deflate:
+                    // -1 ~ -15 process raw deflate data
+                    return bits * -1;
+                case ZLibOperateFormat.GZip:
+                    // 16 ~ 31, i.e. 16 added to 0..15: process gzip-wrapped deflate data (RFC 1952)
+                    return bits += 16;
+                case ZLibOperateFormat.ZLib:
+                    // 0 ~ 15: zlib format
+                    return bits;
+                case ZLibOperateFormat.BothZLibGZip:
+                    // 32 ~ 47 (32 added to 0..15): automatically detect either a gzip or zlib header (but not raw deflate data), and decompress accordingly.
+                    if (mode == ZLibStreamOperateMode.Decompress)
+                        return bits += 32;
+                    else
+                        throw new ArgumentException(nameof(format));
+                default:
+                    throw new ArgumentException(nameof(format));
+            }
+        }
+
+        internal static void CheckMemLevel(ZLibMemLevel memLevel)
+        {
+            if (!Enum.IsDefined(typeof(ZLibMemLevel), memLevel))
+                throw new ArgumentOutOfRangeException(nameof(memLevel));
         }
         #endregion
 
@@ -318,10 +368,10 @@ namespace Joveler.Compression.ZLib
                 uint adler,
                 byte* buf,
                 uint len);
-            internal adler32 Adler32Ptr;
+            internal adler32? Adler32Ptr;
             public override unsafe uint Adler32(uint adler, byte* buf, uint len)
             {
-                return Adler32Ptr(adler, buf, len);
+                return Adler32Ptr?.Invoke(adler, buf, len) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -329,18 +379,18 @@ namespace Joveler.Compression.ZLib
                 uint crc,
                 byte* buf,
                 uint len);
-            internal crc32 Crc32Ptr;
+            internal crc32? Crc32Ptr;
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
-                return Crc32Ptr(crc, buf, len);
+                return Crc32Ptr?.Invoke(crc, buf, len) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region Version - ZLibVersion
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate IntPtr zlibVersion();
-            internal zlibVersion ZLibVersionPtr;
-            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
+            internal zlibVersion? ZLibVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr?.Invoke() ?? throw new EntryPointNotFoundException()) ?? "";
             #endregion
         }
         #endregion
@@ -376,10 +426,10 @@ namespace Joveler.Compression.ZLib
                 uint adler,
                 byte* buf,
                 uint len);
-            internal adler32 Adler32Ptr;
+            internal adler32? Adler32Ptr;
             public override unsafe uint Adler32(uint adler, byte* buf, uint len)
             {
-                return Adler32Ptr(adler, buf, len);
+                return Adler32Ptr?.Invoke(adler, buf, len) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -387,18 +437,18 @@ namespace Joveler.Compression.ZLib
                 uint crc,
                 byte* buf,
                 uint len);
-            internal crc32 Crc32Ptr;
+            internal crc32? Crc32Ptr;
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
-                return Crc32Ptr(crc, buf, len);
+                return Crc32Ptr?.Invoke(crc, buf, len) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region Version - ZLibVersion
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate IntPtr zlibVersion();
-            internal zlibVersion ZLibVersionPtr;
-            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr());
+            internal zlibVersion? ZLibVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr?.Invoke() ?? throw new EntryPointNotFoundException()) ?? "";
             #endregion
         }
         #endregion
@@ -471,32 +521,33 @@ namespace Joveler.Compression.ZLib
                 ZLibCompStrategy strategy,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal deflateInit2_ DeflateInit2Ptr;
+            internal deflateInit2_? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return DeflateInit2Ptr((ZStreamL64)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL64>());
+                return DeflateInit2Ptr?.Invoke((ZStreamL64)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL64>()) ??
+                        throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
-            internal deflate DeflatePtr;
+            internal deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZStreamL64)strm, flush);
+                return DeflatePtr?.Invoke((ZStreamL64)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
                 ZStreamL64 strm);
-            internal deflateEnd DeflateEndPtr;
+            internal deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZStreamL64)strm);
+                return DeflateEndPtr?.Invoke((ZStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -507,31 +558,31 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal inflateInit2_ InflateInit2Ptr;
+            internal inflateInit2_? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZStreamL64)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL64>());
+                return InflateInit2Ptr?.Invoke((ZStreamL64)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL64>()) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
                 ZStreamL64 strm,
                 ZLibFlush flush);
-            internal inflate InflatePtr;
+            internal inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZStreamL64)strm, flush);
+                return InflatePtr?.Invoke((ZStreamL64)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateEnd(
                 ZStreamL64 strm);
-            internal inflateEnd InflateEndPtr;
+            internal inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZStreamL64)strm);
+                return InflateEndPtr?.Invoke((ZStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -541,19 +592,19 @@ namespace Joveler.Compression.ZLib
                 ZStreamL64 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZStreamL64)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZStreamL64)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateReset(
                 ZStreamL64 strm);
-            internal deflateReset DeflateResetPtr;
+            internal deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZStreamL64)strm);
+                return DeflateResetPtr?.Invoke((ZStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -561,10 +612,10 @@ namespace Joveler.Compression.ZLib
                 ZStreamL64 strm,
                 int level,
                 int strategy);
-            internal deflateParams DeflateParamsPtr;
+            internal deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZStreamL64)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZStreamL64)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -572,21 +623,21 @@ namespace Joveler.Compression.ZLib
                 ZStreamL64 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe deflatePending DeflatePendingPtr;
+            internal unsafe deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZStreamL64)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZStreamL64)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflatePrime(
                 ZStreamL64 strm,
                 int bits,
                 int value);
-            internal deflatePrime DeflatePrimePtr;
+            internal deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZStreamL64)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZStreamL64)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -596,10 +647,10 @@ namespace Joveler.Compression.ZLib
                uint adler1,
                uint adler2,
                long len2);
-            internal adler32_combine Adler32CombinePtr;
+            internal adler32_combine? Adler32CombinePtr;
             public override uint Adler32Combine(uint adler1, uint adler2, int len2)
             {
-                return Adler32CombinePtr(adler1, adler2, len2);
+                return Adler32CombinePtr?.Invoke(adler1, adler2, len2) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -607,20 +658,20 @@ namespace Joveler.Compression.ZLib
                 uint crc1,
                 uint crc2,
                 long len2);
-            internal crc32_combine Crc32CombinePtr;
+            internal crc32_combine? Crc32CombinePtr;
             public override uint Crc32Combine(uint crc1, uint crc2, int len2)
             {
-                return Crc32CombinePtr(crc1, crc2, len2);
+                return Crc32CombinePtr?.Invoke(crc1, crc2, len2) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zlibCompileFlags();
-            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return (uint)ZLibCompileFlagsPtr();
+                return (uint)(ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException());
             }
             #endregion
         }
@@ -694,32 +745,32 @@ namespace Joveler.Compression.ZLib
                 ZLibCompStrategy strategy,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal deflateInit2_ DeflateInit2Ptr;
+            internal deflateInit2_? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return DeflateInit2Ptr((ZStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return DeflateInit2Ptr?.Invoke((ZStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>()) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
-            internal deflate DeflatePtr;
+            internal deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZStreamL32)strm, flush);
+                return DeflatePtr?.Invoke((ZStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
                 ZStreamL32 strm);
-            internal deflateEnd DeflateEndPtr;
+            internal deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZStreamL32)strm);
+                return DeflateEndPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -730,31 +781,31 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal inflateInit2_ InflateInit2Ptr;
+            internal inflateInit2_? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZStreamL32)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return InflateInit2Ptr?.Invoke((ZStreamL32)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>()) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
-            internal inflate InflatePtr;
+            internal inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZStreamL32)strm, flush);
+                return InflatePtr?.Invoke((ZStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateEnd(
                 ZStreamL32 strm);
-            internal inflateEnd InflateEndPtr;
+            internal inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZStreamL32)strm);
+                return InflateEndPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -764,19 +815,19 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZStreamL32)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZStreamL32)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal unsafe delegate ZLibRet deflateReset(
                 ZStreamL32 strm);
-            internal unsafe deflateReset DeflateResetPtr;
+            internal unsafe deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZStreamL32)strm);
+                return DeflateResetPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -784,10 +835,10 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 int level,
                 int strategy);
-            internal unsafe deflateParams DeflateParamsPtr;
+            internal unsafe deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZStreamL32)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZStreamL32)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -795,21 +846,21 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe deflatePending DeflatePendingPtr;
+            internal unsafe deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZStreamL32)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZStreamL32)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflatePrime(
                 ZStreamL32 strm,
                 int bits,
                 int value);
-            internal deflatePrime DeflatePrimePtr;
+            internal deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZStreamL32)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZStreamL32)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -819,10 +870,10 @@ namespace Joveler.Compression.ZLib
                 uint adler1,
                 uint adler2,
                 int len2);
-            internal adler32_combine Adler32CombinePtr;
+            internal adler32_combine? Adler32CombinePtr;
             public override uint Adler32Combine(uint adler1, uint adler2, int len2)
             {
-                return Adler32CombinePtr(adler1, adler2, len2);
+                return Adler32CombinePtr?.Invoke(adler1, adler2, len2) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -830,20 +881,20 @@ namespace Joveler.Compression.ZLib
                 uint crc1,
                 uint crc2,
                 int len2);
-            internal crc32_combine Crc32CombinePtr;
+            internal crc32_combine? Crc32CombinePtr;
             public override uint Crc32Combine(uint crc1, uint crc2, int len2)
             {
-                return Crc32CombinePtr(crc1, crc2, len2);
+                return Crc32CombinePtr?.Invoke(crc1, crc2, len2) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zlibCompileFlags();
-            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException();
             }
             #endregion
         }
@@ -917,32 +968,32 @@ namespace Joveler.Compression.ZLib
                 ZLibCompStrategy strategy,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal deflateInit2_ DeflateInit2Ptr;
+            internal deflateInit2_? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return DeflateInit2Ptr((ZStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
-                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return DeflateInit2Ptr?.Invoke((ZStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel,
+                        ZLibCompStrategy.Default, zlibVer, Marshal.SizeOf<ZStreamL32>()) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
-            internal deflate DeflatePtr;
+            internal deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZStreamL32)strm, flush);
+                return DeflatePtr?.Invoke((ZStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflateEnd(
                 ZStreamL32 strm);
-            internal deflateEnd DeflateEndPtr;
+            internal deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZStreamL32)strm);
+                return DeflateEndPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -953,31 +1004,31 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 [MarshalAs(UnmanagedType.LPStr)] string version,
                 int stream_size);
-            internal inflateInit2_ InflateInit2Ptr;
+            internal inflateInit2_? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 // cdecl/stdcall detection is irrelevant and ignored on non-x86 architectures.
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZStreamL32)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>());
+                return InflateInit2Ptr?.Invoke((ZStreamL32)strm, windowBits, zlibVer, Marshal.SizeOf<ZStreamL32>()) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflate(
                 ZStreamL32 strm,
                 ZLibFlush flush);
-            internal inflate InflatePtr;
+            internal inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZStreamL32)strm, flush);
+                return InflatePtr?.Invoke((ZStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet inflateEnd(
                 ZStreamL32 strm);
-            internal inflateEnd InflateEndPtr;
+            internal inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZStreamL32)strm);
+                return InflateEndPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -987,19 +1038,19 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZStreamL32)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZStreamL32)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal unsafe delegate ZLibRet deflateReset(
                 ZStreamL32 strm);
-            internal unsafe deflateReset DeflateResetPtr;
+            internal unsafe deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZStreamL32)strm);
+                return DeflateResetPtr?.Invoke((ZStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1007,10 +1058,10 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 int level,
                 int strategy);
-            internal unsafe deflateParams DeflateParamsPtr;
+            internal unsafe deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZStreamL32)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZStreamL32)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1018,21 +1069,21 @@ namespace Joveler.Compression.ZLib
                 ZStreamL32 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe deflatePending DeflatePendingPtr;
+            internal unsafe deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZStreamL32)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZStreamL32)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet deflatePrime(
                 ZStreamL32 strm,
                 int bits,
                 int value);
-            internal deflatePrime DeflatePrimePtr;
+            internal deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZStreamL32)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZStreamL32)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1042,10 +1093,10 @@ namespace Joveler.Compression.ZLib
                 uint adler1,
                 uint adler2,
                 int len2);
-            internal adler32_combine Adler32CombinePtr;
+            internal adler32_combine? Adler32CombinePtr;
             public override uint Adler32Combine(uint adler1, uint adler2, int len2)
             {
-                return Adler32CombinePtr(adler1, adler2, len2);
+                return Adler32CombinePtr?.Invoke(adler1, adler2, len2) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1053,20 +1104,20 @@ namespace Joveler.Compression.ZLib
                 uint crc1,
                 uint crc2,
                 int len2);
-            internal crc32_combine Crc32CombinePtr;
+            internal crc32_combine? Crc32CombinePtr;
             public override uint Crc32Combine(uint crc1, uint crc2, int len2)
             {
-                return Crc32CombinePtr(crc1, crc2, len2);
+                return Crc32CombinePtr?.Invoke(crc1, crc2, len2) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zlibCompileFlags();
-            internal zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException();
             }
             #endregion
         }
@@ -1088,7 +1139,7 @@ namespace Joveler.Compression.ZLib
                 Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
                 Adler32CombinePtr = Lib.GetFuncPtr<zng_adler32_combine>(nameof(zng_adler32_combine));
                 Crc32CombinePtr = Lib.GetFuncPtr<zng_crc32_combine>(nameof(zng_crc32_combine));
-                ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
+                ZLibVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
             }
 
             public override void ResetFunctions()
@@ -1097,7 +1148,7 @@ namespace Joveler.Compression.ZLib
                 Crc32Ptr = null;
                 Adler32CombinePtr = null;
                 Crc32CombinePtr = null;
-                ZLibNgVersionPtr = null;
+                ZLibVersionPtr = null;
             }
             #endregion
 
@@ -1107,10 +1158,10 @@ namespace Joveler.Compression.ZLib
                 uint adler,
                 byte* buf,
                 uint len);
-            internal zng_adler32 Adler32Ptr;
+            internal zng_adler32? Adler32Ptr;
             public override unsafe uint Adler32(uint adler, byte* buf, uint len)
             {
-                return Adler32Ptr(adler, buf, len);
+                return Adler32Ptr?.Invoke(adler, buf, len) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1118,10 +1169,10 @@ namespace Joveler.Compression.ZLib
                 uint crc,
                 byte* buf,
                 uint len);
-            internal zng_crc32 Crc32Ptr;
+            internal zng_crc32? Crc32Ptr;
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
-                return Crc32Ptr(crc, buf, len);
+                return Crc32Ptr?.Invoke(crc, buf, len) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1131,10 +1182,10 @@ namespace Joveler.Compression.ZLib
                uint adler1,
                uint adler2,
                long len2);
-            internal zng_adler32_combine Adler32CombinePtr;
+            internal zng_adler32_combine? Adler32CombinePtr;
             public override uint Adler32Combine(uint adler1, uint adler2, int len2)
             {
-                return Adler32CombinePtr(adler1, adler2, len2);
+                return Adler32CombinePtr?.Invoke(adler1, adler2, len2) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1142,18 +1193,18 @@ namespace Joveler.Compression.ZLib
                 uint crc1,
                 uint crc2,
                 long len2);
-            internal zng_crc32_combine Crc32CombinePtr;
+            internal zng_crc32_combine? Crc32CombinePtr;
             public override uint Crc32Combine(uint crc1, uint crc2, int len2)
             {
-                return Crc32CombinePtr(crc1, crc2, len2);
+                return Crc32CombinePtr?.Invoke(crc1, crc2, len2) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region Version - ZLibVersion
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate IntPtr zlibng_version();
-            internal zlibng_version ZLibNgVersionPtr;
-            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibNgVersionPtr());
+            internal zlibng_version? ZLibVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr?.Invoke() ?? throw new EntryPointNotFoundException()) ?? "";
             #endregion
         }
         #endregion
@@ -1174,7 +1225,7 @@ namespace Joveler.Compression.ZLib
                 Crc32Ptr = Lib.GetFuncPtr<zng_crc32>(nameof(zng_crc32));
                 Adler32CombinePtr = Lib.GetFuncPtr<zng_adler32_combine>(nameof(zng_adler32_combine));
                 Crc32CombinePtr = Lib.GetFuncPtr<zng_crc32_combine>(nameof(zng_crc32_combine));
-                ZLibNgVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
+                ZLibVersionPtr = Lib.GetFuncPtr<zlibng_version>(nameof(zlibng_version));
             }
 
             public override void ResetFunctions()
@@ -1183,7 +1234,7 @@ namespace Joveler.Compression.ZLib
                 Crc32Ptr = null;
                 Adler32CombinePtr = null;
                 Crc32CombinePtr = null;
-                ZLibNgVersionPtr = null;
+                ZLibVersionPtr = null;
             }
             #endregion
 
@@ -1193,10 +1244,10 @@ namespace Joveler.Compression.ZLib
                 uint adler,
                 byte* buf,
                 uint len);
-            internal zng_adler32 Adler32Ptr;
+            internal zng_adler32? Adler32Ptr;
             public override unsafe uint Adler32(uint adler, byte* buf, uint len)
             {
-                return Adler32Ptr(adler, buf, len);
+                return Adler32Ptr?.Invoke(adler, buf, len) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1204,10 +1255,10 @@ namespace Joveler.Compression.ZLib
                 uint crc,
                 byte* buf,
                 uint len);
-            internal zng_crc32 Crc32Ptr;
+            internal zng_crc32? Crc32Ptr;
             public override unsafe uint Crc32(uint crc, byte* buf, uint len)
             {
-                return Crc32Ptr(crc, buf, len);
+                return Crc32Ptr?.Invoke(crc, buf, len) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1217,10 +1268,10 @@ namespace Joveler.Compression.ZLib
                uint adler1,
                uint adler2,
                long len2);
-            internal zng_adler32_combine Adler32CombinePtr;
+            internal zng_adler32_combine? Adler32CombinePtr;
             public override uint Adler32Combine(uint adler1, uint adler2, int len2)
             {
-                return Adler32CombinePtr(adler1, adler2, len2);
+                return Adler32CombinePtr?.Invoke(adler1, adler2, len2) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1228,18 +1279,18 @@ namespace Joveler.Compression.ZLib
                 uint crc1,
                 uint crc2,
                 long len2);
-            internal zng_crc32_combine Crc32CombinePtr;
+            internal zng_crc32_combine? Crc32CombinePtr;
             public override uint Crc32Combine(uint crc1, uint crc2, int len2)
             {
-                return Crc32CombinePtr(crc1, crc2, len2);
+                return Crc32CombinePtr?.Invoke(crc1, crc2, len2) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region Version - ZLibVersion
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate IntPtr zlibng_version();
-            internal zlibng_version ZLibNgVersionPtr;
-            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibNgVersionPtr());
+            internal zlibng_version? ZLibVersionPtr;
+            public override string ZLibVersion() => Marshal.PtrToStringAnsi(ZLibVersionPtr?.Invoke() ?? throw new EntryPointNotFoundException()) ?? "";
             #endregion
         }
         #endregion
@@ -1304,29 +1355,29 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 ZLibMemLevel memLevel,
                 ZLibCompStrategy strategy);
-            internal zng_deflateInit2 DeflateInit2Ptr;
+            internal zng_deflateInit2? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                return DeflateInit2Ptr((ZNgStreamL64)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+                return DeflateInit2Ptr?.Invoke((ZNgStreamL64)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflate(
                 ZNgStreamL64 strm,
                 ZLibFlush flush);
-            internal zng_deflate DeflatePtr;
+            internal zng_deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZNgStreamL64)strm, flush);
+                return DeflatePtr?.Invoke((ZNgStreamL64)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflateEnd(
                 ZNgStreamL64 strm);
-            internal zng_deflateEnd DeflateEndPtr;
+            internal zng_deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZNgStreamL64)strm);
+                return DeflateEndPtr?.Invoke((ZNgStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1335,30 +1386,30 @@ namespace Joveler.Compression.ZLib
             internal delegate ZLibRet zng_inflateInit2(
                 ZNgStreamL64 strm,
                 int windowBits);
-            internal zng_inflateInit2 InflateInit2Ptr;
+            internal zng_inflateInit2? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZNgStreamL64)strm, windowBits);
+                return InflateInit2Ptr?.Invoke((ZNgStreamL64)strm, windowBits) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflate(
                 ZNgStreamL64 strm,
                 ZLibFlush flush);
-            internal zng_inflate InflatePtr;
+            internal zng_inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZNgStreamL64)strm, flush);
+                return InflatePtr?.Invoke((ZNgStreamL64)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflateEnd(
                 ZNgStreamL64 strm);
-            internal zng_inflateEnd InflateEndPtr;
+            internal zng_inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZNgStreamL64)strm);
+                return InflateEndPtr?.Invoke((ZNgStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1368,19 +1419,19 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL64 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe zng_deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZNgStreamL64)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZNgStreamL64)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflateReset(
                 ZNgStreamL64 strm);
-            internal zng_deflateReset DeflateResetPtr;
+            internal zng_deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZNgStreamL64)strm);
+                return DeflateResetPtr?.Invoke((ZNgStreamL64)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1388,10 +1439,10 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL64 strm,
                 int level,
                 int strategy);
-            internal zng_deflateParams DeflateParamsPtr;
+            internal zng_deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZNgStreamL64)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZNgStreamL64)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1399,31 +1450,31 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL64 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe zng_deflatePending DeflatePendingPtr;
+            internal unsafe zng_deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZNgStreamL64)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZNgStreamL64)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflatePrime(
                 ZNgStreamL64 strm,
                 int bits,
                 int value);
-            internal zng_deflatePrime DeflatePrimePtr;
+            internal zng_deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZNgStreamL64)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZNgStreamL64)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ulong zng_zlibCompileFlags();
-            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zng_zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return (uint)ZLibCompileFlagsPtr();
+                return (uint)(ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException());
             }
             #endregion
         }
@@ -1489,29 +1540,29 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 ZLibMemLevel memLevel,
                 ZLibCompStrategy strategy);
-            internal zng_deflateInit2 DeflateInit2Ptr;
+            internal zng_deflateInit2? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                return DeflateInit2Ptr((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+                return DeflateInit2Ptr?.Invoke((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflate(
                 ZNgStreamL32 strm,
                 ZLibFlush flush);
-            internal zng_deflate DeflatePtr;
+            internal zng_deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZNgStreamL32)strm, flush);
+                return DeflatePtr?.Invoke((ZNgStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflateEnd(
                 ZNgStreamL32 strm);
-            internal zng_deflateEnd DeflateEndPtr;
+            internal zng_deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZNgStreamL32)strm);
+                return DeflateEndPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1520,30 +1571,30 @@ namespace Joveler.Compression.ZLib
             internal delegate ZLibRet zng_inflateInit2(
                 ZNgStreamL32 strm,
                 int windowBits);
-            internal zng_inflateInit2 InflateInit2Ptr;
+            internal zng_inflateInit2? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZNgStreamL32)strm, windowBits);
+                return InflateInit2Ptr?.Invoke((ZNgStreamL32)strm, windowBits) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflate(
                 ZNgStreamL32 strm,
                 ZLibFlush flush);
-            internal zng_inflate InflatePtr;
+            internal zng_inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZNgStreamL32)strm, flush);
+                return InflatePtr?.Invoke((ZNgStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflateEnd(
                 ZNgStreamL32 strm);
-            internal zng_inflateEnd InflateEndPtr;
+            internal zng_inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZNgStreamL32)strm);
+                return InflateEndPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1553,19 +1604,19 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe zng_deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZNgStreamL32)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZNgStreamL32)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal unsafe delegate ZLibRet zng_deflateReset(
                 ZNgStreamL32 strm);
-            internal unsafe zng_deflateReset DeflateResetPtr;
+            internal unsafe zng_deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZNgStreamL32)strm);
+                return DeflateResetPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1573,10 +1624,10 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 int level,
                 int strategy);
-            internal unsafe zng_deflateParams DeflateParamsPtr;
+            internal unsafe zng_deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZNgStreamL32)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZNgStreamL32)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1584,31 +1635,31 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe zng_deflatePending DeflatePendingPtr;
+            internal unsafe zng_deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZNgStreamL32)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZNgStreamL32)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflatePrime(
                 ZNgStreamL32 strm,
                 int bits,
                 int value);
-            internal zng_deflatePrime DeflatePrimePtr;
+            internal zng_deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZNgStreamL32)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZNgStreamL32)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zng_zlibCompileFlags();
-            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zng_zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException();
             }
             #endregion
         }
@@ -1674,29 +1725,29 @@ namespace Joveler.Compression.ZLib
                 int windowBits,
                 ZLibMemLevel memLevel,
                 ZLibCompStrategy strategy);
-            internal zng_deflateInit2 DeflateInit2Ptr;
+            internal zng_deflateInit2? DeflateInit2Ptr;
             public override ZLibRet DeflateInit(ZStreamBase strm, ZLibCompLevel level, int windowBits, ZLibMemLevel memLevel)
             {
-                return DeflateInit2Ptr((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default);
+                return DeflateInit2Ptr?.Invoke((ZNgStreamL32)strm, level, ZLibCompMethod.Deflated, windowBits, memLevel, ZLibCompStrategy.Default) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflate(
                 ZNgStreamL32 strm,
                 ZLibFlush flush);
-            internal zng_deflate DeflatePtr;
+            internal zng_deflate? DeflatePtr;
             public override ZLibRet Deflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return DeflatePtr((ZNgStreamL32)strm, flush);
+                return DeflatePtr?.Invoke((ZNgStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflateEnd(
                 ZNgStreamL32 strm);
-            internal zng_deflateEnd DeflateEndPtr;
+            internal zng_deflateEnd? DeflateEndPtr;
             public override ZLibRet DeflateEnd(ZStreamBase strm)
             {
-                return DeflateEndPtr((ZNgStreamL32)strm);
+                return DeflateEndPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1705,30 +1756,30 @@ namespace Joveler.Compression.ZLib
             internal delegate ZLibRet zng_inflateInit2(
                 ZNgStreamL32 strm,
                 int windowBits);
-            internal zng_inflateInit2 InflateInit2Ptr;
+            internal zng_inflateInit2? InflateInit2Ptr;
             public override ZLibRet InflateInit(ZStreamBase strm, int windowBits)
             {
                 string zlibVer = ZLibVersion();
-                return InflateInit2Ptr((ZNgStreamL32)strm, windowBits);
+                return InflateInit2Ptr?.Invoke((ZNgStreamL32)strm, windowBits) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflate(
                 ZNgStreamL32 strm,
                 ZLibFlush flush);
-            internal zng_inflate InflatePtr;
+            internal zng_inflate? InflatePtr;
             public override ZLibRet Inflate(ZStreamBase strm, ZLibFlush flush)
             {
-                return InflatePtr((ZNgStreamL32)strm, flush);
+                return InflatePtr?.Invoke((ZNgStreamL32)strm, flush) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_inflateEnd(
                 ZNgStreamL32 strm);
-            internal zng_inflateEnd InflateEndPtr;
+            internal zng_inflateEnd? InflateEndPtr;
             public override ZLibRet InflateEnd(ZStreamBase strm)
             {
-                return InflateEndPtr((ZNgStreamL32)strm);
+                return InflateEndPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
@@ -1738,19 +1789,19 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 byte* dictionary,
                 uint dictLength);
-            internal unsafe zng_deflateSetDictionary DeflateSetDictionaryPtr;
+            internal unsafe zng_deflateSetDictionary? DeflateSetDictionaryPtr;
             public override unsafe ZLibRet DeflateSetDictionary(ZStreamBase strm, byte* dictionary, uint dictLength)
             {
-                return DeflateSetDictionaryPtr((ZNgStreamL32)strm, dictionary, dictLength);
+                return DeflateSetDictionaryPtr?.Invoke((ZNgStreamL32)strm, dictionary, dictLength) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
             internal unsafe delegate ZLibRet zng_deflateReset(
                 ZNgStreamL32 strm);
-            internal unsafe zng_deflateReset DeflateResetPtr;
+            internal unsafe zng_deflateReset? DeflateResetPtr;
             public override ZLibRet DeflateReset(ZStreamBase strm)
             {
-                return DeflateResetPtr((ZNgStreamL32)strm);
+                return DeflateResetPtr?.Invoke((ZNgStreamL32)strm) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1758,10 +1809,10 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 int level,
                 int strategy);
-            internal unsafe zng_deflateParams DeflateParamsPtr;
+            internal unsafe zng_deflateParams? DeflateParamsPtr;
             public override ZLibRet DeflateParams(ZStreamBase strm, int level, int strategy)
             {
-                return DeflateParamsPtr((ZNgStreamL32)strm, level, strategy);
+                return DeflateParamsPtr?.Invoke((ZNgStreamL32)strm, level, strategy) ?? throw new EntryPointNotFoundException();
             }
 
             [UnmanagedFunctionPointer(CallConv)]
@@ -1769,31 +1820,31 @@ namespace Joveler.Compression.ZLib
                 ZNgStreamL32 strm,
                 uint* pending,
                 int* bits);
-            internal unsafe zng_deflatePending DeflatePendingPtr;
+            internal unsafe zng_deflatePending? DeflatePendingPtr;
             public unsafe override ZLibRet DeflatePending(ZStreamBase strm, uint* pending, int* bits)
             {
-                return DeflatePendingPtr((ZNgStreamL32)strm, pending, bits);
+                return DeflatePendingPtr?.Invoke((ZNgStreamL32)strm, pending, bits) ?? throw new EntryPointNotFoundException();
             }
-            
+
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate ZLibRet zng_deflatePrime(
                 ZNgStreamL32 strm,
                 int bits,
                 int value);
-            internal zng_deflatePrime DeflatePrimePtr;
+            internal zng_deflatePrime? DeflatePrimePtr;
             public override ZLibRet DeflatePrime(ZStreamBase strm, int bits, int value)
             {
-                return DeflatePrimePtr((ZNgStreamL32)strm, bits, value);
+                return DeflatePrimePtr?.Invoke((ZNgStreamL32)strm, bits, value) ?? throw new EntryPointNotFoundException();
             }
             #endregion
 
             #region ZLibCompileFlags
             [UnmanagedFunctionPointer(CallConv)]
             internal delegate uint zng_zlibCompileFlags();
-            internal zng_zlibCompileFlags ZLibCompileFlagsPtr;
+            internal zng_zlibCompileFlags? ZLibCompileFlagsPtr;
             public override uint ZLibCompileFlags()
             {
-                return ZLibCompileFlagsPtr();
+                return ZLibCompileFlagsPtr?.Invoke() ?? throw new EntryPointNotFoundException();
             }
             #endregion
         }

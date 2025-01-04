@@ -61,7 +61,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             Stream,
         }
 
-        private static void CheckTemplate<T>(ChecksumBase<T> check, string fileName, TestKind kind, T expected)
+        private static void CheckTemplate<T>(ChecksumBase<T> check, string fileName, TestKind kind, T expected) where T : unmanaged
         {
             check.Reset();
             try
@@ -142,7 +142,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             }
         }
 
-        private void ResetTemplate<T>(ChecksumBase<T> check, string firstFileName, string secondFileName)
+        private void ResetTemplate<T>(ChecksumBase<T> check, string firstFileName, string secondFileName) where T : unmanaged
         {
             try
             {
