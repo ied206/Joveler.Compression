@@ -35,7 +35,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Threading;
 
 namespace Joveler.Compression.ZLib
@@ -239,12 +238,14 @@ namespace Joveler.Compression.ZLib
             WriteHeader();
 
             // Create worker threads
+            int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             for (int i = 0; i < _workerThreads.Length; i++)
             {
                 CompressThreadProc compessThreadProc = new CompressThreadProc(this);
                 _workerThreadProcs[i] = compessThreadProc;
 
                 Thread workerThread = new Thread(compessThreadProc.CompressThreadMain);
+                workerThread.Name = $"ZLibParallelWorkerThread_{i:X2}_{mainThreadId:X2}";
                 workerThread.Start();
                 _workerThreads[i] = workerThread;
             }
@@ -252,6 +253,7 @@ namespace Joveler.Compression.ZLib
             // Create write thread
             _writerThreadProc = new WriterThreadProc(this);
             _writerThread = new Thread(_writerThreadProc.WriterThreadMain);
+            _writerThread.Name = $"ZLibParallelWriterThread_{mainThreadId:X2}";
             _writerThread.Start();
         }
         #endregion
@@ -515,6 +517,11 @@ namespace Joveler.Compression.ZLib
             _writerThreadProc.AbortSignal.Set();
             _writerThreadProc.WriteSignal.Set();
 
+            // Throw if any exception has occured in background threads.
+            // Check if before thread join to avoid unknown deadlock.
+            if (_backgroundExceptionSignal.WaitOne(0))
+                throw new AggregateException(BackgroundExceptions);
+
             // Wait until all worker threads to finish
             foreach (Thread thread in _workerThreads)
                 thread.Join();
@@ -523,7 +530,7 @@ namespace Joveler.Compression.ZLib
             // Wait until writerThread finishes.
             _writerThread.Join();
 
-            // Throw if any exception has occured in background threads
+            // Check one more time
             if (_backgroundExceptionSignal.WaitOne(0))
                 throw new AggregateException(BackgroundExceptions);
         }
@@ -544,6 +551,11 @@ namespace Joveler.Compression.ZLib
             // Signal to the worker threads to finalize the compression
             SetWorkerThreadReadSignal();
 
+            // Throw if any exception has occured in background threads.
+            // Check if before thread join to avoid unknown deadlock.
+            if (_backgroundExceptionSignal.WaitOne(0))
+                throw new AggregateException(BackgroundExceptions);
+
             // Wait until all worker threads to finish
             foreach (Thread thread in _workerThreads)
                 thread.Join();
@@ -552,7 +564,7 @@ namespace Joveler.Compression.ZLib
             // Wait until writerThread finishes.
             _writerThread.Join();
 
-            // Throw if any exception has occured in background threads
+            // Check one more time
             if (_backgroundExceptionSignal.WaitOne(0))
                 throw new AggregateException(BackgroundExceptions);
         }
