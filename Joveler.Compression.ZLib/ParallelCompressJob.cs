@@ -36,7 +36,7 @@ namespace Joveler.Compression.ZLib
     internal sealed class ParallelCompressJob : IDisposable
     {
         public long SeqNum { get; }
-        public bool IsLastBlock { get; set; }
+        public bool IsLastBlock { get; set; } = false;
         public bool IsEofBlock => SeqNum == EofBlockSeqNum;
 
         /// <summary>
@@ -91,10 +91,10 @@ namespace Joveler.Compression.ZLib
             DictBuffer = dictBuffer;
             OutBuffer = new PooledBuffer(pool, outBufferSize);
 
+            Debug.Assert(SeqNum == 0 && dictBuffer == null || SeqNum != 0 && DictBuffer != null && !DictBuffer.Disposed);
+
             InBuffer.AcquireRef();
             DictBuffer?.AcquireRef();
-
-            IsLastBlock = false;
         }
 
         /// <summary>
@@ -114,8 +114,6 @@ namespace Joveler.Compression.ZLib
             OutBuffer = new PooledBuffer(pool);
 
             InBuffer.AcquireRef();
-
-            IsLastBlock = false;
         }
 
         ~ParallelCompressJob()
@@ -140,10 +138,8 @@ namespace Joveler.Compression.ZLib
             }
 
             // Dispose unmanaged resources, and set large fields to null.
-            if (!InBuffer.Disposed)
-                InBuffer.ReleaseRef();  // ReleaseRef calls Dispose when necessary
-            if (DictBuffer != null && !DictBuffer.Disposed)
-                DictBuffer?.ReleaseRef(); // ReleaseRef calls Dispose when necessary
+            InBuffer.ReleaseRef(); // ReleaseRef calls Dispose when necessary
+            DictBuffer?.ReleaseRef(); // ReleaseRef calls Dispose when necessary
             OutBuffer.Dispose();
 
             _disposed = true;

@@ -1,4 +1,6 @@
-﻿/*
+﻿#nullable enable
+
+/*
     Derived from zlib header files (zlib license)
     Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
@@ -50,12 +52,12 @@ namespace Joveler.Compression.ZLib
             ReturnCode = errorCode;
         }
 
-        private static string ForgeErrorMessage(ZLibRet errorCode, string msg = null)
+        private static string ForgeErrorMessage(ZLibRet errorCode, string? msg = null)
         {
             return msg == null ? $"[{errorCode}]" : $"[{errorCode}] {msg}";
         }
 
-        internal static void CheckReturnValue(ZLibRet ret, ZStreamBase zs = null)
+        internal static void CheckReturnValue(ZLibRet ret, ZStreamBase? zs = null)
         {
             if ((int)ret < 0)
             {
@@ -69,7 +71,10 @@ namespace Joveler.Compression.ZLib
         #region Serializable
         protected ZLibException(SerializationInfo info, StreamingContext ctx)
         {
-            ReturnCode = (ZLibRet)info.GetValue(nameof(ReturnCode), typeof(ZLibRet));
+            object? obj = info.GetValue(nameof(ReturnCode), typeof(ZLibRet));
+            if (obj != null)
+                ReturnCode = (ZLibRet)obj;
+            throw new ArgumentNullException(nameof(ReturnCode));
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)

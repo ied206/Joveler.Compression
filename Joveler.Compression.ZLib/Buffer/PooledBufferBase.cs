@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Joveler.Compression.ZLib.Buffer
 {
-    internal abstract class PooledBufferBase
+    internal abstract class PooledBufferBase : IDisposable
     {
         protected readonly ArrayPool<byte> _pool;
         protected byte[] _buf;
@@ -73,7 +73,7 @@ namespace Joveler.Compression.ZLib.Buffer
         public ReadOnlyMemory<byte> ReadablePortionMemory => _buf.AsMemory(_dataStartIdx, _dataEndIdx);
         public Memory<byte> WritablePortionMemory => _buf.AsMemory(_dataEndIdx, WritableSize);
 
-        public bool IsEmpty => _dataEndIdx == 0;
+        public bool IsEmpty => _dataEndIdx == _dataStartIdx;
         public bool IsFull => _size == _dataEndIdx;
 
         public PooledBufferBase(ArrayPool<byte> pool, int size)
@@ -109,7 +109,7 @@ namespace Joveler.Compression.ZLib.Buffer
             GC.SuppressFinalize(this);
         }
 
-        private void Dispose(bool disposing)
+        protected void Dispose(bool disposing)
         {
             if (!_disposed)
             {

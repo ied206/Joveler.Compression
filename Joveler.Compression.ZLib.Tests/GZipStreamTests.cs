@@ -134,21 +134,12 @@ namespace Joveler.Compression.ZLib.Tests
                             sampleFs.CopyTo(zs);
                         }
 
-                        if (threads < 0)
-                        {
-                            zs.Flush();
-
-                            Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
-                            Console.WriteLine($"[Compressed] expected=[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
-                            Assert.AreEqual(sampleFs.Length, zs.TotalIn);
-                        }
+                        zs.Flush();
                     }
 
-                    if (0 <= threads)
-                    {
-                        Console.WriteLine($"[RAW]        {sampleFs.Length,7}");
-                        Console.WriteLine($"[Compressed] {archiveFs.Length,7}");
-                    }
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}]  actual=[{zs.TotalIn,7}]");
+                    Console.WriteLine($"[Compressed] sample  =[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
+                    Assert.AreEqual(sampleFs.Length, zs.TotalIn);
                 }
 
                 int ret = TestHelper.RunPigz(tempArchiveFile);

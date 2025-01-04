@@ -1,5 +1,7 @@
 ﻿#nullable enable 
 
+// #define DEBUG_PARALLEL
+
 /*   
     Written by Hajin Jang
     Copyright (C) 2024-present Hajin Jang
@@ -64,6 +66,7 @@ namespace Joveler.Compression.ZLib
         private readonly WriterThreadProc _writerThreadProc;
 
         private long _seqNum = 0;
+        private bool _finalEnqueued = false;
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
         private static int CalcOutBlockSize(int rawBlockSize)
@@ -143,7 +146,7 @@ namespace Joveler.Compression.ZLib
 
             // Create write thread
             _writerThreadProc = new WriterThreadProc(this);
-            _writerThread = new Thread(_writerThreadProc.WriteThreadMain);
+            _writerThread = new Thread(_writerThreadProc.WriterThreadMain);
             _writerThread.Start();
 
             // Create worker threads
@@ -275,22 +278,25 @@ namespace Joveler.Compression.ZLib
 
         private void EnqueueInputBuffer(bool isFinal)
         {
-            bool isFirstBlock = _seqNum == 0;
+            if (_finalEnqueued)
+                throw new InvalidOperationException("The final block has already been enqueued.");
 
             // [RefCount]
-            // First  block: _nextDictBuffer == null
-            // Normal block: _nextDictBuffer != null, 1 <= _nextDictBuffer._refCount <= 2
-            // Final  block: _nextDictBuffer != null, 1 <= _nextDictBuffer._refCount <= 2
-            Debug.Assert(isFirstBlock == (_nextDictBuffer == null));
+            // First   block: _nextDictBuffer == null
+            // Nor/Fin block: _nextDictBuffer != null, 1 <= _nextDictBuffer._refCount <= 2
+
+            Debug.Assert(_seqNum == 0 && _nextDictBuffer == null || 
+                _seqNum != 0 && _nextDictBuffer != null && !_nextDictBuffer.Disposed);
+
+            _finalEnqueued |= isFinal;
 
             // _refCount of job.InBuffer and _nextDictBuffer is increased in constructor call.
             ParallelCompressJob job = new ParallelCompressJob(_pool, _seqNum, _inBlockSize, _nextDictBuffer, _outBlockSize);
             _seqNum += 1;
 
             // [RefCount]
-            // First  block: job.InBuffer._refCount == 1, (job.DictBuffer == _nextDictBuffer) == null
-            // Normal block: job.InBuffer._refCount == 1, 2 <= (job.DictBuffer == _nextDictBuffer)._refCount <= 3
-            // Final  block: job.InBuffer._refCount == 1, 2 <= (job.DictBuffer == _nextDictBuffer)._refCount <= 3
+            // First   block: job.InBuffer._refCount == 1, (job.DictBuffer == _nextDictBuffer) == null
+            // Nor/Fin block: job.InBuffer._refCount == 1, 2 <= (job.DictBuffer == _nextDictBuffer)._refCount <= 3
 
             if (isFinal)
                 job.IsLastBlock = true;
@@ -299,14 +305,39 @@ namespace Joveler.Compression.ZLib
             job.RawInputSize = job.InBuffer.DataEndIdx;
 
             // Prepare next dictionary buffer (pass for final block)
-            if (!isFinal)
-                _nextDictBuffer = job.InBuffer.AcquireRef();
-            else
+            if (isFinal)
+            {
                 _nextDictBuffer = null; // No longer required
+            }
+            else if (ParallelCompressJob.DictWindowSize <= job.InBuffer.ReadableSize)
+            {
+                _nextDictBuffer = job.InBuffer.AcquireRef();
+            }
+            else
+            { // next input is less than 32K -> retain last 32K
+                ReferableBuffer copyDictBuffer = new ReferableBuffer(_pool, ParallelCompressJob.DictWindowSize);
+                if (_nextDictBuffer == null)
+                { // First block, but the input is less than 32K -> copy the full input
+                    copyDictBuffer.Write(job.InBuffer.ReadablePortionSpan);
+                }
+                else
+                { // Normal block, source 32K from the previous input + current input
+                    int copyLastDictSize = ParallelCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
+                    ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.ReadablePortionSpan.Slice(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                    copyDictBuffer.Write(lastDictSpan);
+                    _nextDictBuffer.ReleaseRef();
+                        
+                    copyDictBuffer.Write(job.InBuffer.ReadablePortionSpan);
+
+                    Debug.Assert(copyDictBuffer.DataEndIdx == ParallelCompressJob.DictWindowSize);
+                }
+                _nextDictBuffer = copyDictBuffer.AcquireRef();
+            }
 
             // [RefCount]
             // First  block: (job.InBuffer == _nextDictBuffer)._refCount == 2
-            // Normal block: (job.InBuffer == _nextDictBuffer)._refCount == 2
+            // Normal block: (<=32K) (job.InBuffer == _nextDictBuffer)._refCount == 2
+            // Normal block; (32K<): job.InBuffer._refCount == 1, _nextDictBuffer._refCount == 1
             // Final  block: job.InBuffer._refCount == 1, _nextDictBuffer == null
 
             _inputBuffer.Clear();
@@ -343,6 +374,9 @@ namespace Joveler.Compression.ZLib
         {
             if (BaseStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+
+            Debug.Assert(_inputBuffer.DataStartIdx == 0);
+
 
             // Flush the remaining input buffer into compress worker threads.
             if (!_inputBuffer.IsEmpty)
@@ -499,9 +533,9 @@ namespace Joveler.Compression.ZLib
                         try
                         {
                             // [RefCount]
-                            // First  block: 1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
-                            // Normal block: 1 <= job.InBuffer._refCount <= 3, 1 <= job.DictBuffer._refCount <= 3
-                            // Final  block: job.InBuffer._refCount == 1,      1 <= job.DictBuffer._refCount <= 3
+                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 1 <= job.DictBuffer._refCount <= 3
+                            // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 1
 
                             // [Stage 02] Reset the zstream, and set the compression level again
                             ret = ZLibInit.Lib.NativeAbi.DeflateReset(_zs);
@@ -518,12 +552,12 @@ namespace Joveler.Compression.ZLib
                                 Debug.Assert(!job.DictBuffer.Disposed);
 
                                 int dictSize = Math.Min(job.DictBuffer.DataEndIdx, ParallelCompressJob.DictWindowSize);
-                                int dictPos = job.DictBuffer.DataEndIdx - dictSize;
+                                int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
 
                                 // [Stage 03] Set dictionary (last 32KB of the previous input)
                                 fixed (byte* dictPtr = job.DictBuffer.Buf)
                                 {
-                                    ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(_zs, dictPtr + dictPos, (uint)dictSize);
+                                    ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(_zs, dictPtr + dictStartPos, (uint)dictSize);
                                     ZLibException.CheckReturnValue(ret, _zs);
                                 }
                             }
@@ -581,7 +615,7 @@ namespace Joveler.Compression.ZLib
                             }
 
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"-- compressed #{job.SeqNum} : last=[{job.IsLastBlock}] in=[{job.InBuffer}] out=[{job.OutBuffer}] dict=[{job.DictBuffer}]");
+                            Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
 #endif
 
                             Debug.Assert(job.InBuffer.DataStartIdx == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
@@ -592,13 +626,12 @@ namespace Joveler.Compression.ZLib
                         finally
                         {
                             // Free unnecessary resources
-                            job.InBuffer.ReleaseRef();
                             job.DictBuffer?.ReleaseRef();
 
                             // [RefCount]
-                            // First  block: 0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
-                            // Normal block: 0(D) <= job.InBuffer._refCount <= 2, 0(D) <= job.DictBuffer._refCount <= 2
-                            // Final  block: job.InBuffer._refCount == 0(D),      0(D) <= job.DictBuffer._refCount <= 2
+                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
+                            // Nor/Fin block (32K<):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
                         }
 
                         // If the abort signal is set, break the loop
@@ -646,12 +679,12 @@ namespace Joveler.Compression.ZLib
                             uint bytesWritten = beforeAvailOut - _zs.AvailOut;
 
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"DeflateBlock1 ({job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
+                            Console.WriteLine($"DeflateBlock1 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer}) ({flush})");
 #endif
                             job.InBuffer.DataStartIdx += (int)bytesRead;
                             job.OutBuffer.DataEndIdx += (int)bytesWritten;
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"DeflateBlock2 ({job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
+                            Console.WriteLine($"DeflateBlock2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer}) ({flush})");
 #endif
 
                             ZLibException.CheckReturnValue(ret, _zs);
@@ -696,12 +729,12 @@ namespace Joveler.Compression.ZLib
                             uint bytesWritten = beforeAvailOut - _zs.AvailOut;
 
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"DeflateBlockFinish1 ({job.SeqNum}): IN[{job.InBuffer}] OUT[{job.OutBuffer}]");
+                            Console.WriteLine($"DeflateBlockFinish2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
 #endif
                             job.InBuffer.DataStartIdx += (int)bytesRead;
                             job.OutBuffer.DataEndIdx += (int)bytesWritten;
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"DeflateBlockFinish2 ({job.SeqNum}): IN[{job.InBuffer}] OUT[{job.OutBuffer}]");
+                            Console.WriteLine($"DeflateBlockFinish2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
 #endif
 
                             ZLibException.CheckReturnValue(ret, _zs);
@@ -799,9 +832,9 @@ namespace Joveler.Compression.ZLib
             }
 
             /// <summary>
-            /// WriteThread: Write compressed data into BaseStream
+            /// WriterThread: Write compressed data into BaseStream
             /// </summary>
-            public unsafe void WriteThreadMain()
+            public unsafe void WriterThreadMain()
             {
                 if (_owner.BaseStream == null)
                     throw new ObjectDisposedException("This stream had been disposed.");
@@ -840,7 +873,7 @@ namespace Joveler.Compression.ZLib
                             _owner.BaseStream.Write(job.OutBuffer.Buf, 0, job.OutBuffer.DataEndIdx);
 
 #if DEBUG_PARALLEL
-                            Console.WriteLine($"-- wrote #{job.SeqNum} : last=[{job.IsLastBlock}] in=[{job.InBuffer}] out=[{job.OutBuffer}] dict=[{job.DictBuffer}]");
+                            Console.WriteLine($"-- wrote (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}]");
 #endif
 
                             // Increase TotalIn & TotalOut
@@ -859,15 +892,15 @@ namespace Joveler.Compression.ZLib
                             }
 
                             // [RefCount]
-                            // First  block: 0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
-                            // Normal block: 0(D) <= job.InBuffer._refCount <= 2, 0(D) <= job.DictBuffer._refCount <= 2
-                            // Final  block: job.InBuffer._refCount == 0(D),      0(D) <= job.DictBuffer._refCount <= 2
+                            // First  block:          1 <= job.InBuffer._refCount <= 3, job.DictBuffer == null
+                            // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
+                            // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
                         }
 
                         // [RefCount]
-                        // First  block: 0(D) <= job.InBuffer._refCount <= 1, job.DictBuffer == null
-                        // Normal block: 0(D) <= job.InBuffer._refCount <= 1, 0(D) <= job.DictBuffer._refCount <= 1
-                        // Final  block: job.InBuffer._refCount == 0(D),      0(D) <= job.DictBuffer._refCount <= 1
+                        // First  block:          0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
+                        // Nor/Fin block (32K<=): 0(D) <= job.InBuffer._refCount <= 2, 0(D) <= job.DictBuffers._refCount <= 1
+                        // Nor/Fin block (<32K):  job.InBuffer._refCount == 0(D),      job.DictBuffer._refCount == 0(D)
 
                         // If the abort signal is set, break the loop
                         if (AbortSignal.WaitOne(0))
