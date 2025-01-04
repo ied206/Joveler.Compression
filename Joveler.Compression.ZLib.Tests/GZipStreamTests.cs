@@ -55,36 +55,60 @@ namespace Joveler.Compression.ZLib.Tests
     {
         #region GZipStream - Compress
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void Compress()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: false);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: false);
+            const bool useSpan = false;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+            }
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void CompressSpan()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: true);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: true);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: true);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: true);
+            const bool useSpan = true;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+            }
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.ZLib")]
+        [DoNotParallelize]
         public void CompressParallel()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, useSpan: false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, useSpan: false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, useSpan: false);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, useSpan: true);
+            const bool useSpan = false;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+            }
         }
 
-        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool useSpan)
+        [TestMethod]
+        [DoNotParallelize]
+        public void CompressParallelSpan()
+        {
+            const bool useSpan = true;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+            }
+        }
+
+        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool flush, bool useSpan)
         {
             string tempDecompFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             string tempArchiveFile = tempDecompFile + ".gz";
@@ -117,6 +141,9 @@ namespace Joveler.Compression.ZLib.Tests
 
                     using (zs)
                     {
+                        if (flush)
+                            zs.Flush();
+
 #if !NETFRAMEWORK
                         if (useSpan)
                         {
@@ -134,10 +161,11 @@ namespace Joveler.Compression.ZLib.Tests
                             sampleFs.CopyTo(zs);
                         }
 
-                        zs.Flush();
+                        if (flush)
+                            zs.Flush();
                     }
 
-                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}]  actual=[{zs.TotalIn,7}]");
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
                     Console.WriteLine($"[Compressed] sample  =[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
                     Assert.AreEqual(sampleFs.Length, zs.TotalIn);
                 }
@@ -170,7 +198,6 @@ namespace Joveler.Compression.ZLib.Tests
 
         [TestMethod]
         [DoNotParallelize]
-        [TestCategory("Joveler.Compression.ZLib")]
         public void MemDiagCompress()
         {
             MemDiagCompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1);
@@ -230,9 +257,6 @@ namespace Joveler.Compression.ZLib.Tests
                     {
                         sampleFs.CopyTo(zs);
                     }
-
-                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
-                    Console.WriteLine($"[Compressed] expected=[{compMs.Length,7}] actual=[{zs.TotalOut,7}]");
                 }
             }
             finally

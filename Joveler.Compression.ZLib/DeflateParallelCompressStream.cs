@@ -344,6 +344,20 @@ namespace Joveler.Compression.ZLib
             _inQueue.Enqueue(job);
         }
 
+        private void EnqueueInputEof()
+        {
+            // Enqueue an EOF block with empty buffer per thread
+            // EOF block is only a simple marker to terminate the worker threads.
+            for (int i = 0; i < _workerThreads.Length; i++)
+            { // Worker threads will terminate when eof block appears.
+                ParallelCompressJob eofJob = new ParallelCompressJob(_pool, ParallelCompressJob.EofBlockSeqNum);
+                _inQueue.Enqueue(eofJob);
+
+                // [RefCount]
+                // EOF block: job.InBuffer._refCount == 1, job.DictBuffer = null
+            }
+        }
+
         private void EnqueueOutList(ParallelCompressJob job)
         {
             lock (_outListLock)
@@ -439,14 +453,7 @@ namespace Joveler.Compression.ZLib
 
             // Enqueue an EOF block with empty buffer per thread
             // EOF block is only a simple marker to terminate the worker threads.
-            for (int i = 0; i < _workerThreads.Length; i++)
-            { // Worker threads will terminate when eof block appears.
-                ParallelCompressJob eofJob = new ParallelCompressJob(_pool, ParallelCompressJob.EofBlockSeqNum);
-                _inQueue.Enqueue(eofJob);
-
-                // [RefCount]
-                // EOF block: job.InBuffer._refCount == 1, job.DictBuffer = null
-            }
+            EnqueueInputEof();
 
             // Signal to the worker threads to finalize the compression
             SetWorkerThreadReadSignal();
