@@ -102,6 +102,8 @@ namespace Joveler.Compression.ZLib
         private readonly ZLibWindowBits _windowBits;
         private readonly TimeSpan? _writeTimeout;
         private readonly bool _leaveOpen;
+        private readonly object _abortLock = new object();
+        private bool _aborted = false;
         private bool _disposed = false;
 
         public Stream? BaseStream { get; private set; }
@@ -118,6 +120,8 @@ namespace Joveler.Compression.ZLib
 
         private readonly Thread _writerThread;
         private readonly WriterThreadProc _writerThreadProc;
+
+        private EventHandler? _abortEvent;
 
         private readonly AutoResetEvent _backgroundExceptionSignal = new AutoResetEvent(false);
         private readonly object _backgroundExceptionsLock = new object();
@@ -178,6 +182,7 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         internal const int DefaultBlockSize = 128 * 1024; // pigz uses 128KB for block size
         internal readonly TimeSpan MinWriteTimeout = TimeSpan.FromMilliseconds(100);
+        internal readonly TimeSpan AbortCheckInterval = TimeSpan.FromSeconds(1);
 
         private static ChecksumBase<uint>? FormatChecksum(ZLibOperateFormat format)
         {
@@ -210,6 +215,8 @@ namespace Joveler.Compression.ZLib
             _writeTimeout = pcompOpts.WriteTimeout;
             if (_writeTimeout != null && _writeTimeout < MinWriteTimeout)
                 _writeTimeout = MinWriteTimeout;
+
+            _abortEvent += AbortEventHandler;
 
             int threadCount = pcompOpts.Threads;
             if (threadCount < 0)
@@ -305,6 +312,8 @@ namespace Joveler.Compression.ZLib
                     _nextDictBuffer?.Dispose();
                     _inputBuffer.Dispose();
 
+                    _abortEvent -= AbortEventHandler;
+
                     _disposed = true;
                 }
             }
@@ -349,14 +358,20 @@ namespace Joveler.Compression.ZLib
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            // [Stage 10] Pool the input buffer until it is full.
+            lock (_abortLock)
+            {
+                if (_aborted)
+                    return;
+            }
+
+            // Pool the input buffer until it is full.
             bool enqueued = false;
             int bytesWritten = 0;
             do
             {
                 bytesWritten += _inputBuffer.Write(span.Slice(bytesWritten), false);
 
-                // [Stage 11] If the input buffer is full -> enqueue the job, and reset the input buffer.
+                // If the input buffer is full -> enqueue the job, and reset the input buffer.
                 if (_inputBuffer.IsFull)
                 {
                     EnqueueInputBuffer(false);
@@ -365,13 +380,12 @@ namespace Joveler.Compression.ZLib
             }
             while (bytesWritten < span.Length);
 
-            // [Stage 12] Signal the worker threads
             // Alert the worker thread to resume compressing
             if (!enqueued)
                 return;
             SetWorkerThreadReadSignal();
 
-            // [Stage 13] Wait until the output is ready
+            // Wait until the output is ready
             if (_writeTimeout == null)
                 return;
             WaitUntilWriteDone(_seqNum, _writeTimeout.Value);
@@ -512,10 +526,7 @@ namespace Joveler.Compression.ZLib
         {
             // Signal the workerThreads and writerThread to abort.
             // If threads are waiting for the read/write signal, release them.
-            SetWorkerThreadAbortSignal();
-            SetWorkerThreadReadSignal();
-            _writerThreadProc.AbortSignal.Set();
-            _writerThreadProc.WriteSignal.Set();
+            SignalAbort();
 
             // Throw if any exception has occured in background threads.
             // Check if before thread join to avoid unknown deadlock.
@@ -535,11 +546,24 @@ namespace Joveler.Compression.ZLib
                 throw new AggregateException(BackgroundExceptions);
         }
 
+        private void SignalAbort()
+        {
+            lock (_abortLock)
+                _aborted = true;
+            SetWorkerThreadAbortSignal();
+            SetWorkerThreadReadSignal();
+            _writerThreadProc.AbortSignal.Set();
+            _writerThreadProc.WriteSignal.Set();
+        }
+
         private void FinishWrite()
         {
             // If aborted, return immediately
-            if (_workerThreadProcs.All(x => x.AbortSignal.WaitOne(0)) && _writerThreadProc.AbortSignal.WaitOne(0))
-                return;
+            lock (_abortLock)
+            {
+                if (_aborted)
+                    return;
+            }
 
             // flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
             EnqueueInputBuffer(true);
@@ -633,13 +657,25 @@ namespace Joveler.Compression.ZLib
                     bool exitLoop = false;
                     while (true)
                     {
-                        // If the abort signal is set, break the loop
-                        if (AbortSignal.WaitOne(0))
-                            break;
-
                         // Signal that this workerThread is waiting for the next job
                         // Wait for the next job to come in
-                        WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
+                        // Check abort signal every 1 sec as a fail-safe
+                        bool signaled = false;
+                        do
+                        {
+                            signaled = WaitHandle.SignalAndWait(WaitingSignal, ReadSignal, _owner.AbortCheckInterval, false);
+
+                            // If the abort signal is set, break the loop
+                            if (AbortSignal.WaitOne(0))
+                            {
+                                exitLoop = true;
+                                break;
+                            }
+                        }
+                        while (!signaled);
+
+                        if (exitLoop)
+                            break;
 
                         // Reset the waiting signal
                         WaitingSignal.Reset();
@@ -929,26 +965,6 @@ namespace Joveler.Compression.ZLib
             foreach (CompressThreadProc threadProc in _workerThreadProcs)
                 threadProc.AbortSignal.Set();
         }
-
-        private bool IsAllWorkerThreadWaitSignalSet(TimeSpan? timeout)
-        {
-            bool isAllWaiting = true;
-            foreach (CompressThreadProc threadProc in _workerThreadProcs)
-            {
-                bool isWaiting;
-                if (timeout.HasValue)
-                    isWaiting = threadProc.WaitingSignal.WaitOne(timeout.Value);
-                else
-                    isWaiting = threadProc.WaitingSignal.WaitOne();
-
-                if (!isWaiting)
-                {
-                    isAllWaiting = false;
-                    break;
-                }
-            }
-            return isAllWaiting;
-        }
         #endregion
 
         #region class WriterThreadProc
@@ -1060,14 +1076,26 @@ namespace Joveler.Compression.ZLib
 
                         // Signal about the waiting
                         // Wait for the write signal at least once
-                        WaitHandle.SignalAndWait(WaitingSignal, WriteSignal);
+                        // Check abort signal every 1 sec as a fail-safe
+                        bool signaled = false;
+                        do
+                        {
+                            signaled = WaitHandle.SignalAndWait(WaitingSignal, WriteSignal, _owner.AbortCheckInterval, false);
+
+                            // If the abort signal is set, break the loop
+                            if (AbortSignal.WaitOne(0))
+                            {
+                                exitLoop = true;
+                                break;
+                            }
+                        }
+                        while (!signaled);
+
+                        if (exitLoop)
+                            break;
 
                         // Reset the waiting signal
                         WaitingSignal.Reset();
-
-                        // If the abort signal is set, break the loop
-                        if (AbortSignal.WaitOne(0))
-                            break;
                     }
 
                     // Finalize the stream - write the trailer (zlib, gzip only)
@@ -1207,10 +1235,12 @@ namespace Joveler.Compression.ZLib
 
             // Signal the workerThreads and writerThread to abort.
             // If threads are waiting for the read/write signal, release them.
-            SetWorkerThreadAbortSignal();
-            SetWorkerThreadReadSignal();
-            _writerThreadProc.AbortSignal.Set();
-            _writerThreadProc.WriteSignal.Set();
+            _abortEvent?.Invoke(this, new EventArgs());
+        }
+
+        private void AbortEventHandler(object? sender, EventArgs e)
+        {
+            SignalAbort();
         }
         #endregion
 
