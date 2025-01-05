@@ -23,6 +23,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers;
 using System.IO;
 using System.Linq;
 
@@ -52,38 +53,69 @@ namespace Joveler.Compression.ZLib.Tests
     #region ZLibStreamTestsBase
     public abstract class ZLibStreamTestsBase : ZLibTestBase
     {
-        #region Compress
+        #region ZLibStream - Compress
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: false);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: false);
+            const bool useSpan = false;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+            }
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, useSpan: true);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, useSpan: true);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, useSpan: true);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, useSpan: true);
+            const bool useSpan = true;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
+            }
         }
 
         [TestMethod]
+        [DoNotParallelize]
         public void CompressParallel()
         {
-            CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, useSpan: false);
-            CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, useSpan: false);
-            CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, useSpan: false);
-            CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, useSpan: false);
+            const bool useSpan = false;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4, testFlush, useSpan); // Stress Test
+            }
         }
 
-        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool useSpan)
+        [TestMethod]
+        [DoNotParallelize]
+        public void CompressParallelSpan()
+        {
+            const bool useSpan = true;
+            foreach (bool testFlush in new bool[] { true, false })
+            {
+                CompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2, testFlush, useSpan);
+                CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
+                CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
+                CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4, testFlush, useSpan); // Stress Test
+            }
+        }
+
+        private static void CompressTemplate(string sampleFileName, ZLibCompLevel level, int threads, bool flush, bool useSpan)
         {
             string tempDecompFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            string tempArchiveFile = tempDecompFile + ".zz";
+            string tempArchiveFile = tempDecompFile + ".gz";
             try
             {
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
@@ -102,7 +134,7 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
@@ -110,9 +142,12 @@ namespace Joveler.Compression.ZLib.Tests
                         };
                         zs = new ZLibStream(archiveFs, pcompOpts);
                     }
-                    
+
                     using (zs)
                     {
+                        if (flush)
+                            zs.Flush();
+
 #if !NETFRAMEWORK
                         if (useSpan)
                         {
@@ -130,21 +165,13 @@ namespace Joveler.Compression.ZLib.Tests
                             sampleFs.CopyTo(zs);
                         }
 
-                        if (threads < 0)
-                        {
+                        if (flush)
                             zs.Flush();
-
-                            Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
-                            Console.WriteLine($"[Compressed] expected=[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
-                            Assert.AreEqual(sampleFs.Length, zs.TotalIn);
-                        }
                     }
 
-                    if (0 <= threads)
-                    {
-                        Console.WriteLine($"[RAW]        {sampleFs.Length,7}");
-                        Console.WriteLine($"[Compressed] {archiveFs.Length,7}");
-                    }
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{zs.TotalIn,7}]");
+                    Console.WriteLine($"[Compressed] sample  =[{archiveFs.Length,7}] actual=[{zs.TotalOut,7}]");
+                    Assert.AreEqual(sampleFs.Length, zs.TotalIn);
                 }
 
                 int ret = TestHelper.RunPigz(tempArchiveFile);
@@ -172,6 +199,123 @@ namespace Joveler.Compression.ZLib.Tests
                     File.Delete(tempDecompFile);
             }
         }
+
+        [TestMethod]
+        [DoNotParallelize]
+        public void MemDiagCompress()
+        {
+            MemDiagCompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: -1);
+            MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1);
+            MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1);
+            MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1);
+            MemDiagCompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1);
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        public void MemDiagCompressParallel()
+        {
+            MemDiagCompressTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2);
+            MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
+            MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
+            MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+            MemDiagCompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4); // Stress Test
+        }
+
+        private static void MemDiagCompressTemplate(string sampleFileName, ZLibCompLevel level, int threads)
+        {
+            long beforeMemUsage = GC.GetTotalMemory(true);
+
+            try
+            {
+                string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (MemoryStream compMs = new MemoryStream())
+                {
+                    ArrayPool<byte> pool = ArrayPool<byte>.Create();
+
+                    ZLibStream zs;
+                    if (threads < 0)
+                    {
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
+                        {
+                            Level = level,
+                            LeaveOpen = true,
+                            BufferPool = pool,
+                        };
+                        zs = new ZLibStream(compMs, compOpts);
+                    }
+                    else
+                    {
+                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                        {
+                            Level = level,
+                            LeaveOpen = true,
+                            Threads = threads,
+                            BufferPool = pool,
+                        };
+                        zs = new ZLibStream(compMs, pcompOpts);
+                    }
+
+                    using (zs)
+                    {
+                        sampleFs.CopyTo(zs);
+                    }
+                }
+            }
+            finally
+            {
+                long afterMemUsage = GC.GetTotalMemory(true);
+
+                Console.WriteLine($"[Before] {beforeMemUsage,7}");
+                Console.WriteLine($"[After ] {afterMemUsage,7}");
+            }
+        }
+
+        [TestMethod]
+        public void CompressParallelException()
+        {
+            CompressParallelExceptionTemplate("ex1.jpg", ZLibCompLevel.Default, threads: 2);
+            CompressParallelExceptionTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
+            CompressParallelExceptionTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
+            CompressParallelExceptionTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+            CompressParallelExceptionTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4); // Stress Test
+        }
+
+        private static void CompressParallelExceptionTemplate(string sampleFileName, ZLibCompLevel level, int threads)
+        {
+            bool exceptThrown = false;
+
+            string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+            using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (MemoryStream compMs = new MemoryStream())
+            {
+                ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                {
+                    Level = level,
+                    LeaveOpen = true,
+                    Threads = threads,
+                };
+
+                try
+                {
+                    using (ZLibStream zs = new ZLibStream(compMs, pcompOpts))
+                    {
+                        sampleFs.CopyTo(zs);
+                        compMs.Dispose();
+                    } // zs.Dispose() must throw exception.
+                }
+                catch (AggregateException ex)
+                {
+                    exceptThrown = true;
+                    Console.WriteLine(ex);
+                }
+            }
+
+            Assert.IsTrue(exceptThrown);
+        }
         #endregion
 
         #region Decompress
@@ -181,6 +325,8 @@ namespace Joveler.Compression.ZLib.Tests
             DecompressTemplate("ex1.jpg", false);
             DecompressTemplate("ex2.jpg", false);
             DecompressTemplate("ex3.jpg", false);
+            DecompressTemplate("C.bin", false);
+            DecompressTemplate("ooffice.dll", false);
         }
 
         [TestMethod]
@@ -189,6 +335,8 @@ namespace Joveler.Compression.ZLib.Tests
             DecompressTemplate("ex1.jpg", true);
             DecompressTemplate("ex2.jpg", true);
             DecompressTemplate("ex3.jpg", true);
+            DecompressTemplate("C.bin", true);
+            DecompressTemplate("ooffice.dll", true);
         }
 
         private static void DecompressTemplate(string fileName, bool useSpan)

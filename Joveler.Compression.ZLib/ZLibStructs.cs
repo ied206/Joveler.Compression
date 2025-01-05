@@ -49,7 +49,7 @@ namespace Joveler.Compression.ZLib
     /// Return codes for the compression/decompression functions.
     /// Negative values are errors, positive values are used for special but normal events.
     /// </summary>
-    public enum ZLibRet: int
+    public enum ZLibRet : int
     {
         Ok = 0,
         StreamEnd = 1,
@@ -320,7 +320,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// last error message, NULL if no error
         /// </summary>
-        public string LastErrorMsg => Marshal.PtrToStringAnsi(Msg);
+        public string? LastErrorMsg => Marshal.PtrToStringAnsi(Msg);
 
         /// <summary>
         /// best guess about the data type: binary or text for deflate, or the decoding state for inflate
