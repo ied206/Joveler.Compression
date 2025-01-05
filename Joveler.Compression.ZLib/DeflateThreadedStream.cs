@@ -423,7 +423,7 @@ namespace Joveler.Compression.ZLib
             if (isFinal)
                 job.IsLastBlock = true;
 
-            job.InBuffer.Write(_inputBuffer.ReadablePortionSpan);
+            job.InBuffer.Write(_inputBuffer.ReadablePortionSpan, true);
             job.RawInputSize = job.InBuffer.DataEndIdx;
 
             // Prepare next dictionary buffer (pass for final block)
@@ -846,6 +846,8 @@ namespace Joveler.Compression.ZLib
 
             private unsafe void DeflateBlock(ParallelCompressJob job, ZLibFlush flush)
             {
+                Debug.Assert(!job.InBuffer.Disposed);
+
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
                     Debug.Assert(job.InBuffer.DataEndIdx >= job.InBuffer.DataStartIdx);
@@ -895,6 +897,8 @@ namespace Joveler.Compression.ZLib
 
             private unsafe void DeflateBlockFinish(ParallelCompressJob job)
             {
+                Debug.Assert(!job.InBuffer.Disposed);
+
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
                     Debug.Assert(job.InBuffer.DataEndIdx >= job.InBuffer.DataStartIdx);

@@ -75,12 +75,12 @@ namespace Joveler.Compression.ZLib.Buffer
 
         // Buf/Span/Memory properties are not thread-safe, use with caution!
         public Span<byte> Span => _buf.AsSpan(0, _size);
-        public ReadOnlySpan<byte> ReadablePortionSpan => _buf.AsSpan(_dataStartIdx, _dataEndIdx);
-        public Span<byte> WritablePortionSpan => _buf.AsSpan(_dataEndIdx, WritableSize);
+        public ReadOnlySpan<byte> ReadablePortionSpan => _buf.AsSpan(_dataStartIdx, _dataEndIdx - _dataStartIdx);
+        public Span<byte> WritablePortionSpan => _buf.AsSpan(_dataEndIdx, _size - _dataEndIdx);
 
         public Memory<byte> Memory => _buf.AsMemory(0, _size);
-        public ReadOnlyMemory<byte> ReadablePortionMemory => _buf.AsMemory(_dataStartIdx, _dataEndIdx);
-        public Memory<byte> WritablePortionMemory => _buf.AsMemory(_dataEndIdx, WritableSize);
+        public ReadOnlyMemory<byte> ReadablePortionMemory => _buf.AsMemory(_dataStartIdx, _dataEndIdx - _dataStartIdx);
+        public Memory<byte> WritablePortionMemory => _buf.AsMemory(_dataEndIdx, _size - _dataEndIdx);
 
         public bool IsEmpty => _dataEndIdx == _dataStartIdx;
         public bool IsFull => _size == _dataEndIdx;
