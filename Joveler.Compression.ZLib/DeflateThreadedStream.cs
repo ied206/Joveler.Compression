@@ -94,7 +94,7 @@ namespace Joveler.Compression.ZLib
         public bool LeaveOpen { get; set; } = false;
     }
 
-     internal sealed class DeflateThreadedStream : Stream
+    internal sealed class DeflateThreadedStream : Stream
     {
         #region Fields and Properties
         private readonly ZLibOperateFormat _format;
@@ -183,7 +183,7 @@ namespace Joveler.Compression.ZLib
         private ReferableBuffer? _nextDictBuffer;
 
         private readonly ArrayPool<byte> _pool;
-        
+
         /// <summary>
         /// Default Block Size 
         /// </summary>
@@ -671,32 +671,6 @@ namespace Joveler.Compression.ZLib
                                 break;
                         }
 
-                        /*
-                        // Check abort signal every 1 sec as a fail-safe
-                        bool signaled = false;
-                        do
-                        {
-                            
-                            signaled = WaitHandle.SignalAndWait(WaitingSignal, ReadSignal, _owner.AbortCheckInterval, false);
-
-                            Console.WriteLine($"aborted: {_owner._aborted} {_threadId}");
-
-                            // If the abort signal is set, break the loop
-                            lock (_owner._abortLock)
-                            {
-                                if (_owner._aborted)
-                                {
-                                    exitLoop = true;
-                                    break;
-                                }
-                            }
-                        }
-                        while (!signaled);
-
-                        if (exitLoop)
-                            break;
-                        */
-
                         // Reset the waiting signal
                         WaitingSignal.Reset();
 
@@ -1017,7 +991,7 @@ namespace Joveler.Compression.ZLib
             /// </summary>
             public unsafe void WriterThreadMain()
             {
-                try 
+                try
                 {
                     if (_owner.BaseStream == null)
                         throw new ObjectDisposedException("This stream had been disposed.");
@@ -1096,36 +1070,12 @@ namespace Joveler.Compression.ZLib
                         if (_owner.IsAborted)
                             break;
 
-                        /*
-                        // Check abort signal every 1 sec as a fail-safe
-                        bool signaled = false;
-                        do
-                        {
-                            signaled = WaitHandle.SignalAndWait(WaitingSignal, WriteSignal, _owner.AbortCheckInterval, false);
-
-                            // If the abort signal is set, break the loop
-                            lock (_owner._abortLock)
-                            {
-                                if (_owner._aborted)
-                                {
-                                    exitLoop = true;
-                                    break;
-                                }
-                            }
-                        }
-                        while (!signaled);
-                        
-                        if (exitLoop)
-                            break;
-
-                        */
-
                         // Reset the waiting signal
                         WaitingSignal.Reset();
                     }
 
                     // Finalize the stream - write the trailer (zlib, gzip only)
-                    if (_writeChecksum != null)
+                    if (_writeChecksum != null && !_owner.IsAborted)
                         _owner.WriteTrailer(_writeChecksum.Checksum, _owner.TotalIn);
 
                     WaitingSignal.Set();
@@ -1133,7 +1083,7 @@ namespace Joveler.Compression.ZLib
                 catch (Exception e)
                 { // If any Exception has occured, abort the whole process.
                     WaitingSignal.Set();
-                    
+
                     _owner.HandleBackgroundException(e);
                 }
             }
