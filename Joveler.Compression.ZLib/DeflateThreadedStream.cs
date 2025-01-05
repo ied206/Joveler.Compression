@@ -102,8 +102,6 @@ namespace Joveler.Compression.ZLib
         private readonly ZLibWindowBits _windowBits;
         private readonly TimeSpan? _writeTimeout;
         private readonly bool _leaveOpen;
-        private readonly object _abortLock = new object();
-        private bool _aborted = false;
         private bool _disposed = false;
 
         public Stream? BaseStream { get; private set; }
@@ -120,6 +118,17 @@ namespace Joveler.Compression.ZLib
 
         private readonly Thread _writerThread;
         private readonly WriterThreadProc _writerThreadProc;
+
+        private readonly object _abortLock = new object();
+        private bool _abortedFlag = false;
+        public bool IsAborted
+        {
+            get
+            {
+                lock (_abortLock)
+                    return _abortedFlag;
+            }
+        }
 
         private readonly AutoResetEvent _backgroundExceptionSignal = new AutoResetEvent(false);
         private readonly object _backgroundExceptionsLock = new object();
@@ -244,7 +253,7 @@ namespace Joveler.Compression.ZLib
             int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             for (int i = 0; i < _workerThreads.Length; i++)
             {
-                CompressThreadProc compessThreadProc = new CompressThreadProc(this);
+                CompressThreadProc compessThreadProc = new CompressThreadProc(this, i);
                 _workerThreadProcs[i] = compessThreadProc;
 
                 Thread workerThread = new Thread(compessThreadProc.CompressThreadMain);
@@ -354,11 +363,8 @@ namespace Joveler.Compression.ZLib
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            lock (_abortLock)
-            {
-                if (_aborted)
-                    return;
-            }
+            if (IsAborted)
+                return;
 
             // Pool the input buffer until it is full.
             bool enqueued = false;
@@ -520,6 +526,9 @@ namespace Joveler.Compression.ZLib
 
         public void Abort()
         {
+            if (IsAborted)
+                return;
+
             // Signal the workerThreads and writerThread to abort.
             // If threads are waiting for the read/write signal, release them.
             SignalAbort();
@@ -544,8 +553,11 @@ namespace Joveler.Compression.ZLib
 
         private void SignalAbort()
         {
+            // Set abort flag
             lock (_abortLock)
-                _aborted = true;
+                _abortedFlag = true;
+
+            // If threads are waiting for the read/write signal, release them.
             SetWorkerThreadReadSignal();
             _writerThreadProc.WriteSignal.Set();
         }
@@ -553,11 +565,8 @@ namespace Joveler.Compression.ZLib
         private void FinishWrite()
         {
             // If aborted, return immediately
-            lock (_abortLock)
-            {
-                if (_aborted)
-                    return;
-            }
+            if (IsAborted)
+                return;
 
             // flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
             EnqueueInputBuffer(true);
@@ -609,6 +618,7 @@ namespace Joveler.Compression.ZLib
         internal sealed class CompressThreadProc : IDisposable
         {
             private readonly DeflateThreadedStream _owner;
+            private readonly int _threadId;
 
             public readonly AutoResetEvent ReadSignal = new AutoResetEvent(false);
             public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
@@ -620,9 +630,10 @@ namespace Joveler.Compression.ZLib
 
             private bool _disposed = false;
 
-            public CompressThreadProc(DeflateThreadedStream owner)
+            public CompressThreadProc(DeflateThreadedStream owner, int threadId)
             {
                 _owner = owner;
+                _threadId = threadId;
                 _blockChecksum = FormatChecksum(owner._format);
 
                 _zs = ZLibInit.Lib.CreateZStream();
@@ -652,6 +663,15 @@ namespace Joveler.Compression.ZLib
                     {
                         // Signal that this workerThread is waiting for the next job
                         // Wait for the next job to come in
+                        WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
+
+                        lock (_owner._abortLock)
+                        {
+                            if (_owner._abortedFlag)
+                                break;
+                        }
+
+                        /*
                         // Check abort signal every 1 sec as a fail-safe
                         bool signaled = false;
                         do
@@ -659,7 +679,7 @@ namespace Joveler.Compression.ZLib
                             
                             signaled = WaitHandle.SignalAndWait(WaitingSignal, ReadSignal, _owner.AbortCheckInterval, false);
 
-                            Console.WriteLine($"aborted: {_owner._aborted}");
+                            Console.WriteLine($"aborted: {_owner._aborted} {_threadId}");
 
                             // If the abort signal is set, break the loop
                             lock (_owner._abortLock)
@@ -675,6 +695,7 @@ namespace Joveler.Compression.ZLib
 
                         if (exitLoop)
                             break;
+                        */
 
                         // Reset the waiting signal
                         WaitingSignal.Reset();
@@ -804,7 +825,7 @@ namespace Joveler.Compression.ZLib
                             // If the abort signal is set, break the loop
                             lock (_owner._abortLock)
                             {
-                                if (_owner._aborted)
+                                if (_owner._abortedFlag)
                                 {
                                     exitLoop = true;
                                     break;
@@ -1057,13 +1078,10 @@ namespace Joveler.Compression.ZLib
                             // Nor/Fin block (<32K):  job.InBuffer._refCount == 0(D),      job.DictBuffer._refCount == 0(D)
 
                             // If the abort signal is set, break the loop
-                            lock (_owner._abortLock)
+                            if (_owner.IsAborted)
                             {
-                                if (_owner._aborted)
-                                {
-                                    exitLoop = true;
-                                    break;
-                                }
+                                exitLoop = true;
+                                break;
                             }
                         }
                         while (outJobNode != null);
@@ -1073,6 +1091,12 @@ namespace Joveler.Compression.ZLib
 
                         // Signal about the waiting
                         // Wait for the write signal at least once
+                        WaitHandle.SignalAndWait(WaitingSignal, WriteSignal);
+
+                        if (_owner.IsAborted)
+                            break;
+
+                        /*
                         // Check abort signal every 1 sec as a fail-safe
                         bool signaled = false;
                         do
@@ -1090,9 +1114,11 @@ namespace Joveler.Compression.ZLib
                             }
                         }
                         while (!signaled);
-
+                        
                         if (exitLoop)
                             break;
+
+                        */
 
                         // Reset the waiting signal
                         WaitingSignal.Reset();
@@ -1228,19 +1254,13 @@ namespace Joveler.Compression.ZLib
         /// <param name="isFatal"></param>
         private void HandleBackgroundException(Exception e)
         {
+            Console.WriteLine($"Handled background exception: {e}");
+
             lock (_backgroundExceptionsLock)
                 _backgroundExceptions.Add(e);
             _backgroundExceptionSignal.Set();
 
             // Signal the workerThreads and writerThread to abort.
-            // If threads are waiting for the read/write signal, release them.
-            // _abortEvent?.Invoke(this, new EventArgs());
-            lock (_abortLock)
-                _aborted = true;
-        }
-
-        private void AbortEventHandler(object? sender, EventArgs e)
-        {
             SignalAbort();
         }
         #endregion
