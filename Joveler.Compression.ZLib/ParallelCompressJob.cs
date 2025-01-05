@@ -33,9 +33,9 @@ namespace Joveler.Compression.ZLib
     /// </summary>
     internal sealed class ParallelCompressJob : IDisposable
     {
-        public long SeqNum { get; }
+        public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
-        public bool IsEofBlock => SeqNum == EofBlockSeqNum;
+        public bool IsEofBlock => Seq == EofBlockSeq;
 
         /// <summary>
         /// Acquired in the constructor, released in CompressThreadMain().
@@ -61,7 +61,8 @@ namespace Joveler.Compression.ZLib
         /// <remarks>
         /// N * NormalJob -> FinalJob -> Threads * EofJob
         /// </remarks>
-        public const int EofBlockSeqNum = -1;
+        public const int EofBlockSeq = -1;
+        public const int WaitSeqInit = -2;
 
         /// <summary>
         /// Create an first/normal/final job which contains two block of input, one being the current data and another as a dictionary (last input).
@@ -80,7 +81,7 @@ namespace Joveler.Compression.ZLib
         /// <param name="outBufferSize"></param>
         public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
-            SeqNum = seqNum;
+            Seq = seqNum;
 
             Debug.Assert(DictWindowSize <= inBufferSize);
             Debug.Assert(inBufferSize <= outBufferSize);
@@ -89,7 +90,7 @@ namespace Joveler.Compression.ZLib
             DictBuffer = dictBuffer;
             OutBuffer = new PooledBuffer(pool, outBufferSize);
 
-            Debug.Assert(SeqNum == 0 && dictBuffer == null || SeqNum != 0 && DictBuffer != null && !DictBuffer.Disposed);
+            Debug.Assert(Seq == 0 && dictBuffer == null || Seq != 0 && DictBuffer != null && !DictBuffer.Disposed);
 
             InBuffer.AcquireRef();
             DictBuffer?.AcquireRef();
@@ -105,7 +106,7 @@ namespace Joveler.Compression.ZLib
         /// <param name="seqNum"></param>
         public ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
         {
-            SeqNum = seqNum;
+            Seq = seqNum;
 
             InBuffer = new ReferableBuffer(pool);
             DictBuffer = null;
