@@ -32,7 +32,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -118,7 +117,7 @@ namespace Joveler.Compression.ZLib
 
         private readonly Thread _writerThread;
         private readonly WriterThreadProc _writerThreadProc;
-
+        
         private readonly object _abortLock = new object();
         private bool _abortedFlag = false;
         public bool IsAborted
@@ -166,7 +165,9 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Also represents the number of blocks passed to the worker threads.
         /// </summary>
-        private long _seqNum = 0;
+        private long _inputSeq = 0;
+        private long _waitForSeq = -1;
+        private readonly ManualResetEvent _targetWrittenEvent = new ManualResetEvent(true);
         private bool _finalEnqueued = false;
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
@@ -388,12 +389,12 @@ namespace Joveler.Compression.ZLib
             SetWorkerThreadReadSignal();
 
             // Wait until the output is ready
-            if (_writeTimeout == null)
+            if (_writeTimeout == TimeSpan.Zero)
                 return;
-            WaitUntilWriteDone(_seqNum, _writeTimeout.Value);
+            WaitWriteBlock(_inputSeq, _writeTimeout);
         }
 
-        private void EnqueueInputBuffer(bool isFinal)
+        private long EnqueueInputBuffer(bool isFinal)
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
@@ -402,14 +403,15 @@ namespace Joveler.Compression.ZLib
             // First   block: _nextDictBuffer == null
             // Nor/Fin block: _nextDictBuffer != null, 1 <= _nextDictBuffer._refCount <= 2
 
-            Debug.Assert(_seqNum == 0 && _nextDictBuffer == null ||
-                _seqNum != 0 && _nextDictBuffer != null && !_nextDictBuffer.Disposed);
+            Debug.Assert(_inputSeq == 0 && _nextDictBuffer == null ||
+                _inputSeq != 0 && _nextDictBuffer != null && !_nextDictBuffer.Disposed);
 
             _finalEnqueued |= isFinal;
 
             // _refCount of job.InBuffer and _nextDictBuffer is increased in constructor call.
-            ParallelCompressJob job = new ParallelCompressJob(_pool, _seqNum, _inBlockSize, _nextDictBuffer, _outBlockSize);
-            _seqNum += 1;
+            ParallelCompressJob job = new ParallelCompressJob(_pool, _inputSeq, _inBlockSize, _nextDictBuffer, _outBlockSize);
+            long latestSeq = job.SeqNum;
+            _inputSeq += 1;
 
             // [RefCount]
             // First   block: job.InBuffer._refCount == 1, (job.DictBuffer == _nextDictBuffer) == null
@@ -440,7 +442,7 @@ namespace Joveler.Compression.ZLib
                 else
                 { // Normal block, source 32K from the previous input + current input
                     int copyLastDictSize = ParallelCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
-                    ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.ReadablePortionSpan.Slice(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                    ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.Span.Slice(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
                     copyDictBuffer.Write(lastDictSpan);
                     _nextDictBuffer.ReleaseRef();
 
@@ -459,6 +461,8 @@ namespace Joveler.Compression.ZLib
 
             _inputBuffer.Clear();
             _inQueue.Enqueue(job);
+
+            return latestSeq;
         }
 
         private void EnqueueInputEof()
@@ -518,7 +522,7 @@ namespace Joveler.Compression.ZLib
             }
 
             // Wait until all threads are idle.
-            WaitUntilWriteDone(_seqNum, TimeSpan.Zero);
+            WaitWriteBlock(_inputSeq, null);
 
             // Flush the remaining compressed data into BaseStream
             BaseStream.Flush();
@@ -596,6 +600,30 @@ namespace Joveler.Compression.ZLib
                 throw new AggregateException(BackgroundExceptions);
         }
 
+        private void WaitWriteBlock(long checkSeqNum, TimeSpan? waitMax)
+        {
+            _waitForSeq = checkSeqNum;
+
+            // Throw if any exception has occured in background threads
+            if (_backgroundExceptionSignal.WaitOne(0))
+                throw new AggregateException(BackgroundExceptions);
+
+            if (waitMax == null)
+            { // Block indefinitely
+                _targetWrittenEvent.WaitOne();
+            }
+            else
+            { // Block 
+                _targetWrittenEvent.WaitOne(waitMax.Value);
+            }
+        }
+
+        /// <summary>
+        /// Used in Flush(), FinishWrite()
+        /// </summary>
+        /// <param name="checkSeqNum"></param>
+        /// <param name="timeout"></param>
+        /// <exception cref="AggregateException"></exception>
         private void WaitUntilWriteDone(long checkSeqNum, TimeSpan timeout)
         {
             while (true)
@@ -962,11 +990,11 @@ namespace Joveler.Compression.ZLib
         {
             private readonly DeflateThreadedStream _owner;
 
-            private long _seqNum = 0;
+            private long _outSeqNum = 0;
             /// <summary>
             /// Also represents the number of blocks written to the BaseStream.
             /// </summary>
-            public long SeqNum => Interlocked.Read(ref _seqNum);
+            public long SeqNum => Interlocked.Read(ref _outSeqNum);
 
             public readonly AutoResetEvent WriteSignal = new AutoResetEvent(false);
             public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
@@ -1009,10 +1037,12 @@ namespace Joveler.Compression.ZLib
                                 outJobNode = _owner._outList.First;
                                 if (outJobNode == null) // Reached end of the write queue -> then goes to the outer loop
                                     break;
-                                if (outJobNode.Value.SeqNum != _seqNum) // The next job is not the expected one -> wait for the next signal
+                                if (outJobNode.Value.SeqNum != _outSeqNum) // The next job is not the expected one -> wait for the next signal
                                     break;
                                 _owner._outList.RemoveFirst();
                             }
+
+                            _outSeqNum += 1;
 
                             using (ParallelCompressJob job = outJobNode.Value)
                             {
@@ -1031,6 +1061,12 @@ namespace Joveler.Compression.ZLib
                                 if (0 < job.RawInputSize)
                                     _writeChecksum?.Combine(job.Checksum, job.RawInputSize);
 
+                                if (_owner._waitForSeq <= _outSeqNum)
+                                    _owner._targetWrittenEvent.Set();
+                                else
+                                    _owner._targetWrittenEvent.Reset();
+
+
                                 // Exit if the last block is reached
                                 if (job.IsLastBlock)
                                 {
@@ -1043,8 +1079,6 @@ namespace Joveler.Compression.ZLib
                                 // Nor/Fin block (32K<=): 1 <= job.InBuffer._refCount <= 3, 0(D) <= job.DictBuffer._refCount <= 2
                                 // Nor/Fin block (<32K):  job.InBuffer._refCount == 1,      job.DictBuffer._refCount == 0(D)
                             }
-
-                            _seqNum += 1;
 
                             // [RefCount]
                             // First  block:          0(D) <= job.InBuffer._refCount <= 2, job.DictBuffer == null
@@ -1079,10 +1113,12 @@ namespace Joveler.Compression.ZLib
                         _owner.WriteTrailer(_writeChecksum.Checksum, _owner.TotalIn);
 
                     WaitingSignal.Set();
+                    _owner._targetWrittenEvent.Set();
                 }
                 catch (Exception e)
                 { // If any Exception has occured, abort the whole process.
                     WaitingSignal.Set();
+                    _owner._targetWrittenEvent.Set();
 
                     _owner.HandleBackgroundException(e);
                 }
