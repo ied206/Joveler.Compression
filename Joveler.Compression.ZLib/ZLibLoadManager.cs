@@ -31,10 +31,5 @@ namespace Joveler.Compression.ZLib
         protected override string ErrorMsgAlreadyLoaded => "Joveler.Compression.ZLib is already initialized.";
 
         protected override ZLibLoader CreateLoader() => new ZLibLoader();
-
-        public void GlobalReinit()
-        {
-
-        }
     }
 }

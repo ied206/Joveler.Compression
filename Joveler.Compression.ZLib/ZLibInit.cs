@@ -79,7 +79,7 @@ namespace Joveler.Compression.ZLib
         /// </param>
         [EditorBrowsable(EditorBrowsableState.Never)]
         [Obsolete($"Provided for backward ABI compatibility only!\r\nUse GlobalInit(string libPath, bool isStdcall) instead.\r\nAlso, please read libray release note and update your native library filepath.")]
-        public static void GlobalInit(string libPath)
+        public static void GlobalInit(string? libPath)
         {
             // Joveler.Compression.ZLib v4.x bundlded `zlibwapi.dll`.
             // Joveler.Compression.ZLib v5.x will ship `zlib1.dll` instead.
@@ -90,7 +90,7 @@ namespace Joveler.Compression.ZLib
                 const string stdcallDllName = "zlibwapi.dll";
                 const string cdeclDllName = "zlib1.dll";
 
-                string dllDir = Path.GetDirectoryName(libPath);
+                string? dllDir = Path.GetDirectoryName(libPath);
                 string dllFileName = Path.GetFileName(libPath);
 
                 // Crude stdcall guess logic for backward compatibility.
@@ -159,7 +159,7 @@ namespace Joveler.Compression.ZLib
         /// Controls the ABI used to interface native library.
         /// In most cases, using a default value is enough.
         /// </param>
-        public static void GlobalInit(string libPath, ZLibInitOptions opts)
+        public static void GlobalInit(string? libPath, ZLibInitOptions opts)
         {
             Manager.GlobalInit(libPath, opts);
         }

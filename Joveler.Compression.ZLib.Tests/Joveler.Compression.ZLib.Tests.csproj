@@ -9,6 +9,7 @@
     <!-- Windowws ARM64 -->
     <!-- <TargetFrameworks Condition="'$(OS)' == 'Windows_NT' and '$(PROCESSOR_ARCHITECTURE)' == 'ARM64'">net6.0</TargetFrameworks> -->
 
+    <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>

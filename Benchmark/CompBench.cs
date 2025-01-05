@@ -77,7 +77,7 @@ namespace Benchmark
 #if SHORT_TEST
         public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>()
         {
-            "Banner.svg"
+            "ooffice.dll"
         };
 #else
         public IReadOnlyList<string> SrcFileNames { get; set; } = new List<string>(BenchSamples.SampleFileNames);
@@ -194,7 +194,7 @@ namespace Benchmark
             GlobalSetup();
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(XZSingleNativeJoveler), nameof(XZMultiNativeJoveler) })]
+        [GlobalSetup(Targets = [nameof(XZSingleNativeJoveler), nameof(XZMultiNativeJoveler)])]
         public void XZSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.XZ);
@@ -203,7 +203,7 @@ namespace Benchmark
         }
 
 
-        [GlobalSetup(Targets = new string[] { nameof(LZ4NativeJoveler) })]
+        [GlobalSetup(Targets = [nameof(LZ4NativeJoveler)])]
         public void LZ4Setup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.LZ4);
@@ -211,7 +211,7 @@ namespace Benchmark
             GlobalSetup();
         }
 
-        [GlobalSetup(Targets = new string[] { nameof(ZstdSingleNativeJoveler), nameof(ZstdMultiNativeJoveler) })]
+        [GlobalSetup(Targets = [nameof(ZstdSingleNativeJoveler), nameof(ZstdMultiNativeJoveler)])]
         public void ZstdSetup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.Zstd);
@@ -268,7 +268,7 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
-                Joveler.Compression.ZLib.ZLibParallelCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
+                Joveler.Compression.ZLib.ZLibThreadedCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibThreadedCompressOptions()
                 {
                     Level = NativeZLibLevelDict[Level],
                     Threads = threads,
@@ -276,7 +276,7 @@ namespace Benchmark
                 };
 
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, pcompOpts))
                 {
                     rms.CopyTo(zs);
                 }

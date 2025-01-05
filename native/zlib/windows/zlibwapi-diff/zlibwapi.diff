@@ -1,0 +1,24 @@
+diff --git a/zlib-1.3.1/win32/Makefile.gcc b/zlib-1.3.1-mod/win32/Makefile.gcc
+index 081e391..7c18dca 100644
+--- a/zlib-1.3.1/win32/Makefile.gcc
++++ b/zlib-1.3.1-mod/win32/Makefile.gcc
+@@ -26,8 +26,8 @@
+ # the DLL name should be changed from "zlib1.dll".
+ 
+ STATICLIB = libz.a
+-SHAREDLIB = zlib1.dll
+-IMPLIB    = libz.dll.a
++SHAREDLIB = zlibwapi.dll
++IMPLIB    = zlibwapi.dll.a
+ 
+ #
+ # Set to 1 if shared object needs to be installed
+@@ -38,7 +38,7 @@ SHARED_MODE=0
+ 
+ PREFIX =
+ CC = $(PREFIX)gcc
+-CFLAGS = $(LOC) -O3 -Wall
++CFLAGS = $(LOC) -O3 -Wall -DZLIB_WINAPI
+ 
+ AS = $(CC)
+ ASFLAGS = $(LOC) -Wall
