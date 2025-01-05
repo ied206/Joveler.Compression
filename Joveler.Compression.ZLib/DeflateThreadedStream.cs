@@ -308,8 +308,14 @@ namespace Joveler.Compression.ZLib
                         _outList.Clear();
                     }
 
-                    foreach (CompressThreadProc threadProc in _workerThreadProcs)
+                    for (int i = 0; i <  _workerThreads.Length; i++)
+                    {
+                        Thread thread = _workerThreads[i];
+                        CompressThreadProc threadProc = _workerThreadProcs[i];
+                        thread.Join();
                         threadProc.Dispose();
+                    }
+                    _writerThread.Join();
                     _writerThreadProc.Dispose();
 
                     _nextDictBuffer?.Dispose();
@@ -762,13 +768,14 @@ namespace Joveler.Compression.ZLib
                                 }
 
                                 // [Stage 11] Compress (or finish) the input block
+                                int bytesRead = 0;
                                 if (!job.IsLastBlock)
                                 { // Deflated block will end on a byte boundary, using a sync marker if necessary (SyncFlush)
                                   // ADVACNED: Bit-level output manipulation.
                                   // SIMPLE: In pre zlib 1.2.6, just call DeflateBlock once with ZLibFlush.SyncFlush.
 
                                     // After Z_BLOCK, Up to 7 bits of output data are waiting to be written.
-                                    DeflateBlock(job, ZLibFlush.Block);
+                                    bytesRead = DeflateBlock(job, bytesRead, ZLibFlush.Block);
 
                                     // How many bits are waiting to be written?
                                     int bits = 0;
@@ -778,7 +785,7 @@ namespace Joveler.Compression.ZLib
                                     // Add enough empty blocks to get to a byte boundary
                                     if (0 < (bits & 1)) // 1 bit is waiting to be written
                                     { // Flush the bit-level boundary
-                                        DeflateBlock(job, ZLibFlush.SyncFlush);
+                                        bytesRead = DeflateBlock(job, bytesRead, ZLibFlush.SyncFlush);
                                     }
                                     else if (0 < (bits & 7)) // 3 bits or more are waiting to be written
                                     { // Add static empty blocks
@@ -794,19 +801,19 @@ namespace Joveler.Compression.ZLib
                                             ZLibException.CheckReturnValue(ret, _zs);
                                         }
                                         while (0 < (bits & 7));
-                                        DeflateBlock(job, ZLibFlush.Block);
+                                        bytesRead = DeflateBlock(job, bytesRead, ZLibFlush.Block);
                                     }
                                 }
                                 else
                                 { // Finish the deflate stream
-                                    DeflateBlockFinish(job);
+                                    bytesRead = DeflateBlockFinish(job, bytesRead);
                                 }
 
 #if DEBUG_PARALLEL
                                 Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
 #endif
 
-                                Debug.Assert(job.InBuffer.DataStartIdx == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
+                                Debug.Assert(bytesRead == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
 
                                 // [Stage 12] Insert compressed data to linked list
                                 _owner.EnqueueOutList(job);
@@ -844,16 +851,16 @@ namespace Joveler.Compression.ZLib
                 }
             }
 
-            private unsafe void DeflateBlock(ParallelCompressJob job, ZLibFlush flush)
+            private unsafe int DeflateBlock(ParallelCompressJob job, int inputStartIdx, ZLibFlush flush)
             {
                 Debug.Assert(!job.InBuffer.Disposed);
 
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
-                    Debug.Assert(job.InBuffer.DataEndIdx >= job.InBuffer.DataStartIdx);
+                    Debug.Assert(0 <= inputStartIdx && inputStartIdx <= job.InBuffer.DataEndIdx && job.InBuffer.DataStartIdx == 0);
 
-                    _zs!.NextIn = inBufPtr + job.InBuffer.DataStartIdx;
-                    _zs.AvailIn = (uint)(job.InBuffer.DataEndIdx - job.InBuffer.DataStartIdx);
+                    _zs!.NextIn = inBufPtr + inputStartIdx;
+                    _zs.AvailIn = (uint)(job.InBuffer.DataEndIdx - inputStartIdx);
 
                     // Loop as long as the output buffer is not full after running deflate()
                     do
@@ -880,7 +887,7 @@ namespace Joveler.Compression.ZLib
 #if DEBUG_PARALLEL
                             Console.WriteLine($"DeflateBlock1 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer}) ({flush})");
 #endif
-                            job.InBuffer.DataStartIdx += (int)bytesRead;
+                            inputStartIdx += (int)bytesRead;
                             job.OutBuffer.DataEndIdx += (int)bytesWritten;
 #if DEBUG_PARALLEL
                             Console.WriteLine($"DeflateBlock2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer}) ({flush})");
@@ -893,18 +900,20 @@ namespace Joveler.Compression.ZLib
 
                     Debug.Assert(_zs.AvailIn == 0);
                 }
+
+                return inputStartIdx;
             }
 
-            private unsafe void DeflateBlockFinish(ParallelCompressJob job)
+            private unsafe int DeflateBlockFinish(ParallelCompressJob job, int inputStartIdx)
             {
                 Debug.Assert(!job.InBuffer.Disposed);
 
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
-                    Debug.Assert(job.InBuffer.DataEndIdx >= job.InBuffer.DataStartIdx);
+                    Debug.Assert(0 <= inputStartIdx && inputStartIdx <= job.InBuffer.DataEndIdx && job.InBuffer.DataStartIdx == 0);
 
-                    _zs!.NextIn = inBufPtr + job.InBuffer.DataStartIdx;
-                    _zs.AvailIn = (uint)(job.InBuffer.DataEndIdx - job.InBuffer.DataStartIdx);
+                    _zs!.NextIn = inBufPtr + inputStartIdx;
+                    _zs.AvailIn = (uint)(job.InBuffer.DataEndIdx - inputStartIdx);
 
                     // Loop as long as the output buffer is not full after running deflate()
                     ZLibRet ret = ZLibRet.Ok;
@@ -932,7 +941,7 @@ namespace Joveler.Compression.ZLib
 #if DEBUG_PARALLEL
                             Console.WriteLine($"DeflateBlockFinish2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
 #endif
-                            job.InBuffer.DataStartIdx += (int)bytesRead;
+                            inputStartIdx += (int)bytesRead;
                             job.OutBuffer.DataEndIdx += (int)bytesWritten;
 #if DEBUG_PARALLEL
                             Console.WriteLine($"DeflateBlockFinish2 (#{job.SeqNum}): in({job.InBuffer}) dict({job.DictBuffer}) out({job.OutBuffer})");
@@ -944,6 +953,8 @@ namespace Joveler.Compression.ZLib
 
                     Debug.Assert(_zs.AvailIn == 0);
                 }
+
+                return inputStartIdx;
             }
 
             private void Dispose(bool disposing)

@@ -64,6 +64,7 @@ namespace Joveler.Compression.ZLib.Tests
                 CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
                 CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
                 CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
             }
         }
 
@@ -77,6 +78,7 @@ namespace Joveler.Compression.ZLib.Tests
                 CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
                 CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1, testFlush, useSpan);
                 CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1, testFlush, useSpan);
             }
         }
 
@@ -91,6 +93,7 @@ namespace Joveler.Compression.ZLib.Tests
                 CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
                 CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
                 CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4, testFlush, useSpan); // Stress Test
             }
         }
 
@@ -105,6 +108,7 @@ namespace Joveler.Compression.ZLib.Tests
                 CompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1, testFlush, useSpan);
                 CompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3, testFlush, useSpan);
                 CompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4, testFlush, useSpan);
+                CompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4, testFlush, useSpan); // Stress Test
             }
         }
 
@@ -204,6 +208,7 @@ namespace Joveler.Compression.ZLib.Tests
             MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: -1);
             MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: -1);
             MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: -1);
+            MemDiagCompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: -1);
         }
 
         [TestMethod]
@@ -214,6 +219,7 @@ namespace Joveler.Compression.ZLib.Tests
             MemDiagCompressTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
             MemDiagCompressTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
             MemDiagCompressTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+            MemDiagCompressTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4); // Stress Test
         }
 
         private static void MemDiagCompressTemplate(string sampleFileName, ZLibCompLevel level, int threads)
@@ -274,6 +280,7 @@ namespace Joveler.Compression.ZLib.Tests
             CompressParallelExceptionTemplate("ex2.jpg", ZLibCompLevel.BestCompression, threads: 1);
             CompressParallelExceptionTemplate("ex3.jpg", ZLibCompLevel.BestSpeed, threads: 3);
             CompressParallelExceptionTemplate("C.bin", ZLibCompLevel.Level7, threads: 4);
+            CompressParallelExceptionTemplate("ooffice.dll", ZLibCompLevel.BestCompression, threads: Environment.ProcessorCount + 4); // Stress Test
         }
 
         private static void CompressParallelExceptionTemplate(string sampleFileName, ZLibCompLevel level, int threads)

@@ -25,6 +25,9 @@ using System.Buffers;
 
 namespace Joveler.Compression.ZLib.Buffer
 {
+    /// <summary>
+    /// Pooled smart buffer.
+    /// </summary>
     internal sealed class PooledBuffer : PooledBufferBase
     {
         public PooledBuffer(ArrayPool<byte> pool, int size) : base(pool, size)
