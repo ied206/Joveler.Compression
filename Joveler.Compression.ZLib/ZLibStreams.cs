@@ -373,7 +373,7 @@ namespace Joveler.Compression.ZLib
             : base(baseStream, compOpts, ZLibOperateFormat.Deflate) { }
 
         /// <summary>
-        /// Create parallel-compressing DeflateStream.
+        /// (EXPERIMENTAL) Create parallel-compressing DeflateStream.
         /// </summary>
         public DeflateStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
             : base(baseStream, pcompOpts, ZLibOperateFormat.Deflate) { }
@@ -400,7 +400,7 @@ namespace Joveler.Compression.ZLib
             : base(baseStream, compOpts, ZLibOperateFormat.ZLib) { }
 
         /// <summary>
-        /// Create parallel-compressing ZLibStream.
+        /// (EXPERIMENTAL) Create parallel-compressing ZLibStream.
         /// </summary>
         public ZLibStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
             : base(baseStream, pcompOpts, ZLibOperateFormat.ZLib) { }
@@ -427,7 +427,7 @@ namespace Joveler.Compression.ZLib
             : base(baseStream, compOpts, ZLibOperateFormat.GZip) { }
 
         /// <summary>
-        /// Create parallel-compressing GZipStream.
+        /// (EXPERIMENTAL) Create parallel-compressing GZipStream.
         /// </summary>
         public GZipStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
             : base(baseStream, pcompOpts, ZLibOperateFormat.GZip) { }

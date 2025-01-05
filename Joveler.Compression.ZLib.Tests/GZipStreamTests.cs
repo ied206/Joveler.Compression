@@ -326,6 +326,8 @@ namespace Joveler.Compression.ZLib.Tests
             DecompressTemplate("ex1.jpg", false);
             DecompressTemplate("ex2.jpg", false);
             DecompressTemplate("ex3.jpg", false);
+            DecompressTemplate("C.bin", false);
+            DecompressTemplate("ooffice.dll", false);
         }
 
         [TestMethod]
@@ -335,6 +337,8 @@ namespace Joveler.Compression.ZLib.Tests
             DecompressTemplate("ex1.jpg", true);
             DecompressTemplate("ex2.jpg", true);
             DecompressTemplate("ex3.jpg", true);
+            DecompressTemplate("C.bin", true);
+            DecompressTemplate("ooffice.dll", true);
         }
 
         private static void DecompressTemplate(string fileName, bool useSpan)
