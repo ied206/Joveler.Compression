@@ -25,41 +25,29 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
-    #region Crc32Checksum
-    public sealed class Crc32Checksum : ChecksumBase<uint>
+    #region Adler32Checksum
+    public sealed class Adler32Checksum : ZLibChecksumBase<uint>
     {
         #region Const
         /// <summary>
-        /// Equivalent to zlib's crc32(0, NULL, 0);
+        /// Equivalent to zlib's adler32(0, NULL, 0);
         /// </summary>
-        public const uint Crc32Init = 0;
+        public const uint Adler32Init = 1;
         #endregion
 
         #region Constructors
-        public Crc32Checksum() : base(Crc32Init)
+        public Adler32Checksum() : base(Adler32Init)
         {
             ZLibInit.Manager.EnsureLoaded();
         }
 
-        public Crc32Checksum(int bufferSize) : base(Crc32Init, bufferSize)
+        [Obsolete($"Use default constructor instead")]
+        public Adler32Checksum(int bufferSize) : base(Adler32Init)
         {
             ZLibInit.Manager.EnsureLoaded();
-        }
-        #endregion
-
-        #region Reset
-        public override void Reset()
-        {
-            Checksum = Crc32Init;
-        }
-
-        public override void Reset(uint reset)
-        {
-            Checksum = reset;
         }
         #endregion
 
@@ -69,7 +57,7 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = buffer.AsSpan(offset, count))
             {
-                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)count);
+                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)count);
             }
         }
 
@@ -78,56 +66,18 @@ namespace Joveler.Compression.ZLib.Checksum
         {
             fixed (byte* bufPtr = span)
             {
-                return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)span.Length);
+                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
+        #endregion
 
+        #region CombineCore
+        /// <inheritdoc/>
         protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
         {
-            return ZLibInit.Lib.NativeAbi.Crc32Combine(priorChecksum, nextChecksum, nextInputSize);
+            return ZLibInit.Lib.NativeAbi.Adler32Combine(priorChecksum, nextChecksum, nextInputSize);
         }
         #endregion
-    }
-    #endregion
-
-    #region Crc32Algorithm
-    public sealed class Crc32Algorithm : HashAlgorithm
-    {
-        private Crc32Checksum _crc32;
-
-        public Crc32Algorithm()
-        {
-            Initialize();
-
-            if (_crc32 == null)
-                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
-        }
-
-        public override void Initialize()
-        {
-            ZLibInit.Manager.EnsureLoaded();
-
-            _crc32 = new Crc32Checksum();
-        }
-
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
-        {
-            _crc32.Append(array, ibStart, cbSize);
-        }
-
-#if NETCOREAPP
-        protected override void HashCore(ReadOnlySpan<byte> source)
-        {
-            _crc32.Append(source);
-        }
-#endif
-
-        protected override byte[] HashFinal()
-        {
-            return BitConverter.GetBytes(_crc32.Checksum);
-        }
-
-        public override int HashSize => 32;
     }
     #endregion
 }

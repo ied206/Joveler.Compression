@@ -31,7 +31,7 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compresses zlib-related stream format in parallel.
     /// </summary>
-    internal sealed class ParallelCompressJob : IDisposable
+    internal sealed class ZLibParallelCompressJob : IDisposable
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
@@ -79,7 +79,7 @@ namespace Joveler.Compression.ZLib
         /// In other blocks, dictBuffer is set to the previous block's InBuffer.
         /// </param>
         /// <param name="outBufferSize"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
+        public ZLibParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
             Seq = seqNum;
 
@@ -104,7 +104,7 @@ namespace Joveler.Compression.ZLib
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
+        public ZLibParallelCompressJob(ArrayPool<byte> pool, long seqNum)
         {
             Seq = seqNum;
 
@@ -115,7 +115,7 @@ namespace Joveler.Compression.ZLib
             InBuffer.AcquireRef();
         }
 
-        ~ParallelCompressJob()
+        ~ZLibParallelCompressJob()
         {
             Dispose(false);
         }

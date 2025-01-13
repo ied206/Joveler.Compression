@@ -1,9 +1,6 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
-    Copyright (c) 2011-2016, Yann Collet
-
-    C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Written by Hajin Jang (BSD 2-Clause)
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -31,12 +28,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
 using System.Linq;
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.Zstd")]
     public class LZ4FrameStreamTests
     {
         #region Compress
@@ -49,7 +44,6 @@ namespace Joveler.Compression.LZ4.Tests
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
         public void CompressSpan()
         {
             CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, true);

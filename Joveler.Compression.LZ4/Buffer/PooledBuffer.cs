@@ -1,6 +1,6 @@
 ﻿/*
     Written by Hajin Jang (BSD 2-Clause)
-    Copyright (C) 2018-present Hajin Jang
+    Copyright (C) 2025-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -24,24 +24,26 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Buffers;
 
-namespace Joveler.Compression.LZ4.Tests
+namespace Joveler.Compression.LZ4.Buffer
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    [TestClass]
-    [TestCategory("Joveler.Compression.LZ4")]
-    public class LZ4InitTests
+    /// <summary>
+    /// Pooled smart buffer.
+    /// </summary>
+    internal sealed class PooledBuffer : PooledBufferBase
     {
-        [TestMethod]
-        public void VersionTests()
+        public PooledBuffer(ArrayPool<byte> pool, int size) : base(pool, size)
         {
-            Version verInst = LZ4Init.Version();
-            Console.WriteLine($"liblz4 version (Version) = {verInst}");
-            string verStr = LZ4Init.VersionString();
-            Console.WriteLine($"liblz4 version (String)  = {verStr}");
+        }
+
+        public PooledBuffer(ArrayPool<byte> pool) : base(pool)
+        {
+        }
+
+        public override string ToString()
+        {
+            return $"PBUF[{_dataStartIdx,7} - {_dataEndIdx,7}/{_size,7}] (data: {_dataEndIdx - _dataStartIdx})]";
         }
     }
 }

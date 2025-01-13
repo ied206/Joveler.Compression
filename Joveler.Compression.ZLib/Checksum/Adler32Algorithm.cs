@@ -29,69 +29,8 @@ using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
-    #region Adler32Checksum
-    public sealed class Adler32Checksum : ChecksumBase<uint>
-    {
-        #region Const
-        /// <summary>
-        /// Equivalent to zlib's adler32(0, NULL, 0);
-        /// </summary>
-        public const uint Adler32Init = 1;
-        #endregion
-
-        #region Constructors
-        public Adler32Checksum() : base(Adler32Init)
-        {
-            ZLibInit.Manager.EnsureLoaded();
-        }
-
-        public Adler32Checksum(int bufferSize) : base(Adler32Init, bufferSize)
-        {
-            ZLibInit.Manager.EnsureLoaded();
-        }
-        #endregion
-
-        #region Reset
-        public override void Reset()
-        {
-            Checksum = Adler32Init;
-        }
-
-        public override void Reset(uint reset)
-        {
-            Checksum = reset;
-        }
-        #endregion
-
-        #region AppendCore
-        /// <inheritdoc/>
-        protected override unsafe uint AppendCore(uint checksum, byte[] buffer, int offset, int count)
-        {
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)count);
-            }
-        }
-
-        /// <inheritdoc/>
-        protected override unsafe uint AppendCore(uint checksum, ReadOnlySpan<byte> span)
-        {
-            fixed (byte* bufPtr = span)
-            {
-                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
-            }
-        }
-
-        /// <inheritdoc/>
-        protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
-        {
-            return ZLibInit.Lib.NativeAbi.Adler32Combine(priorChecksum, nextChecksum, nextInputSize);
-        }
-        #endregion
-    }
-    #endregion
-
     #region Adler32Algorithm
+    [Obsolete($"Result of [{nameof(Adler32Algorithm)}] depends on processor endianness. Use [{nameof(Adler32Checksum)}] instead.")]
     public sealed class Adler32Algorithm : HashAlgorithm
     {
         private Adler32Checksum _adler32;

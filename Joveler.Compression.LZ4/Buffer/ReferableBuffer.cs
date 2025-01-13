@@ -1,6 +1,6 @@
 ﻿/*
     Written by Hajin Jang (BSD 2-Clause)
-    Copyright (C) 2018-present Hajin Jang
+    Copyright (C) 2025-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -24,24 +24,48 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Buffers;
+using System.Threading;
 
-namespace Joveler.Compression.LZ4.Tests
+namespace Joveler.Compression.LZ4.Buffer
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    [TestClass]
-    [TestCategory("Joveler.Compression.LZ4")]
-    public class LZ4InitTests
+    /// <summary>
+    /// Sharable pooled smart buffer.
+    /// </summary>
+    /// <remarks>
+    /// USE WITH EXTREME CAUTION! Using this incorrectly leads to memory corruption!
+    /// </remarks>
+    internal sealed class ReferableBuffer : PooledBufferBase
     {
-        [TestMethod]
-        public void VersionTests()
+        private int _refCount = 0;
+
+        public ReferableBuffer(ArrayPool<byte> pool, int size) : base(pool, size)
         {
-            Version verInst = LZ4Init.Version();
-            Console.WriteLine($"liblz4 version (Version) = {verInst}");
-            string verStr = LZ4Init.VersionString();
-            Console.WriteLine($"liblz4 version (String)  = {verStr}");
+        }
+
+        /// <summary>
+        /// Create an empty buffer.
+        /// </summary>
+        /// <param name="pool"></param>
+        public ReferableBuffer(ArrayPool<byte> pool) : base(pool)
+        {
+        }
+
+        public ReferableBuffer AcquireRef()
+        {
+            Interlocked.Increment(ref _refCount);
+            return this;
+        }
+
+        public void ReleaseRef()
+        {
+            if (Interlocked.Decrement(ref _refCount) <= 0)
+                Dispose();
+        }
+
+        public override string ToString()
+        {
+            return $"RBUF[{_dataStartIdx,7} - {_dataEndIdx,7}/{_size,7}] (data: {_dataEndIdx - _dataStartIdx}) (ref: {_refCount})]";
         }
     }
 }

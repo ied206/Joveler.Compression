@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -155,7 +155,7 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[2] { 0, 0 };
+        private uint[] _reserved = { 0, 0 };
     }
     #endregion
 
@@ -252,6 +252,14 @@ namespace Joveler.Compression.LZ4
         /// LZ4HC_CLEVEL_MAX
         /// </summary>
         Level12 = 12,
+    }
+    #endregion
+
+    #region 
+    public enum XXHashErrorCode: int
+    {
+        Ok = 0,
+        Error,
     }
     #endregion
 }

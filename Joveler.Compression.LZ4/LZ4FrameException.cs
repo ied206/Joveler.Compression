@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -38,24 +38,30 @@ namespace Joveler.Compression.LZ4
     {
         public ulong ReturnCode { get; set; }
 
-        private static string FrameGetErrorName(UIntPtr code)
+        private static string FrameGetErrorName(nuint code)
         {
             LZ4Init.Manager.EnsureLoaded();
 
-            IntPtr strPtr = LZ4Init.Lib.GetErrorName(code);
-            return Marshal.PtrToStringAnsi(strPtr);
+            if (LZ4Init.Lib == null)
+                throw new ObjectDisposedException(nameof(LZ4Init));
+
+            IntPtr strPtr = LZ4Init.Lib.GetErrorName!(code);
+            return Marshal.PtrToStringAnsi(strPtr) ?? "";
         }
 
-        public LZ4FrameException(UIntPtr code) : base(FrameGetErrorName(code))
+        public LZ4FrameException(nuint code) : base(FrameGetErrorName(code))
         {
-            ReturnCode = code.ToUInt64();
+            ReturnCode = code;
         }
 
-        public static void CheckReturnValue(UIntPtr code)
+        public static void CheckReturnValue(nuint code)
         {
             LZ4Init.Manager.EnsureLoaded();
 
-            if (LZ4Init.Lib.FrameIsError(code) != 0)
+            if (LZ4Init.Lib == null)
+                throw new ObjectDisposedException(nameof(LZ4Init));
+
+            if (LZ4Init.Lib.FrameIsError!(code) != 0)
                 throw new LZ4FrameException(code);
         }
 

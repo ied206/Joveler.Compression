@@ -61,7 +61,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             Stream,
         }
 
-        private static void CheckTemplate<T>(ChecksumBase<T> check, string fileName, TestKind kind, T expected) where T : unmanaged
+        private static void CheckTemplate<T>(ZLibChecksumBase<T> check, string fileName, TestKind kind, T expected) where T : unmanaged
         {
             check.Reset();
             try
@@ -142,7 +142,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             }
         }
 
-        private void ResetTemplate<T>(ChecksumBase<T> check, string firstFileName, string secondFileName) where T : unmanaged
+        private void ResetTemplate<T>(ZLibChecksumBase<T> check, string firstFileName, string secondFileName) where T : unmanaged
         {
             try
             {
@@ -201,10 +201,12 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                     CheckTemplate(crc32, fileName, kind, checksum);
                 }
 
+#pragma warning disable CS0618 // Ignore Obsolete
                 using (Crc32Algorithm hash = new Crc32Algorithm())
                 {
                     HashAlgorithmTemplate(hash, fileName, checksum);
                 }
+#pragma warning restore CS0618 // Ignore Obsolete
             }
 
             ResetTemplate(crc32, samples[0].FileName, samples[1].FileName);
@@ -265,10 +267,12 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
                     CheckTemplate(adler32, fileName, kind, checksum);
                 }
 
+#pragma warning disable CS0618 // Ignore Obsolete
                 using (Adler32Algorithm hash = new Adler32Algorithm())
                 {
                     HashAlgorithmTemplate(hash, fileName, checksum);
                 }
+#pragma warning restore CS0618 // Ignore Obsolete
             }
 
             ResetTemplate(adler32, samples[0].FileName, samples[1].FileName);

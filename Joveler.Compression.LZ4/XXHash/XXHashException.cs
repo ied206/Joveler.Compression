@@ -1,6 +1,6 @@
 ﻿/*
     Written by Hajin Jang (BSD 2-Clause)
-    Copyright (C) 2018-present Hajin Jang
+    Copyright (C) 2025-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -24,24 +24,44 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Runtime.Serialization;
 
-namespace Joveler.Compression.LZ4.Tests
+namespace Joveler.Compression.LZ4.XXHash
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    [TestClass]
-    [TestCategory("Joveler.Compression.LZ4")]
-    public class LZ4InitTests
+    [Serializable]
+    public class XXHashException : Exception
     {
-        [TestMethod]
-        public void VersionTests()
+        public XXHashErrorCode ErrorCode { get; set; }
+
+
+        public XXHashException(XXHashErrorCode code)
         {
-            Version verInst = LZ4Init.Version();
-            Console.WriteLine($"liblz4 version (Version) = {verInst}");
-            string verStr = LZ4Init.VersionString();
-            Console.WriteLine($"liblz4 version (String)  = {verStr}");
+            ErrorCode = code;
         }
+
+        public static void CheckReturnValue(XXHashErrorCode code)
+        {
+            LZ4Init.Manager.EnsureLoaded();
+
+            if (code != XXHashErrorCode.Ok)
+                throw new XXHashException(code);
+        }
+
+        #region Serializable
+        protected XXHashException(SerializationInfo info, StreamingContext ctx)
+        {            
+            ErrorCode = (XXHashErrorCode)(info.GetValue(nameof(ErrorCode), typeof(XXHashErrorCode)) ?? throw new InvalidDataException(nameof(XXHashErrorCode)));
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException(nameof(info));
+            info.AddValue(nameof(ErrorCode), ErrorCode);
+            base.GetObjectData(info, context);
+        }
+        #endregion
     }
 }

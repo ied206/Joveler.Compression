@@ -3,6 +3,7 @@
     <TargetFrameworks>net462;netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+    <nullable>enable</nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
     <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
@@ -15,7 +16,7 @@
     <Description>lz4 pinvoke library for .NET.
 The library provides the native implementation of LZ4FrameStream.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (C) 2018-2021 Hajin Jang</Copyright>
+    <Copyright>Copyright (C) 2018-2024 Hajin Jang</Copyright>
     <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -27,7 +28,7 @@ Supports Windows, Linux and macOS.</Description>
   <!-- PackageReference -->
   <ItemGroup>
     <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
-    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="System.Memory" Version="4.6.0" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6.2 -->
   <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
@@ -86,6 +87,7 @@ Supports Windows, Linux and macOS.</Description>
     <None Include="Joveler.Compression.LZ4.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.LZ4.targets" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
+    <None Include="XXHash\XXHashException.cs" />
     <!-- Native Library -->
     <None Include="runtimes\win-x86\native\*.dll" Pack="true" PackagePath="runtimes\win-x86\native" />
     <None Include="runtimes\win-x64\native\*.dll" Pack="true" PackagePath="runtimes\win-x64\native" />
