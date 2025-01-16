@@ -546,7 +546,7 @@ namespace Joveler.Compression.LZ4
             IntPtr cctx,
             byte* dstBuffer,
             nuint dstCapacity,
-            byte* cdict,
+            IntPtr cdict,
             FramePreferences prefsPtr);
         internal LZ4F_compressBegin_usingCDict? FrameCompressBeginUsingCDict;
         #endregion

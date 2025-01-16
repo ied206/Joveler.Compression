@@ -29,11 +29,9 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 
 namespace Joveler.Compression.LZ4
 {
-    [Serializable]
     public class LZ4FrameException : Exception
     {
         public ulong ReturnCode { get; set; }
@@ -64,20 +62,5 @@ namespace Joveler.Compression.LZ4
             if (LZ4Init.Lib.FrameIsError!(code) != 0)
                 throw new LZ4FrameException(code);
         }
-
-        #region Serializable
-        protected LZ4FrameException(SerializationInfo info, StreamingContext ctx)
-        {
-            ReturnCode = info.GetUInt64(nameof(ReturnCode));
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(ReturnCode), ReturnCode);
-            base.GetObjectData(info, context);
-        }
-        #endregion
     }
 }

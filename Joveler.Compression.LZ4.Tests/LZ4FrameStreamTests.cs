@@ -38,20 +38,36 @@ namespace Joveler.Compression.LZ4.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, false);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, false);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, false);
+            CompressTemplate("A.pdf", LZ4CompLevel.Fast, -1, true, false, false);
+            CompressTemplate("B.txt", LZ4CompLevel.High, -1, true, true, false);
+            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, -1, false, false, false);
         }
 
         [TestMethod]
         public void CompressSpan()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, true);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, true);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, true);
+            CompressTemplate("A.pdf", LZ4CompLevel.Fast, -1, true, false, true);
+            CompressTemplate("B.txt", LZ4CompLevel.High, -1, true, true, true);
+            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, -1, false, false, true);
         }
 
-        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, bool autoFlush, bool enableContentSize, bool useSpan)
+        [TestMethod]
+        public void CompressParallel()
+        {
+            CompressTemplate("A.pdf", LZ4CompLevel.Fast, 1, true, false, false);
+            CompressTemplate("B.txt", LZ4CompLevel.High, 2, true, true, false);
+            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, 3, false, false, false);
+        }
+
+        [TestMethod]
+        public void CompressParallelSpan()
+        {
+            CompressTemplate("A.pdf", LZ4CompLevel.Fast, 1, true, false, true);
+            CompressTemplate("B.txt", LZ4CompLevel.High, 2, true, true, true);
+            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, 3, false, false, true);
+        }
+
+        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, int threads, bool autoFlush, bool enableContentSize, bool useSpan)
         {
             if (sampleFileName == null)
                 throw new ArgumentNullException(nameof(sampleFileName));
@@ -65,19 +81,39 @@ namespace Joveler.Compression.LZ4.Tests
                 string tempLz4File = tempDecompFile + ".lz4";
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+                string sampleLz4File = sampleFile + ".lz4";
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                    LZ4FrameStream lzs;
+                    if (threads < 0)
                     {
-                        Level = compLevel,
-                        AutoFlush = autoFlush,
-                        LeaveOpen = true,
-                    };
-                    if (enableContentSize)
-                        compOpts.ContentSize = (ulong)sampleFs.Length;
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                        {
+                            Level = compLevel,
+                            AutoFlush = autoFlush,
+                            LeaveOpen = true,
+                        };
+                        if (enableContentSize)
+                            compOpts.ContentSize = (ulong)sampleFs.Length;
 
-                    using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
-                    using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, compOpts))
+                        lzs = new LZ4FrameStream(lz4CompFs, compOpts);
+                    }
+                    else
+                    {
+                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        {
+                            Level = compLevel,
+                            LeaveOpen = true,
+                            Threads = threads
+                        };
+                        if (enableContentSize)
+                            pcompOpts.ContentSize = (ulong)sampleFs.Length;
+
+                        lzs = new LZ4FrameStream(lz4CompFs, pcompOpts);
+                    }
+                    
+                    using (lzs)
                     {
 #if !NETFRAMEWORK
                         if (useSpan)
@@ -98,12 +134,12 @@ namespace Joveler.Compression.LZ4.Tests
                         }
 
                         lzs.Flush();
-
-                        Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
-                        Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
                     }
-                }
 
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{lzs.TotalIn,7}]");
+                    Console.WriteLine($"[Compressed] sample  =[{new FileInfo(sampleLz4File).Length,7}] actual=[{lzs.TotalOut,7}]");
+                    Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
+                }
 
                 Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
 

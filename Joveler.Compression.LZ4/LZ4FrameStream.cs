@@ -28,169 +28,74 @@
 */
 
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Joveler.Compression.LZ4
 {
-    #region StreamOptions
-    /// <summary>
-    /// Compress options for LZ4FrameStream
-    /// </summary>
-    /// <remarks>
-    /// Default value is based on default value of lz4 cli
-    /// </remarks>
-    public sealed class LZ4FrameCompressOptions
-    {
-        /// <summary>
-        /// 0: default (fast mode); values > LZ4CompLevel.Level12 count as LZ4CompLevel.Level12; values < 0 trigger "fast acceleration"
-        /// </summary>
-        public LZ4CompLevel Level { get; set; } = LZ4CompLevel.Default;
-        /// <summary>
-        /// max64KB, max256KB, max1MB, max4MB
-        /// </summary>
-        public FrameBlockSizeId BlockSizeId { get; set; } = FrameBlockSizeId.Max4MB;
-        /// <summary>
-        /// LZ4F_blockLinked, LZ4F_blockIndependent
-        /// </summary>
-        public FrameBlockMode BlockMode { get; set; } = FrameBlockMode.BlockLinked;
-        /// <summary>
-        /// if enabled, frame is terminated with a 32-bits checksum of decompressed data
-        /// </summary>
-        public FrameContentChecksum ContentChecksumFlag { get; set; } = FrameContentChecksum.ContentChecksumEnabled;
-        /// <summary>
-        /// read-only field : LZ4F_frame or LZ4F_skippableFrame
-        /// </summary>
-        public FrameType FrameType { get; set; } = FrameType.Frame;
-        /// <summary>
-        /// if enabled, each block is followed by a checksum of block's compressed data
-        /// </summary>
-        public FrameBlockChecksum BlockChecksumFlag { get; set; } = FrameBlockChecksum.NoBlockChecksum;
-        /// <summary>
-        /// Size of uncompressed content ; 0 == unknown
-        /// </summary>
-        public ulong ContentSize { get; set; } = 0;
-        /// <summary>
-        /// 1 == always flush, to reduce usage of internal buffers
-        /// </summary>
-        public bool AutoFlush { get; set; } = false;
-        /// <summary>
-        /// 1 == parser favors decompression speed vs compression ratio.<br/>
-        /// Only works for high compression modes (>= LZ4CompLevel.Level10)
-        /// </summary>
-        /// <remarks>
-        /// v1.8.2+ 
-        /// </remarks>
-        public bool FavorDecSpeed { get; set; } = false;
-        /// <summary>
-        /// Size of the internal buffer.
-        /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
-    }
-
-    /// <summary>
-    /// Decompress options for LZ4FrameStream
-    /// </summary>
-    public sealed class LZ4FrameDecompressOptions
-    {
-        /// <summary>
-        /// disable checksum calculation and verification, even when one is present in frame, to save CPU time.
-        /// Setting this option to 1 once disables all checksums for the rest of the frame.
-        /// </summary>
-        public bool SkipChecksums { get; set; } = false;
-        /// <summary>
-        /// Size of the internal buffer.
-        /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
-    }
-    #endregion
-
     #region LZ4FrameStream
     public sealed class LZ4FrameStream : Stream
     {
-        #region enum Mode
-        private enum Mode
-        {
-            Compress,
-            Decompress,
-        }
-        #endregion
-
         #region Fields and Properties
-        // Field
-        private readonly Mode _mode;
-        private readonly bool _leaveOpen;
         private bool _disposed = false;
 
-        private IntPtr _cctx = IntPtr.Zero;
-        private IntPtr _dctx = IntPtr.Zero;
-
-        private readonly int _bufferSize = DefaultBufferSize;
-        private readonly byte[] _workBuf;
-
-        // Compression
-        private readonly uint _destBufSize;
-
-        // Decompression
-        private bool _firstRead = true;
-        private int _decompSrcIdx = 0;
-        private int _decompSrcCount = 0;
-
-        // Property
-        public Stream? BaseStream { get; private set; }
-        public long TotalIn { get; private set; } = 0;
-        public long TotalOut { get; private set; } = 0;
-
-        // LZ4F_compressOptions_t, LZ4F_decompressOptions_t
-        private FrameCompressOptions _compOpts = new FrameCompressOptions()
-        {
-            StableSrc = 0,
-        };
-        private FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
-        {
-            StableDst = 0,
-            SkipChecksums = 0,
-        };
-
-        // Const
-        private const int DecompressComplete = -1;
-        // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal const uint FrameVersion = 100;
-        private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
-        private static readonly byte[] FrameMagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE)
-        /*
-        private const int FrameSizeToKnowHeaderLength = 5;
-        /// <summary>
-        /// LZ4 Frame header size can vary, depending on selected paramaters
-        /// </summary>
-        private const int FrameHeaderSizeMin = 7;
-        private const int FrameHeaderSizeMax = 19;
-        */
 
-        // Default Buffer Size
-        /* Benchmark - 1MB is the fastest, due to less pinvoke overhead
-           LZ4 is a fast algorithm, so pinvoke overhead impact is critical.
-        AMD Ryzen 5 3600 / .NET Core 3.1.13 / Windows 10.0.19042 x64 / lz4 1.9.2
-        | Method | BufferSize |        Mean |     Error |    StdDev |
-        |------- |----------- |------------:|----------:|----------:|
-        |    LZ4 |       4096 |  1,016.2 us |  19.22 us |  19.74 us |
-        |    LZ4 |      16384 |    970.4 us |  19.28 us |  36.69 us |
-        |    LZ4 |      65536 |    911.6 us |   7.72 us |  12.46 us |
-        |    LZ4 |     262144 |    946.9 us |   4.01 us |   3.35 us |
-        |    LZ4 |    1048576 |    637.4 us |  12.55 us |  22.95 us |
-        |    LZ4 |    4194304 |    904.2 us |   4.15 us |   3.88 us |
-         */
-        internal const int DefaultBufferSize = 1024 * 1024;
+        public Stream? BaseStream
+        {
+            get
+            {
+                if (_serialStream != null)
+                    return _serialStream.BaseStream;
+                if (_parallelStream != null)
+                    return _parallelStream.BaseStream;
+                throw new ObjectDisposedException("This stream had been disposed.");
+            }
+        }
+        private long _totalIn = 0;
+        public long TotalIn
+        {
+            get
+            {
+                if (_disposed)
+                    return _totalIn;
+
+                if (_serialStream != null)
+                    _totalIn = _serialStream.TotalIn;
+                if (_parallelStream != null)
+                    _totalIn = _parallelStream.TotalIn;
+                return _totalIn;
+            }
+        }
+        private long _totalOut = 0;
+        public long TotalOut
+        {
+            get
+            {
+                if (_disposed)
+                    return _totalOut;
+
+                if (_serialStream != null)
+                    _totalOut = _serialStream.TotalOut;
+                if (_parallelStream != null)
+                    _totalOut = _parallelStream.TotalOut;
+                return _totalOut;
+            }
+        }
+
+        // Singlethread Compress/Decompress
+        private LZ4FrameSerialStream? _serialStream = null;
+        // Multithread Parallel Compress
+        private LZ4FrameParallelStream? _parallelStream = null;
+
+        /// <summary>
+        /// Default buffer size for internal buffer, to be used in single-threaded operation.
+        /// </summary>
+        internal const int DefaultBufferSize = LZ4FrameSerialStream.DefaultBufferSize;
+        /// <summary>
+        /// Default block size for parallel compress operation.
+        /// </summary>
+        internal const int DefaultChunkSize = LZ4FrameParallelStream.DefaultChunkSize;
         #endregion
 
         #region Constructor
@@ -199,64 +104,12 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameCompressOptions compOpts)
         {
-            LZ4Init.Manager.EnsureLoaded();
+            _serialStream = new LZ4FrameSerialStream(baseStream, compOpts);
+        }
 
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-
-            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _mode = Mode.Compress;
-            _disposed = false;
-
-            // Check and set compress options
-            _leaveOpen = compOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(compOpts.BufferSize);
-
-            // Prepare cctx
-            nuint ret = LZ4Init.Lib.CreateFrameCompressContext!(ref _cctx, FrameVersion);
-            LZ4FrameException.CheckReturnValue(ret);
-
-            // Prepare FramePreferences
-            FramePreferences prefs = new FramePreferences
-            {
-                FrameInfo = new FrameInfo
-                {
-                    BlockSizeId = compOpts.BlockSizeId,
-                    BlockMode = compOpts.BlockMode,
-                    ContentChecksumFlag = compOpts.ContentChecksumFlag,
-                    FrameType = compOpts.FrameType,
-                    ContentSize = compOpts.ContentSize,
-                    DictId = 0,
-                    BlockChecksumFlag = compOpts.BlockChecksumFlag,
-                },
-                CompressionLevel = compOpts.Level,
-                AutoFlush = compOpts.AutoFlush ? 1u : 0u,
-                FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
-            };
-
-            // Query the minimum required size of compress buffer
-            // _bufferSize is the source size, frameSize is the (required) dest size
-            nuint frameSizeVal = LZ4Init.Lib.FrameCompressBound!((nuint)_bufferSize, prefs);
-            Debug.Assert(frameSizeVal <= int.MaxValue);
-            uint frameSize = (uint)frameSizeVal;
-
-            _destBufSize = (uint)_bufferSize;
-            if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            _workBuf = new byte[_destBufSize];
-
-            // Write the frame header into _workBuf
-            nuint headerSizeVal;
-            fixed (byte* dest = _workBuf)
-            {
-                headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(_cctx, dest, (nuint)_bufferSize, prefs);
-            }
-            LZ4FrameException.CheckReturnValue(headerSizeVal);
-            Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
-
-            int headerSize = (int)headerSizeVal;
-            BaseStream.Write(_workBuf, 0, headerSize);
-            TotalOut += headerSize;
+        public LZ4FrameStream(Stream baseStream, LZ4FrameParallelCompressOptions pcompOpts)
+        {
+            _parallelStream = new LZ4FrameParallelStream(baseStream, pcompOpts);
         }
 
         /// <summary>
@@ -264,38 +117,15 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public unsafe LZ4FrameStream(Stream baseStream, LZ4FrameDecompressOptions decompOpts)
         {
-            LZ4Init.Manager.EnsureLoaded();
-
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-
-            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _mode = Mode.Decompress;
-            _disposed = false;
-
-            // Check and set compress options
-            _leaveOpen = decompOpts.LeaveOpen;
-            _bufferSize = CheckBufferSize(decompOpts.BufferSize);
-
-            // Prepare dctx
-            nuint ret = LZ4Init.Lib.CreateFrameDecompressContext!(ref _dctx, FrameVersion);
-            LZ4FrameException.CheckReturnValue(ret);
-
-            // Prepare LZ4F_decompressOptions_t*
-            if (decompOpts.SkipChecksums)
-                _decompOpts.SkipChecksums = 1;
-
-            // Remove LZ4 frame header from the baseStream
-            byte[] headerBuf = new byte[4];
-            int readHeaderSize = BaseStream.Read(headerBuf, 0, 4);
-            TotalIn += 4;
-
-            if (readHeaderSize != 4 || !headerBuf.SequenceEqual(FrameMagicNumber))
-                throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
-
-            // Prepare a work buffer
-            _workBuf = new byte[_bufferSize];
+            _serialStream = new LZ4FrameSerialStream(baseStream, decompOpts);
         }
+
+        /*
+        public LZ4FrameStream(Stream baseStream, LZ4FrameParallelDecompressOptions pdecompOpts)
+        {
+            _parallelStream = new LZ4FrameParallelStream(baseStream, pdecompOpts);
+        }
+        */
         #endregion
 
         #region Disposable Pattern
@@ -313,284 +143,179 @@ namespace Joveler.Compression.LZ4
 
                 }
 
-                if (LZ4Init.Lib == null)
-                    throw new ObjectDisposedException(nameof(LZ4Init));
-
-                Flush();
-
                 // Dispose unmanaged resources, and set large fields to null.
-                if (_cctx != IntPtr.Zero)
-                { // Compress
-                    FinishWrite();
-
-                    nuint ret = LZ4Init.Lib.FreeFrameCompressContext!(_cctx);
-                    LZ4FrameException.CheckReturnValue(ret);
-
-                    _cctx = IntPtr.Zero;
-                }
-
-                if (_dctx != IntPtr.Zero)
+                if (_serialStream != null)
                 {
-                    nuint ret = LZ4Init.Lib.FreeFrameDecompressContext!(_dctx);
-                    LZ4FrameException.CheckReturnValue(ret);
+                    _serialStream.Dispose();
 
-                    _dctx = IntPtr.Zero;
+                    _totalIn = _serialStream.TotalIn;
+                    _totalOut = _serialStream.TotalOut;
+
+                    _serialStream = null;
                 }
 
-                if (BaseStream != null)
+                if (_parallelStream != null)
                 {
-                    if (!_leaveOpen)
-                        BaseStream.Dispose();
-                    BaseStream = null;
+                    _parallelStream.Dispose();
+
+                    _totalIn = _parallelStream.TotalIn;
+                    _totalOut = _parallelStream.TotalOut;
+
+                    _parallelStream = null;
                 }
 
-                _disposed = true;
+                _disposed = true;    
             }
+
+            // Dispose the base class
+            base.Dispose(disposing);
         }
         #endregion
 
-        #region Stream Methods
+        #region Stream Methods and Properties
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            CheckReadWriteArgs(buffer, offset, count);
-            if (count == 0)
-                return 0;
+            if (_parallelStream != null)
+                return _parallelStream.Read(buffer, offset, count);
 
-            Span<byte> span = buffer.AsSpan(offset, count);
-            return Read(span);
+            if (_serialStream != null)
+                return _serialStream.Read(buffer, offset, count);
+
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
-        public override unsafe int Read(Span<byte> span)
+#if NETCOREAPP
+        public override int Read(Span<byte> span)
 #else
-        public unsafe int Read(Span<byte> span)
+        public int Read(Span<byte> span)
 #endif
         {
-            if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException(nameof(LZ4FrameStream));
+            if (_parallelStream != null)
+                return _parallelStream.Read(span);
 
-            // Reached end of stream
-            if (_decompSrcIdx == DecompressComplete)
-                return 0;
+            if (_serialStream != null)
+                return _serialStream.Read(span);
 
-            int readSize = 0;
-            int destSize = span.Length;
-            int destLeftBytes = span.Length;
-
-            if (_firstRead)
-            {
-                // Write FrameMagicNumber into LZ4F_decompress
-                nuint headerSizeVal = 4;
-                nuint destSizeVal = (nuint)destSize;
-
-                nuint ret;
-                fixed (byte* header = FrameMagicNumber)
-                fixed (byte* dest = span)
-                {
-                    ret = LZ4Init.Lib.FrameDecompress!(_dctx, dest, ref destSizeVal, header, ref headerSizeVal, _decompOpts);
-                }
-                LZ4FrameException.CheckReturnValue(ret);
-
-                Debug.Assert(headerSizeVal <= int.MaxValue);
-                Debug.Assert(destSizeVal <= int.MaxValue);
-
-                if (headerSizeVal != 4u)
-                    throw new InvalidOperationException("Not enough dest buffer");
-                int destWritten = (int)destSizeVal;
-
-                span = span.Slice(destWritten);
-                TotalOut += destWritten;
-
-                _firstRead = false;
-            }
-
-            while (0 < destLeftBytes)
-            {
-                if (_decompSrcIdx == _decompSrcCount)
-                {
-                    // Read from _baseStream
-                    _decompSrcIdx = 0;
-                    _decompSrcCount = BaseStream.Read(_workBuf, 0, _workBuf.Length);
-                    TotalIn += _decompSrcCount;
-
-                    // _baseStream reached its end
-                    if (_decompSrcCount == 0)
-                    {
-                        _decompSrcIdx = DecompressComplete;
-                        break;
-                    }
-                }
-
-                nuint srcSizeVal = (nuint)(_decompSrcCount - _decompSrcIdx);
-                nuint destSizeVal = (nuint)(destLeftBytes);
-
-                nuint ret;
-                fixed (byte* src = _workBuf.AsSpan(_decompSrcIdx))
-                fixed (byte* dest = span)
-                {
-                    ret = LZ4Init.Lib.FrameDecompress!(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, _decompOpts);
-                }
-                LZ4FrameException.CheckReturnValue(ret);
-
-                // The number of bytes consumed from srcBuffer will be written into *srcSizePtr (necessarily <= original value).
-                Debug.Assert(srcSizeVal <= int.MaxValue);
-                int srcConsumed = (int)srcSizeVal;
-                _decompSrcIdx += srcConsumed;
-                Debug.Assert(_decompSrcIdx <= _decompSrcCount);
-
-                // The number of bytes decompressed into dstBuffer will be written into *dstSizePtr (necessarily <= original value).
-                Debug.Assert(destSizeVal <= int.MaxValue);
-                int destWritten = (int)destSizeVal;
-
-                span = span.Slice(destWritten);
-                destLeftBytes -= destWritten;
-                TotalOut += destWritten;
-                readSize += destWritten;
-            }
-
-            return readSize;
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
-            CheckReadWriteArgs(buffer, offset, count);
-            if (count == 0)
+            if (_parallelStream != null)
+            {
+                _parallelStream.Write(buffer, offset, count);
                 return;
+            }
 
-            ReadOnlySpan<byte> span = buffer.AsSpan(offset, count);
-            Write(span);
+            if (_serialStream != null)
+            {
+                _serialStream.Write(buffer, offset, count);
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
-        public override unsafe void Write(ReadOnlySpan<byte> span)
+#if NETCOREAPP
+        public override void Write(ReadOnlySpan<byte> span)
 #else
-        public unsafe void Write(ReadOnlySpan<byte> span)
+        public void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException(nameof(LZ4FrameStream));
-
-            int inputSize = span.Length;
-
-            while (0 < span.Length)
+            if (_parallelStream != null)
             {
-                int srcWorkSize = _bufferSize < span.Length ? _bufferSize : span.Length;
-
-                nuint outSizeVal;
-                fixed (byte* dest = _workBuf)
-                fixed (byte* src = span)
-                {
-                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate!(_cctx, dest, (nuint)_destBufSize, src, (nuint)srcWorkSize, _compOpts);
-                }
-
-                LZ4FrameException.CheckReturnValue(outSizeVal);
-
-                Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
-                int outSize = (int)outSizeVal;
-
-                BaseStream.Write(_workBuf, 0, outSize);
-                TotalOut += outSize;
-
-                span = span.Slice(srcWorkSize);
+                _parallelStream.Write(span);
+                return;
             }
 
-            TotalIn += inputSize;
-        }
-
-        private unsafe void FinishWrite()
-        {
-            Debug.Assert(_mode == Mode.Compress, "FinishWrite() cannot be called in decompression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException(nameof(LZ4FrameStream));
-
-            nuint outSizeVal;
-            fixed (byte* dest = _workBuf)
+            if (_serialStream != null)
             {
-                outSizeVal = LZ4Init.Lib.FrameCompressEnd!(_cctx, dest, _destBufSize, _compOpts);
+                _serialStream.Write(span);
+                return;
             }
-            LZ4FrameException.CheckReturnValue(outSizeVal);
 
-            Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
-            int outSize = (int)outSizeVal;
-
-            BaseStream.Write(_workBuf, 0, outSize);
-            TotalOut += outSize;
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
         public override void Flush()
         {
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException(nameof(LZ4FrameStream));
+            if (_parallelStream != null)
+            {
+                _parallelStream.Flush();
+                return;
+            }
 
-            BaseStream.Flush();
+            if (_serialStream != null)
+            {
+                _serialStream.Flush();
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
         }
 
         /// <inheritdoc />
-        public override bool CanRead => _mode == Mode.Decompress && BaseStream != null && BaseStream.CanRead;
+        public override bool CanRead
+        {
+            get
+            {
+                if (_parallelStream != null)
+                    return _parallelStream.CanRead;
+                else if (_serialStream != null)
+                    return _serialStream.CanRead;
+                else
+                    return false;
+            }
+        }
         /// <inheritdoc />
-        public override bool CanWrite => _mode == Mode.Compress && BaseStream != null && BaseStream.CanWrite;
+        public override bool CanWrite
+        {
+            get
+            {
+                if (_parallelStream != null)
+                    return _parallelStream.CanWrite;
+                else if (_serialStream != null)
+                    return _serialStream.CanWrite;
+                else
+                    return false;
+            }
+        }
         /// <inheritdoc />
         public override bool CanSeek => false;
 
         /// <inheritdoc />
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotSupportedException("Seek() not supported");
+            throw new NotSupportedException($"{nameof(Seek)}() not supported.");
         }
         /// <inheritdoc />
         public override void SetLength(long value)
         {
-            throw new NotSupportedException("SetLength not supported");
+            throw new NotSupportedException($"{nameof(SetLength)} not supported.");
         }
         /// <inheritdoc />
-        public override long Length => throw new NotSupportedException("Length not supported");
+        public override long Length => throw new NotSupportedException($"{nameof(Length)} not supported.");
         /// <inheritdoc />
         public override long Position
         {
-            get => throw new NotSupportedException("Position not supported");
-            set => throw new NotSupportedException("Position not supported");
+            get => throw new NotSupportedException($"{nameof(Position)} not supported.");
+            set => throw new NotSupportedException($"{nameof(Position)} not supported.");
         }
 
         public double CompressionRatio
         {
             get
             {
-                switch (_mode)
-                {
-                    case Mode.Compress:
-                        if (TotalIn == 0)
-                            return 0;
-                        return 100 - TotalOut * 100.0 / TotalIn;
-                    case Mode.Decompress:
-                        if (TotalOut == 0)
-                            return 0;
-                        return 100 - TotalIn * 100.0 / TotalOut;
-                    default:
-                        throw new InvalidOperationException($"Internal Logic Error at {nameof(LZ4FrameStream)}.{nameof(CompressionRatio)}");
-                }
+                if (_parallelStream != null)
+                    return _parallelStream.CompressionRatio;
+                if (_serialStream != null)
+                    return _serialStream.CompressionRatio;
+                throw new ObjectDisposedException("This stream had been disposed.");
             }
         }
         #endregion

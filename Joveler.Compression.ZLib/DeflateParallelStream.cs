@@ -38,7 +38,7 @@ using System.Threading;
 
 namespace Joveler.Compression.ZLib
 {
-    public sealed class ZLibThreadedCompressOptions
+    public sealed class ZLibParallelCompressOptions
     {
         /// <summary>
         /// Compression level. The Default is `ZLibCompLevel.Default`.
@@ -66,7 +66,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Size of the compress block, which would be a unit of data to be compressed.
         /// </summary>
-        public int BlockSize { get; set; } = DeflateThreadedStream.DefaultBlockSize;
+        public int BlockSize { get; set; } = DeflateParallelStream.DefaultChunkSize;
         /// <summary>
         /// <para>Control timeout to allow Write() to return early.<br/>
         /// In parallel compression, Write() may block until the data is compressed.
@@ -93,7 +93,7 @@ namespace Joveler.Compression.ZLib
         public bool LeaveOpen { get; set; } = false;
     }
 
-    internal sealed class DeflateThreadedStream : Stream
+    internal sealed class DeflateParallelStream : Stream
     {
         #region Fields and Properties
         private readonly ZLibOperateFormat _format;
@@ -189,7 +189,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Default Block Size 
         /// </summary>
-        internal const int DefaultBlockSize = 128 * 1024; // pigz uses 128KB for block size
+        internal const int DefaultChunkSize = 128 * 1024; // pigz uses 128KB for block size
 
         private static ZLibChecksumBase<uint>? FormatChecksum(ZLibOperateFormat format)
         {
@@ -207,7 +207,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Create parallel-compressing DeflateStream.
         /// </summary>
-        public DeflateThreadedStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts, ZLibOperateFormat format)
+        public DeflateParallelStream(Stream baseStream, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
@@ -269,7 +269,7 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region Disposable Pattern
-        ~DeflateThreadedStream()
+        ~DeflateParallelStream()
         {
             Dispose(false);
         }
@@ -603,7 +603,7 @@ namespace Joveler.Compression.ZLib
             if (IsAborted)
                 return;
 
-            // flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
+            // Flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
             EnqueueInputBuffer(true);
 
             // Enqueue an EOF block with empty buffer per thread
@@ -652,7 +652,7 @@ namespace Joveler.Compression.ZLib
         #region class CompressThreadProc
         internal sealed class CompressThreadProc : IDisposable
         {
-            private readonly DeflateThreadedStream _owner;
+            private readonly DeflateParallelStream _owner;
             private readonly int _threadId;
 
             public readonly AutoResetEvent ReadSignal = new AutoResetEvent(false);
@@ -665,7 +665,7 @@ namespace Joveler.Compression.ZLib
 
             private bool _disposed = false;
 
-            public CompressThreadProc(DeflateThreadedStream owner, int threadId)
+            public CompressThreadProc(DeflateParallelStream owner, int threadId)
             {
                 _owner = owner;
                 _threadId = threadId;
@@ -998,7 +998,7 @@ namespace Joveler.Compression.ZLib
         #region class WriterThreadProc
         internal sealed class WriterThreadProc : IDisposable
         {
-            private readonly DeflateThreadedStream _owner;
+            private readonly DeflateParallelStream _owner;
 
             private long _outSeq = 0;
             /// <summary>
@@ -1013,7 +1013,7 @@ namespace Joveler.Compression.ZLib
 
             private readonly ZLibChecksumBase<uint>? _writeChecksum;
 
-            public WriterThreadProc(DeflateThreadedStream owner)
+            public WriterThreadProc(DeflateParallelStream owner)
             {
                 _owner = owner;
                 _writeChecksum = FormatChecksum(owner._format);
@@ -1188,6 +1188,7 @@ namespace Joveler.Compression.ZLib
                 byte[] headBuf = new byte[2];
                 BinaryPrimitives.WriteUInt16BigEndian(headBuf, zlibHead);
                 BaseStream.Write(headBuf, 0, headBuf.Length);
+                AddTotalOut(headBuf.Length);
             }
             else if (_format == ZLibOperateFormat.GZip)
             { // https://datatracker.ietf.org/doc/html/rfc1952
@@ -1215,6 +1216,7 @@ namespace Joveler.Compression.ZLib
                 ];
 
                 BaseStream.Write(headBuf, 0, headBuf.Length);
+                AddTotalOut(headBuf.Length);
             }
         }
 
@@ -1313,7 +1315,7 @@ namespace Joveler.Compression.ZLib
         {
             if (blockSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(blockSize));
-            return Math.Max(blockSize, DefaultBlockSize); // At least 128KB
+            return Math.Max(blockSize, DefaultChunkSize); // At least 128KB
         }
         #endregion
     }

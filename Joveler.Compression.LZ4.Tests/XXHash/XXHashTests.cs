@@ -96,38 +96,23 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
             }
         }
 
-        private static void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, ulong expected)
+        private static void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, byte[] expectedBytes)
         {
-            byte[] checksum;
+            byte[] actualBytes;
             string filePath = Path.Combine(TestSetup.SampleDir, fileName);
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 byte[] buffer = new byte[fs.Length];
                 int bytesRead = fs.Read(buffer, 0, buffer.Length);
-                checksum = hash.ComputeHash(buffer, 0, bytesRead);
+                actualBytes = hash.ComputeHash(buffer, 0, bytesRead);
             }
 
-            if (checksum.Length == 8)
-            {
-                ulong actual = BinaryPrimitives.ReadUInt64BigEndian(checksum);
-                Console.WriteLine($"(Hash) Expected   hash of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated hash of {fileName} : 0x{actual:X16}");
-                Assert.AreEqual(expected, actual);
-            }
-            else if (checksum.Length == 4)
-            {
-                uint actual = BinaryPrimitives.ReadUInt32BigEndian(checksum);
-                Console.WriteLine($"(Hash) Expected   hash of {fileName} : 0x{expected:X8}");
-                Console.WriteLine($"(Hash) Calculated hash of {fileName} : 0x{actual:X8}");
-                Assert.AreEqual((uint)expected, actual);
-            }
-            else
-            {
-                Assert.Fail();
-            }
+            Console.WriteLine($"(Hash) Expected   hash of {fileName} : 0x{BitConverter.ToString(expectedBytes).Replace("-", string.Empty)}");
+            Console.WriteLine($"(Hash) Calculated hash of {fileName} : 0x{BitConverter.ToString(actualBytes).Replace("-", string.Empty)}");
+            Assert.IsTrue(expectedBytes.SequenceEqual(actualBytes));
         }
 
-        private static void StreamTemplate<T>(XXHashStreamBase<T> xxhStream, string fileName, T expected, byte[] expectedBytes) where T : unmanaged
+        private static void StreamTemplate<T>(XXHashStreamBase<T> xxhStream, string fileName, T expected, byte[] expectedBytesLE, byte[] expectedBytesBE) where T : unmanaged
         {
             string filePath = Path.Combine(TestSetup.SampleDir, fileName);
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -135,23 +120,28 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
                 fs.CopyTo(xxhStream);
             }
             T actualVal = xxhStream.HashValue;
-            byte[] actualBytes = xxhStream.HashBytes;
-            byte[] actualBuf = new byte[xxhStream.HashValueSize];
-            xxhStream.GetHashBytes(actualBuf);
+            byte[] actualBytesLE = xxhStream.HashBytesLE;
+            byte[] actualBytesBE = xxhStream.HashBytesBE;
+            byte[] actualBufLE = new byte[xxhStream.HashValueSize];
+            byte[] actualBufBE = new byte[xxhStream.HashValueSize];
+            xxhStream.GetHashBytesLE(actualBufLE);
+            xxhStream.GetHashBytesBE(actualBufBE);
 
             Assert.AreEqual(Marshal.SizeOf(typeof(T)), xxhStream.HashValueSize);
             Console.WriteLine($"(Check) Expected   hash of {fileName} : 0x{expected:X16}");
             Console.WriteLine($"(Check) Calculated hash of {fileName} : 0x{actualVal:X16}");
             Assert.AreEqual(expected, actualVal);
-            Assert.IsTrue(actualBytes.SequenceEqual(expectedBytes));
-            Assert.IsTrue(actualBuf.SequenceEqual(expectedBytes));
+            Assert.IsTrue(actualBytesLE.SequenceEqual(expectedBytesLE));
+            Assert.IsTrue(actualBytesBE.SequenceEqual(expectedBytesBE));
+            Assert.IsTrue(actualBufLE.SequenceEqual(expectedBytesLE));
+            Assert.IsTrue(actualBufBE.SequenceEqual(expectedBytesBE));
 
             bool exceptThrown = false;
             try
             {
                 byte[] emptyBuf = Array.Empty<byte>();
                 xxhStream.Reset();
-                xxhStream.GetHashBytes(emptyBuf);
+                xxhStream.GetHashBytesLE(emptyBuf);
             }
             catch (Exception)
             {
@@ -176,21 +166,30 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
             XXH32Stream xxh32 = new XXH32Stream();
             foreach ((string fileName, uint expected) in samples)
             {
+                byte[] expectedBytesLE = new byte[xxh32.HashValueSize];
+                BinaryPrimitives.WriteUInt32LittleEndian(expectedBytesLE, expected);
+
+                byte[] expectedBytesBE = new byte[xxh32.HashValueSize];
+                BinaryPrimitives.WriteUInt32BigEndian(expectedBytesBE, expected);
+
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
                     CheckTemplate(xxh32, fileName, kind, expected);
                 }
 
-                using (XXH32Algorithm hash = new XXH32Algorithm())
+                using (XXH32Algorithm hash = new XXH32Algorithm(XXHashBytesEndian.LittleEndian))
                 {
-                    HashAlgorithmTemplate(hash, fileName, expected);
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
 
-                byte[] expectedBytes = new byte[4];
-                BinaryPrimitives.WriteUInt32BigEndian(expectedBytes, expected);
+                using (XXH32Algorithm hash = new XXH32Algorithm(XXHashBytesEndian.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
+                }
+
                 using (XXH32Stream hashStream = new XXH32Stream())
                 {
-                    StreamTemplate(hashStream, fileName, expected, expectedBytes);
+                    StreamTemplate(hashStream, fileName, expected, expectedBytesLE, expectedBytesBE);
                 }
             }
         }
@@ -210,21 +209,30 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
             XXH64Stream xxh64 = new XXH64Stream();
             foreach ((string fileName, ulong expected) in samples)
             {
+                byte[] expectedBytesLE = new byte[xxh64.HashValueSize];
+                BinaryPrimitives.WriteUInt64LittleEndian(expectedBytesLE, expected);
+
+                byte[] expectedBytesBE = new byte[xxh64.HashValueSize];
+                BinaryPrimitives.WriteUInt64BigEndian(expectedBytesBE, expected);
+
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
                     CheckTemplate(xxh64, fileName, kind, expected);
                 }
 
-                using (XXH64Algorithm hash = new XXH64Algorithm())
+                using (XXH64Algorithm hash = new XXH64Algorithm(XXHashBytesEndian.LittleEndian))
                 {
-                    HashAlgorithmTemplate(hash, fileName, expected);
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
 
-                byte[] expectedBytes = new byte[8];
-                BinaryPrimitives.WriteUInt64BigEndian(expectedBytes, expected);
+                using (XXH64Algorithm hash = new XXH64Algorithm(XXHashBytesEndian.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
+                }
+
                 using (XXH64Stream hashStream = new XXH64Stream())
                 {
-                    StreamTemplate(hashStream, fileName, expected, expectedBytes);
+                    StreamTemplate(hashStream, fileName, expected, expectedBytesLE, expectedBytesBE);
                 }
             }
         }

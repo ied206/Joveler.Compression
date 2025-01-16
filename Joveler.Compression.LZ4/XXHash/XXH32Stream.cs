@@ -90,19 +90,36 @@ namespace Joveler.Compression.LZ4.XXHash
         #endregion
 
         #region ValueType to Bytes
-        public override byte[] ConvertValueToBytes(uint checksum)
+        public override byte[] ConvertValueToBytesLE(uint checksum)
+        {
+            byte[] buf = new byte[4];
+            BinaryPrimitives.WriteUInt32LittleEndian(buf, checksum);
+            return buf;
+        }
+
+        public override byte[] ConvertValueToBytesBE(uint checksum)
         {
             byte[] buf = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(buf, checksum);
             return buf;
         }
 
-        public override void ConvertValueToSpan(Span<byte> dest, uint val)
+        public override void ConvertValueToBytesLE(Span<byte> dest, uint val)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(dest, val);
+        }
+
+        public override void ConvertValueToBytesBE(Span<byte> dest, uint val)
         {
             BinaryPrimitives.WriteUInt32BigEndian(dest, val);
         }
 
-        public override uint ConvertBytesToValue(ReadOnlySpan<byte> span)
+        public override uint ConvertValueFromBytesLE(ReadOnlySpan<byte> span)
+        {
+            return BinaryPrimitives.ReadUInt32LittleEndian(span);
+        }
+
+        public override uint ConvertValueFromBytesBE(ReadOnlySpan<byte> span)
         {
             return BinaryPrimitives.ReadUInt32BigEndian(span);
         }

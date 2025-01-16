@@ -25,12 +25,9 @@
 */
 
 using System;
-using System.IO;
-using System.Runtime.Serialization;
 
 namespace Joveler.Compression.LZ4.XXHash
 {
-    [Serializable]
     public class XXHashException : Exception
     {
         public XXHashErrorCode ErrorCode { get; set; }
@@ -48,20 +45,5 @@ namespace Joveler.Compression.LZ4.XXHash
             if (code != XXHashErrorCode.Ok)
                 throw new XXHashException(code);
         }
-
-        #region Serializable
-        protected XXHashException(SerializationInfo info, StreamingContext ctx)
-        {            
-            ErrorCode = (XXHashErrorCode)(info.GetValue(nameof(ErrorCode), typeof(XXHashErrorCode)) ?? throw new InvalidDataException(nameof(XXHashErrorCode)));
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(ErrorCode), ErrorCode);
-            base.GetObjectData(info, context);
-        }
-        #endregion
     }
 }

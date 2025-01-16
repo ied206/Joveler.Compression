@@ -27,16 +27,13 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 /*
  * This file includes definition from external C library.
- * This lines suppresses error and warning from code analyzer, due to this file's C-style naming.
+ * Should suppress error and warning from code analyzer, due to this file's C-style naming.
  */
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
-// ReSharper disable InconsistentNaming
-// ReSharper disable UnusedMember.Local
 #pragma warning disable 169
 
 namespace Joveler.Compression.LZ4
@@ -81,6 +78,19 @@ namespace Joveler.Compression.LZ4
 
         public FrameInfo()
         {
+
+        }
+
+        public FrameInfo(FrameBlockSizeId blockSizeId, FrameBlockMode blockMode, FrameContentChecksum contentChecksumFlag,
+            FrameType frameType, ulong contentSize, uint dictId, FrameBlockChecksum blockChecksumFlag)
+        {
+            BlockSizeId = blockSizeId;
+            BlockMode = blockMode;
+            ContentChecksumFlag = contentChecksumFlag;
+            FrameType = frameType;
+            ContentSize = contentSize;
+            DictId = dictId;
+            BlockChecksumFlag = blockChecksumFlag;
         }
     }
     #endregion
@@ -114,8 +124,7 @@ namespace Joveler.Compression.LZ4
         /// must be zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[3];
+        private readonly uint[] _reserved = new uint[3];
     }
     #endregion
 

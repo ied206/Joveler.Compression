@@ -49,12 +49,19 @@ namespace Joveler.Compression.LZ4.XXHash
         /// Returns result of xxhash in bytes (Big Endian).
         /// After getting the hash value, you cannot put more data until you call Reset().
         /// </summary>
-        public byte[] HashBytes => ConvertValueToBytes(HashValue);
-        public void GetHashBytes(Span<byte> destSpan)
+        public byte[] HashBytesLE => ConvertValueToBytesLE(HashValue);
+        public byte[] HashBytesBE => ConvertValueToBytesBE(HashValue);
+        public void GetHashBytesLE(Span<byte> destSpan)
         {
             if (destSpan.Length < _hashValueSize)
                 throw new ArgumentOutOfRangeException(nameof(destSpan));
-            ConvertValueToSpan(destSpan, HashValue);
+            ConvertValueToBytesLE(destSpan, HashValue);
+        }
+        public void GetHashBytesBE(Span<byte> destSpan)
+        {
+            if (destSpan.Length < _hashValueSize)
+                throw new ArgumentOutOfRangeException(nameof(destSpan));
+            ConvertValueToBytesBE(destSpan, HashValue);
         }
 
 
@@ -65,9 +72,12 @@ namespace Joveler.Compression.LZ4.XXHash
             _defaultSeed = defaultSeed;
         }
 
-        public abstract byte[] ConvertValueToBytes(T val);
-        public abstract void ConvertValueToSpan(Span<byte> dest, T val);
-        public abstract T ConvertBytesToValue(ReadOnlySpan<byte> span);
+        public abstract byte[] ConvertValueToBytesLE(T val);
+        public abstract byte[] ConvertValueToBytesBE(T val);
+        public abstract void ConvertValueToBytesLE(Span<byte> dest, T val);
+        public abstract void ConvertValueToBytesBE(Span<byte> dest, T val);
+        public abstract T ConvertValueFromBytesLE(ReadOnlySpan<byte> span);
+        public abstract T ConvertValueFromBytesBE(ReadOnlySpan<byte> span);
 
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -80,7 +90,7 @@ namespace Joveler.Compression.LZ4.XXHash
             Write(buffer.AsSpan(offset, count));
         }
 
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)

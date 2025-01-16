@@ -24,17 +24,19 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using System;
+
 namespace Joveler.Compression.LZ4.XXHash
 {
     public sealed class XXH32Algorithm : XXHashAlgorithmBase<uint>
     {
-        public XXH32Algorithm() : base(new XXH32Stream())
+        public XXH32Algorithm(XXHashBytesEndian endian) : base(endian, new XXH32Stream())
         {
         }
 
         public static new XXH32Algorithm Create()
         {
-            return new XXH32Algorithm();
+            return new XXH32Algorithm(BitConverter.IsLittleEndian ? XXHashBytesEndian.LittleEndian : XXHashBytesEndian.BigEndian);
         }
     }
 }
