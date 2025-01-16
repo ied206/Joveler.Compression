@@ -78,6 +78,7 @@ namespace Joveler.Compression.LZ4
             FrameCompressUpdate = GetFuncPtr<LZ4F_compressUpdate>(nameof(LZ4F_compressUpdate));
             FrameFlush = GetFuncPtr<LZ4F_flush>(nameof(LZ4F_flush));
             FrameCompressEnd = GetFuncPtr<LZ4F_compressEnd>(nameof(LZ4F_compressEnd));
+            FrameGetBlockSize = GetFuncPtr<LZ4F_getBlockSize>(nameof(LZ4F_getBlockSize));
             #endregion
 
             #region FrameDecompression
@@ -137,6 +138,7 @@ namespace Joveler.Compression.LZ4
             FrameCompressUpdate = null;
             FrameFlush = null;
             FrameCompressEnd = null;
+            FrameGetBlockSize = null;
             #endregion
 
             #region FrameDecompression
@@ -349,6 +351,10 @@ namespace Joveler.Compression.LZ4
             nuint dstCapacity, // size_t
             FrameCompressOptions cOptPtr);
         internal LZ4F_compressEnd? FrameCompressEnd;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate nuint LZ4F_getBlockSize(FrameBlockSizeId blockSizeId);
+        internal LZ4F_getBlockSize? FrameGetBlockSize;
         #endregion
 
         #region FrameDecompress

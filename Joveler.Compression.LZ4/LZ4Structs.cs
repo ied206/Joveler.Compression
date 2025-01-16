@@ -95,7 +95,7 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region (internal) struct FramePreferences
+    #region (internal) class FramePreferences
     /// <summary>
     /// makes it possible to supply detailed compression parameters to the stream interface.
     /// It's not required to set all fields, as long as the structure was initially memset() to zero.
@@ -128,7 +128,7 @@ namespace Joveler.Compression.LZ4
     }
     #endregion
 
-    #region (internal) struct FrameCompressOptions
+    #region (internal) class FrameCompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal class FrameCompressOptions
     {
@@ -140,12 +140,11 @@ namespace Joveler.Compression.LZ4
         /// must be zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[3] { 0, 0, 0 };
+        private readonly uint[] _reserved = [0, 0, 0];
     }
     #endregion
 
-    #region (internal) struct FrameDecompressOptions
+    #region (internal) class FrameDecompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal class FrameDecompressOptions
     {
@@ -163,8 +162,7 @@ namespace Joveler.Compression.LZ4
         /// must be set to zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = { 0, 0 };
+        private readonly uint[] _reserved = [0, 0];
     }
     #endregion
 

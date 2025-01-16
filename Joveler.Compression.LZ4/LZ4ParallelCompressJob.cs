@@ -35,7 +35,6 @@ namespace Joveler.Compression.LZ4
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
-        public bool IsEofBlock => Seq == EofBlockSeq;
 
         /// <summary>
         /// Acquired in the constructor, released in CompressThreadMain().
@@ -48,7 +47,6 @@ namespace Joveler.Compression.LZ4
         public PooledBuffer OutBuffer { get; }
 
         public int RawInputSize { get; set; } = 0;
-        public uint Checksum { get; set; } = 0;
 
         private bool _disposed = false;
 

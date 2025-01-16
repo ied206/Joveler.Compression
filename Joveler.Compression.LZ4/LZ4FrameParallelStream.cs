@@ -87,10 +87,6 @@ namespace Joveler.Compression.LZ4
         /// </remarks>
         public bool FavorDecSpeed { get; set; } = false;
         /// <summary>
-        /// Size of the internal buffer.
-        /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
-        /// <summary>
         /// The number of threads to use for parallel compression.
         /// </summary>
         public int Threads { get; set; } = 1;
@@ -213,8 +209,7 @@ namespace Joveler.Compression.LZ4
         //private readonly Task _writerTask;
 
         private IntPtr _mainCctx;
-        private FramePreferences _mainCompPrefs;
-        private FramePreferences _workCompPrefs;
+        private readonly FramePreferences _workCompPrefs;
         private readonly FrameCompressOptions _frameCompOpts = new FrameCompressOptions()
         {
             StableSrc = 0,
@@ -236,8 +231,6 @@ namespace Joveler.Compression.LZ4
         // Const
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
         internal const uint FrameVersion = 100;
-
-        internal const int DefaultChunkSize = 4 * 1024 * 1024;
         #endregion
 
         #region Constructor
@@ -264,9 +257,6 @@ namespace Joveler.Compression.LZ4
                 threadCount = Environment.ProcessorCount;
             _threads = threadCount;
 
-            _inBlockSize = CheckBufferSize(pcompOpts.BufferSize);
-            _outBlockSize = DefaultChunkSize;
-
             // Prepare cctx
             nuint ret = LZ4Init.Lib.CreateFrameCompressContext!(ref _mainCctx, FrameVersion);
             LZ4FrameException.CheckReturnValue(ret);
@@ -286,7 +276,7 @@ namespace Joveler.Compression.LZ4
                 FavorDecSpeed = pcompOpts.FavorDecSpeed ? 1u : 0u,
             };
 
-            _mainCompPrefs = new FramePreferences()
+            FramePreferences mainCompPrefs = new FramePreferences()
             { // Ignore pcompOpts.AutoFlush in parallel compress
                 FrameInfo = new FrameInfo(pcompOpts.BlockSizeId, pcompOpts.BlockMode, pcompOpts.ContentChecksumFlag,
                     pcompOpts.FrameType, pcompOpts.ContentSize, 0, pcompOpts.BlockChecksumFlag),
@@ -295,8 +285,12 @@ namespace Joveler.Compression.LZ4
                 FavorDecSpeed = pcompOpts.FavorDecSpeed ? 1u : 0u,
             };
 
-            // Query the minimum required size of compress buffer
-            // _bufferSize is the source size, frameSize is the (required) dest size
+            // Get block size of the compression config
+            nuint blockSizeVal = LZ4Init.Lib.FrameGetBlockSize!(pcompOpts.BlockSizeId);
+            LZ4FrameException.CheckReturnValue(blockSizeVal);
+            _inBlockSize = (int)blockSizeVal;
+
+            // Query the minimum required size of destination buffer
             nuint outBufferSizeVal = LZ4Init.Lib.FrameCompressBound!((nuint)_inBlockSize, _workCompPrefs);
             Debug.Assert(outBufferSizeVal <= int.MaxValue);
             _outBlockSize = (int)outBufferSizeVal;
@@ -308,7 +302,7 @@ namespace Joveler.Compression.LZ4
             _usePrefix = _workCompPrefs.FrameInfo.BlockMode == FrameBlockMode.BlockLinked;
 
             // Write the frame header
-            WriteHeader(_mainCompPrefs);
+            WriteHeader(mainCompPrefs);
 
             // Launch CompressTask, WriterTask
             _compWorkChunk = new TransformBlock<LZ4ParallelCompressJob, LZ4ParallelCompressJob>(CompressProc, new ExecutionDataflowBlockOptions()
@@ -889,13 +883,6 @@ namespace Joveler.Compression.LZ4
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (buffer.Length - offset < count)
                 throw new ArgumentOutOfRangeException(nameof(count));
-        }
-
-        private static int CheckBufferSize(int bufferSize)
-        {
-            if (bufferSize < 0)
-                throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, DefaultChunkSize);
         }
         #endregion
     }

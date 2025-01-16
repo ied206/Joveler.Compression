@@ -92,10 +92,6 @@ namespace Joveler.Compression.LZ4
         /// Default buffer size for internal buffer, to be used in single-threaded operation.
         /// </summary>
         internal const int DefaultBufferSize = LZ4FrameSerialStream.DefaultBufferSize;
-        /// <summary>
-        /// Default block size for parallel compress operation.
-        /// </summary>
-        internal const int DefaultChunkSize = LZ4FrameParallelStream.DefaultChunkSize;
         #endregion
 
         #region Constructor

@@ -38,36 +38,35 @@ namespace Joveler.Compression.LZ4.Tests
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, -1, true, false, false);
-            CompressTemplate("B.txt", LZ4CompLevel.High, -1, true, true, false);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, -1, false, false, false);
-        }
-
-        [TestMethod]
-        public void CompressSpan()
-        {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, -1, true, false, true);
-            CompressTemplate("B.txt", LZ4CompLevel.High, -1, true, true, true);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, -1, false, false, true);
+            foreach (bool useSpan in new bool[] { true, false })
+            {
+                foreach (bool enableContentSize in new bool[] { true, false })
+                {
+                    foreach (bool autoFlush in new bool[] { true, false })
+                    {
+                        CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, -1, autoFlush, enableContentSize, useSpan);
+                        CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, -1, autoFlush, enableContentSize, useSpan);
+                        CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, -1, autoFlush, enableContentSize, useSpan);
+                    }
+                }
+            }           
         }
 
         [TestMethod]
         public void CompressParallel()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, 1, true, false, false);
-            CompressTemplate("B.txt", LZ4CompLevel.High, 2, true, true, false);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, 3, false, false, false);
+            foreach (bool useSpan in new bool[] { true, false })
+            {
+                foreach (bool enableContentSize in new bool[] { true, false })
+                {
+                    CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, 1, false, enableContentSize, useSpan);
+                    CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, 2, false, enableContentSize, useSpan);
+                    CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, 3, false, enableContentSize, useSpan);
+                }
+            }           
         }
 
-        [TestMethod]
-        public void CompressParallelSpan()
-        {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, 1, true, false, true);
-            CompressTemplate("B.txt", LZ4CompLevel.High, 2, true, true, true);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, 3, false, false, true);
-        }
-
-        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, int threads, bool autoFlush, bool enableContentSize, bool useSpan)
+        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, FrameBlockSizeId blockSizeId, int threads, bool autoFlush, bool enableContentSize, bool useSpan)
         {
             if (sampleFileName == null)
                 throw new ArgumentNullException(nameof(sampleFileName));
@@ -92,6 +91,7 @@ namespace Joveler.Compression.LZ4.Tests
                         {
                             Level = compLevel,
                             AutoFlush = autoFlush,
+                            BlockSizeId = blockSizeId,
                             LeaveOpen = true,
                         };
                         if (enableContentSize)
@@ -105,6 +105,7 @@ namespace Joveler.Compression.LZ4.Tests
                         {
                             Level = compLevel,
                             LeaveOpen = true,
+                            BlockSizeId = blockSizeId,
                             Threads = threads
                         };
                         if (enableContentSize)
