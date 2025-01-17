@@ -29,8 +29,6 @@ using System.Diagnostics;
 
 namespace Joveler.Compression.LZ4
 {
-    // // https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/how-to-implement-a-producer-consumer-dataflow-pattern
-
     internal sealed class LZ4ParallelCompressJob : IDisposable, IEquatable<LZ4ParallelCompressJob>, IComparable<LZ4ParallelCompressJob>
     {
         public long Seq { get; }
@@ -43,31 +41,22 @@ namespace Joveler.Compression.LZ4
         /// <summary>
         /// Acquired in the EnqueueInputData(), released in CompressThreadMain().
         /// </summary>
-        public ReferableBuffer? PrefixBuffer { get; }
+        public ReferableBuffer? DictBuffer { get; }
         public PooledBuffer OutBuffer { get; }
 
-        public int RawInputSize { get; set; } = 0;
 
         private bool _disposed = false;
 
         public const int DictWindowSize = 64 * 1024;
 
-        /// <summary>
-        /// Seq of -1 means the eof block.
-        /// WorkerThreads will terminate when receiving the eof block.
-        /// </summary>
-        /// <remarks>
-        /// N * NormalJob -> FinalJob -> Threads * EofJob
-        /// </remarks>
-        public const int EofBlockSeq = -1;
-        public const int WaitSeqInit = -2;
+        public const int WaitSeqInit = -1;
 
         /// <summary>
         /// Create an first/normal/final job which contains two block of input, one being the current data and another as a dictionary (last input).
         /// Most of the jobs are a normal job.
         /// </summary>
         /// <remarks>
-        /// FirstJob -> N * NormalJob -> FinalJob -> Threads * EofJob
+        /// FirstJob -> N * NormalJob -> FinalJob
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
@@ -85,13 +74,13 @@ namespace Joveler.Compression.LZ4
             Debug.Assert(inBufferSize <= outBufferSize);
 
             InBuffer = new ReferableBuffer(pool, inBufferSize);
-            PrefixBuffer = dictBuffer;
+            DictBuffer = dictBuffer;
             OutBuffer = new PooledBuffer(pool, outBufferSize);
 
-            Debug.Assert(Seq == 0 && dictBuffer == null || Seq != 0 && PrefixBuffer != null && !PrefixBuffer.Disposed);
+            Debug.Assert(Seq == 0 && dictBuffer == null || Seq != 0 && DictBuffer != null && !DictBuffer.Disposed);
 
             InBuffer.AcquireRef();
-            PrefixBuffer?.AcquireRef();
+            DictBuffer?.AcquireRef();
         }
 
         /// <summary>
@@ -107,7 +96,7 @@ namespace Joveler.Compression.LZ4
             Seq = seqNum;
 
             InBuffer = new ReferableBuffer(pool);
-            PrefixBuffer = null;
+            DictBuffer = null;
             OutBuffer = new PooledBuffer(pool);
 
             InBuffer.AcquireRef();
@@ -136,7 +125,7 @@ namespace Joveler.Compression.LZ4
 
             // Dispose unmanaged resources, and set large fields to null.
             InBuffer.ReleaseRef(); // ReleaseRef calls Dispose when necessary
-            PrefixBuffer?.ReleaseRef(); // ReleaseRef calls Dispose when necessary
+            DictBuffer?.ReleaseRef(); // ReleaseRef calls Dispose when necessary
             OutBuffer.Dispose();
 
             _disposed = true;
@@ -176,7 +165,9 @@ namespace Joveler.Compression.LZ4
 
         public override string ToString()
         {
-            return $"[JOB #{Seq,3}] [F={(Seq == 0 ? "F" : " ")}{(IsLastBlock ? "L" : " ")}]: in=[{InBuffer}] prefix=[{PrefixBuffer}] out=[{OutBuffer}]";
+            char isFirstFlag = Seq == 0 ? 'F' : ' ';
+            char isLastFlag = IsLastBlock ? 'L' : ' ';
+            return $"[JOB #{Seq,3}] f({isFirstFlag}{isLastFlag}): in={InBuffer} dict={DictBuffer?.ToString() ?? "null"} out={OutBuffer}";
         }
 
         public override bool Equals(object? obj)

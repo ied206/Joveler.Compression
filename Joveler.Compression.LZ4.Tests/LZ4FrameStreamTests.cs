@@ -62,8 +62,10 @@ namespace Joveler.Compression.LZ4.Tests
                     CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, 1, false, enableContentSize, useSpan);
                     CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, 2, false, enableContentSize, useSpan);
                     CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, 3, false, enableContentSize, useSpan);
+                    // Stress test
+                    CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max64KB, Environment.ProcessorCount + 4, false, enableContentSize, useSpan);
                 }
-            }           
+            }
         }
 
         private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, FrameBlockSizeId blockSizeId, int threads, bool autoFlush, bool enableContentSize, bool useSpan)
@@ -142,6 +144,8 @@ namespace Joveler.Compression.LZ4.Tests
                     Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
                 }
 
+                Directory.CreateDirectory("C:\\Joveler\\lz4");
+                File.Copy(tempLz4File, $"C:\\Joveler\\lz4\\{Path.GetFileName(tempLz4File)}", true);
                 Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
 
                 byte[] decompDigest;

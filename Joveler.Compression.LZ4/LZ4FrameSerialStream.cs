@@ -530,12 +530,26 @@ namespace Joveler.Compression.LZ4
         }
 
         /// <inheritdoc />
-        public override void Flush()
+        public override unsafe void Flush()
         {
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
+
+            nuint outSizeVal;
+            fixed (byte* dest = _workBuf)
+            {
+                outSizeVal = LZ4Init.Lib.FrameCompressEnd!(_cctx, dest, _destBufSize, _compOpts);
+            }
+            LZ4FrameException.CheckReturnValue(outSizeVal);
+
+            Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
+            int outSize = (int)outSizeVal;
+
+            if (0 < outSize)
+                BaseStream.Write(_workBuf, 0, outSize);
+            TotalOut += outSize;
 
             BaseStream.Flush();
         }
@@ -606,7 +620,7 @@ namespace Joveler.Compression.LZ4
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 4096);
+            return Math.Max(bufferSize, 64 * 1024);
         }
         #endregion
     }

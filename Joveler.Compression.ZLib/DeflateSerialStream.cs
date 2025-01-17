@@ -273,7 +273,7 @@ namespace Joveler.Compression.ZLib
                 {
                     if (_zs.AvailIn == 0)
                     { // Compressed Data is no longer available in array, so read more from _stream
-                        int baseReadSize = BaseStream.Read(_workBuffer.Buf, 0, _workBuffer.Size);
+                        int baseReadSize = BaseStream.Read(_workBuffer.Buf, 0, _workBuffer.Capacity);
 
                         _workBuffer.DataEndIdx = 0;
                         _zs.NextIn = readPtr;
@@ -337,7 +337,7 @@ namespace Joveler.Compression.ZLib
                 _zs.NextIn = readPtr;
                 _zs.AvailIn = (uint)span.Length;
                 _zs.NextOut = writePtr + _workBuffer.DataEndIdx;
-                _zs.AvailOut = (uint)(_workBuffer.Size - _workBuffer.DataEndIdx);
+                _zs.AvailOut = (uint)(_workBuffer.Capacity - _workBuffer.DataEndIdx);
 
                 while (0 < _zs.AvailIn)
                 {
@@ -347,12 +347,12 @@ namespace Joveler.Compression.ZLib
 
                     if (_zs.AvailOut == 0)
                     {
-                        BaseStream.Write(_workBuffer.Buf, 0, _workBuffer.Size);
-                        TotalOut += _workBuffer.Size;
+                        BaseStream.Write(_workBuffer.Buf, 0, _workBuffer.Capacity);
+                        TotalOut += _workBuffer.Capacity;
 
                         _workBuffer.Clear();
                         _zs.NextOut = writePtr;
-                        _zs.AvailOut = (uint)_workBuffer.Size;
+                        _zs.AvailOut = (uint)_workBuffer.Capacity;
                     }
 
                     ZLibException.CheckReturnValue(ret, _zs);
@@ -370,7 +370,7 @@ namespace Joveler.Compression.ZLib
                 _zs.NextIn = (byte*)0;
                 _zs.AvailIn = 0;
                 _zs.NextOut = writePtr + _workBuffer.DataEndIdx;
-                _zs.AvailOut = (uint)(_workBuffer.Size - _workBuffer.DataEndIdx);
+                _zs.AvailOut = (uint)(_workBuffer.Capacity - _workBuffer.DataEndIdx);
 
                 ZLibRet ret = ZLibRet.Ok;
                 while (ret != ZLibRet.StreamEnd)
@@ -390,7 +390,7 @@ namespace Joveler.Compression.ZLib
 
                     _workBuffer.Clear();
                     _zs.NextOut = writePtr;
-                    _zs.AvailOut = (uint)_workBuffer.Size;
+                    _zs.AvailOut = (uint)_workBuffer.Capacity;
                 }
             }
         }
@@ -415,7 +415,7 @@ namespace Joveler.Compression.ZLib
                 do
                 {
                     _zs.NextOut = writePtr + _workBuffer.DataEndIdx;
-                    _zs.AvailOut = (uint)(_workBuffer.Size - _workBuffer.DataEndIdx);
+                    _zs.AvailOut = (uint)(_workBuffer.Capacity - _workBuffer.DataEndIdx);
 
                     uint outCount = _zs.AvailOut;
                     ZLibRet ret = ZLibInit.Lib.NativeAbi.Deflate(_zs, ZLibFlush.PartialFlush);

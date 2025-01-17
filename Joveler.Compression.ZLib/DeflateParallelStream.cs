@@ -430,7 +430,6 @@ namespace Joveler.Compression.ZLib
                 job.IsLastBlock = true;
 
             job.InBuffer.Write(_inputBuffer.ReadablePortionSpan, true);
-            job.RawInputSize = job.InBuffer.DataEndIdx;
 
             // Prepare next dictionary buffer (pass for final block)
             if (isFinal)
@@ -761,7 +760,6 @@ namespace Joveler.Compression.ZLib
                                 {
                                     Debug.Assert(!job.InBuffer.Disposed);
                                     Debug.Assert(job.InBuffer.DataStartIdx == 0);
-                                    Debug.Assert(job.InBuffer.DataEndIdx == job.RawInputSize);
 
                                     _blockChecksum.Reset();
                                     job.Checksum = _blockChecksum.Append(job.InBuffer.Buf, 0, job.InBuffer.DataEndIdx);
@@ -813,7 +811,7 @@ namespace Joveler.Compression.ZLib
                                 Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
 #endif
 
-                                Debug.Assert(bytesRead == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
+                                Debug.Assert(bytesRead == job.InBuffer.DataEndIdx);
 
                                 // [Stage 12] Insert compressed data to linked list
                                 _owner.EnqueueOutList(job);
@@ -868,7 +866,7 @@ namespace Joveler.Compression.ZLib
                         // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
                         { // Expand the outBuffer if the buffer is full.
-                            int newSize = ZLibParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            int newSize = ZLibParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Capacity);
                             if (!job.OutBuffer.Expand(newSize))
                                 throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
@@ -876,7 +874,7 @@ namespace Joveler.Compression.ZLib
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
                         {
                             _zs.NextOut = outBufPtr + job.OutBuffer.DataEndIdx;
-                            _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.DataEndIdx);
+                            _zs.AvailOut = (uint)(job.OutBuffer.Capacity - job.OutBuffer.DataEndIdx);
 
                             uint beforeAvailIn = _zs.AvailIn;
                             uint beforeAvailOut = _zs.AvailOut;
@@ -922,7 +920,7 @@ namespace Joveler.Compression.ZLib
                         // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
                         { // Expand the outBuffer if the buffer is full.
-                            int newSize = ZLibParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            int newSize = ZLibParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Capacity);
                             if (!job.OutBuffer.Expand(newSize))
                                 throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
@@ -930,7 +928,7 @@ namespace Joveler.Compression.ZLib
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
                         {
                             _zs.NextOut = outBufPtr + job.OutBuffer.DataEndIdx;
-                            _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.DataEndIdx);
+                            _zs.AvailOut = (uint)(job.OutBuffer.Capacity - job.OutBuffer.DataEndIdx);
 
                             uint beforeAvailIn = _zs.AvailIn;
                             uint beforeAvailOut = _zs.AvailOut;
@@ -1064,12 +1062,12 @@ namespace Joveler.Compression.ZLib
 #endif
 
                                 // Increase TotalIn & TotalOut
-                                _owner.AddTotalIn(job.RawInputSize);
+                                _owner.AddTotalIn(job.InBuffer.DataEndIdx);
                                 _owner.AddTotalOut(job.OutBuffer.ReadableSize);
 
                                 // Combine the checksum (if necessary)
-                                if (0 < job.RawInputSize && _writeChecksum != null)
-                                    _writeChecksum.Combine(job.Checksum, job.RawInputSize);
+                                if (0 < job.InBuffer.DataEndIdx && _writeChecksum != null)
+                                    _writeChecksum.Combine(job.Checksum, job.InBuffer.DataEndIdx);
 
                                 // In case of last block, we need to write a trailer, too.
                                 if (job.IsLastBlock)

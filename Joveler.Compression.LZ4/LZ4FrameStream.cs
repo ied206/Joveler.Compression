@@ -329,14 +329,6 @@ namespace Joveler.Compression.LZ4
             if (buffer.Length - offset < count)
                 throw new ArgumentOutOfRangeException(nameof(count));
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int CheckBufferSize(int bufferSize)
-        {
-            if (bufferSize < 0)
-                throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 4096);
-        }
         #endregion
     }
     #endregion

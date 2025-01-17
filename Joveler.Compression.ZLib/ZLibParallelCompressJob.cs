@@ -24,6 +24,7 @@
 using Joveler.Compression.ZLib.Buffer;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Joveler.Compression.ZLib
@@ -31,7 +32,7 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compresses zlib-related stream format in parallel.
     /// </summary>
-    internal sealed class ZLibParallelCompressJob : IDisposable
+    internal sealed class ZLibParallelCompressJob : IDisposable, IEquatable<ZLibParallelCompressJob>, IComparable<ZLibParallelCompressJob>
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
@@ -47,7 +48,6 @@ namespace Joveler.Compression.ZLib
         public ReferableBuffer? DictBuffer { get; }
         public PooledBuffer OutBuffer { get; }
 
-        public int RawInputSize { get; set; } = 0;
         public uint Checksum { get; set; } = 0;
 
         private bool _disposed = false;
@@ -174,6 +174,69 @@ namespace Joveler.Compression.ZLib
                 return int.MaxValue;
 
             return (int)newVal;
+        }
+
+        public override string ToString()
+        {
+            char isFirstFlag = Seq == 0 ? 'F' : ' ';
+            char isLastFlag = IsLastBlock ? 'L' : ' ';
+            return $"[JOB #{Seq,3}] f({isFirstFlag}{isLastFlag}): in={InBuffer} dict={DictBuffer?.ToString() ?? "null"} out={OutBuffer}";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not ZLibParallelCompressJob other)
+                return false;
+            return Equals(other);
+        }
+
+        public bool Equals(ZLibParallelCompressJob? other)
+        {
+            if (other == null)
+                return false;
+
+            return Seq == other.Seq;
+        }
+
+        public int CompareTo(ZLibParallelCompressJob? other)
+        {
+            if (other == null)
+                throw new ArgumentNullException(nameof(other));
+
+            return Seq.CompareTo(other.Seq);
+        }
+
+        public override int GetHashCode()
+        {
+            return Seq.GetHashCode();
+        }
+    }
+
+    internal sealed class ZLibParallelCompressJobComparator : IComparer<ZLibParallelCompressJob>, IEqualityComparer<ZLibParallelCompressJob>
+    {
+        public int Compare(ZLibParallelCompressJob? x, ZLibParallelCompressJob? y)
+        {
+            if (x == null)
+                throw new ArgumentNullException(nameof(x));
+            if (y == null)
+                throw new ArgumentNullException(nameof(x));
+
+            return x.CompareTo(y);
+        }
+
+        public bool Equals(ZLibParallelCompressJob? x, ZLibParallelCompressJob? y)
+        {
+            if (x == null)
+                return y == null;
+            if (y == null)
+                return false;
+
+            return x.Equals(y);
+        }
+
+        public int GetHashCode(ZLibParallelCompressJob obj)
+        {
+            return obj.GetHashCode();
         }
     }
 }

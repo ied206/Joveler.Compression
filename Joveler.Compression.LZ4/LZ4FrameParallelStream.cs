@@ -35,7 +35,6 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
@@ -115,61 +114,12 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
     }
-
-    /// <summary>
-    /// Decompress options for LZ4FrameStream
-    /// </summary>
-    public sealed class LZ4FrameParallelDecompressOptions
-    {
-        /// <summary>
-        /// disable checksum calculation and verification, even when one is present in frame, to save CPU time.
-        /// Setting this option to 1 once disables all checksums for the rest of the frame.
-        /// </summary>
-        public bool SkipChecksums { get; set; } = false;
-        /// <summary>
-        /// Size of the internal buffer.
-        /// </summary>
-        public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
-        /// <summary>
-        /// <para>Control timeout to allow Write() to return early.<br/>
-        /// In parallel compression, Write() may block until the data is compressed.
-        /// </para>
-        /// <para>
-        /// Set to 0 to return immdiately after queueing the input data.<br/>
-        /// Compression and writing to the BaseStream will be done in background.
-        /// </para>
-        /// <para>
-        /// Set to null to block until all of the compressed data is written to the BaseStream.
-        /// </para>
-        /// </summary>
-        /// <remarks>
-        /// Timeout value is kept as best effort, and it may block longer time.
-        /// </remarks>
-        public TimeSpan? WriteTimeout { get; set; } = null;
-        /// <summary>
-        /// Buffer pool to use for internal buffers.
-        /// </summary>
-        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
-    }
     #endregion
 
     #region LZ4FrameParallelStream
     public sealed class LZ4FrameParallelStream : Stream
     {
-        #region enum Mode
-        private enum Mode
-        {
-            Compress,
-            Decompress,
-        }
-        #endregion
-
         #region Fields and Properties
-        private readonly Mode _mode;
         private readonly TimeSpan? _writeTimeout;
         private readonly int _threads;
         private readonly bool _leaveOpen;
@@ -196,31 +146,20 @@ namespace Joveler.Compression.LZ4
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
         private readonly ReferableBuffer _inputBuffer;
-        private readonly PooledBuffer _outputBuffer;
 
-        private readonly bool _usePrefix;
-        private ReferableBuffer? _nextPrefixBuffer;
+        private readonly bool _isBlockLinked;
+        private ReferableBuffer? _nextDictBuffer;
 
         private readonly bool _calcChecksum;
         private XXH32Stream? _xxh32;
 
         private readonly CancellationTokenSource _abortTokenSrc = new CancellationTokenSource();
-        //private readonly Task[] _compressTasks;
-        //private readonly Task _writerTask;
 
         private IntPtr _mainCctx;
         private readonly FramePreferences _workCompPrefs;
         private readonly FrameCompressOptions _frameCompOpts = new FrameCompressOptions()
         {
             StableSrc = 0,
-        };
-
-        // Decompress
-        private IntPtr _mainDctx;
-        private readonly FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
-        {
-            StableDst = 0,
-            SkipChecksums = 0,
         };
 
         // Property
@@ -245,7 +184,6 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException(nameof(LZ4Init));
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _mode = Mode.Compress;
             _disposed = false;
             _writeTimeout = pcompOpts.WriteTimeout;
             _leaveOpen = pcompOpts.LeaveOpen;
@@ -298,8 +236,7 @@ namespace Joveler.Compression.LZ4
             // Allocate input buffer
             _pool = pcompOpts.BufferPool ?? ArrayPool<byte>.Shared;
             _inputBuffer = new ReferableBuffer(_pool, _inBlockSize);
-            _outputBuffer = new PooledBuffer(_pool, _outBlockSize);
-            _usePrefix = _workCompPrefs.FrameInfo.BlockMode == FrameBlockMode.BlockLinked;
+            _isBlockLinked = _workCompPrefs.FrameInfo.BlockMode == FrameBlockMode.BlockLinked;
 
             // Write the frame header
             WriteHeader(mainCompPrefs);
@@ -310,7 +247,7 @@ namespace Joveler.Compression.LZ4
                 CancellationToken = _abortTokenSrc.Token,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = _threads,
-                SingleProducerConstrained = true,
+                SingleProducerConstrained = false,
             });
 
             _compSortChunk = new LZ4SortedBufferBlock(_abortTokenSrc);
@@ -320,7 +257,7 @@ namespace Joveler.Compression.LZ4
                 CancellationToken = _abortTokenSrc.Token,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = 1,
-                SingleProducerConstrained = true
+                SingleProducerConstrained = false
             });
 
             DataflowLinkOptions linkOptions = new DataflowLinkOptions
@@ -332,23 +269,6 @@ namespace Joveler.Compression.LZ4
             _compWorkChunk.LinkTo(_compSortChunk, linkOptions);
             _compSortChunk.LinkTo(_compWriteChunk, linkOptions);
         }
-
-        /// <summary>
-        /// Create decompressing LZ4FrameStream.
-        /// </summary>
-        public unsafe LZ4FrameParallelStream(Stream baseStream, LZ4FrameParallelDecompressOptions decompOpts)
-        {
-            LZ4Init.Manager.EnsureLoaded();
-
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-
-            BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _mode = Mode.Decompress;
-            _disposed = false;
-
-            throw new NotImplementedException();
-        }
         #endregion
 
         #region Disposable Pattern
@@ -359,7 +279,7 @@ namespace Joveler.Compression.LZ4
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!_disposed)
             {
                 if (disposing)
                 { // Dispose managed state.
@@ -380,23 +300,18 @@ namespace Joveler.Compression.LZ4
                     _mainCctx = IntPtr.Zero;
                 }
 
-                if (_mainDctx != IntPtr.Zero)
-                {
-                    nuint ret = LZ4Init.Lib.FreeFrameDecompressContext!(_mainDctx);
-                    LZ4FrameException.CheckReturnValue(ret);
-
-                    _mainDctx = IntPtr.Zero;
-                }
-
                 if (_xxh32 != null)
                 {
                     _xxh32.Dispose();
                     _xxh32 = null;
                 }
 
-                _nextPrefixBuffer?.Dispose();
+                if (_nextDictBuffer != null)
+                {
+                    _nextDictBuffer.Dispose();
+                    _nextDictBuffer = null;
+                }
                 _inputBuffer.Dispose();
-                _outputBuffer.Dispose();
 
                 _abortTokenSrc.Dispose();
 
@@ -417,16 +332,7 @@ namespace Joveler.Compression.LZ4
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            CheckReadWriteArgs(buffer, offset, count);
-            if (count == 0)
-                return 0;
-
-            Span<byte> span = buffer.AsSpan(offset, count);
-            return Read(span);
+            throw new NotSupportedException("Read() not supported on compression.");
         }
 
         /// <inheritdoc />
@@ -436,22 +342,13 @@ namespace Joveler.Compression.LZ4
         public unsafe int Read(Span<byte> span)
 #endif
         {
-            if (_mode != Mode.Decompress)
-                throw new NotSupportedException("Read() not supported on compression");
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException(nameof(LZ4FrameStream));
-
-            throw new NotImplementedException();
+            throw new NotSupportedException("Read() not supported on compression.");
         }
 
         /// <inheritdoc />
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
-            CheckReadWriteArgs(buffer, offset, count);
+            LZ4FrameStream.CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return;
 
@@ -466,8 +363,6 @@ namespace Joveler.Compression.LZ4
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            if (_mode != Mode.Compress)
-                throw new NotSupportedException("Write() not supported on decompression");
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
@@ -508,13 +403,13 @@ namespace Joveler.Compression.LZ4
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
 
-            Debug.Assert(_inSeq == 0 && _nextPrefixBuffer == null ||
-                _inSeq != 0 && _nextPrefixBuffer != null && !_nextPrefixBuffer.Disposed);
+            Debug.Assert(_inSeq == 0 && _nextDictBuffer == null ||
+                _inSeq != 0 && _nextDictBuffer != null && !_nextDictBuffer.Disposed);
 
             _finalEnqueued |= isFinal;
 
             // _refCount of job.InBuffer and _nextDictBuffer is increased in constructor call.
-            LZ4ParallelCompressJob job = new LZ4ParallelCompressJob(_pool, _inSeq, _inBlockSize, _nextPrefixBuffer, _outBlockSize);
+            LZ4ParallelCompressJob job = new LZ4ParallelCompressJob(_pool, _inSeq, _inBlockSize, _nextDictBuffer, _outBlockSize);
             _inSeq += 1;
 
             if (isFinal)
@@ -523,23 +418,22 @@ namespace Joveler.Compression.LZ4
             // Calculate xxh32
             _xxh32?.Write(_inputBuffer.ReadablePortionSpan);
             job.InBuffer.Write(_inputBuffer.ReadablePortionSpan, true);
-            job.RawInputSize = job.InBuffer.DataEndIdx;
 
             // Prepare next dictionary buffer (pass for final block)
-            if (_usePrefix)
+            if (_isBlockLinked)
             {
                 if (isFinal)
                 {
-                    _nextPrefixBuffer = null; // No longer required
+                    _nextDictBuffer = null; // No longer required
                 }
                 else if (LZ4ParallelCompressJob.DictWindowSize <= job.InBuffer.ReadableSize)
                 {
-                    _nextPrefixBuffer = job.InBuffer.AcquireRef();
+                    _nextDictBuffer = job.InBuffer.AcquireRef();
                 }
                 else
                 { // next input is less than 64K -> retain last 64K
                     ReferableBuffer copyPrefixBuffer = new ReferableBuffer(_pool, LZ4ParallelCompressJob.DictWindowSize);
-                    if (_nextPrefixBuffer == null)
+                    if (_nextDictBuffer == null)
                     { // First block, but the input is less than 64K -> copy the full input
                         copyPrefixBuffer.Write(job.InBuffer.ReadablePortionSpan);
                     }
@@ -547,35 +441,29 @@ namespace Joveler.Compression.LZ4
                     { // Normal block, source 64K from the previous input + current input
                         // DO NOT USE _nextPrefixBuffer.DataStartIdx! It may be changed anytime because the buffer is shared.
                         int copyLastDictSize = LZ4ParallelCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
-                        ReadOnlySpan<byte> lastDictSpan = _nextPrefixBuffer.Buf.AsSpan(_nextPrefixBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                        ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.Buf.AsSpan(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
                         copyPrefixBuffer.Write(lastDictSpan);
 
                         // Release previous ref of the _nextDictBuffer.
-                        _nextPrefixBuffer.ReleaseRef();
+                        _nextDictBuffer.ReleaseRef();
 
-                        // Copy current input, acheiving full 32K.
+                        // Copy current input, acheiving full 64K.
                         copyPrefixBuffer.Write(job.InBuffer.ReadablePortionSpan);
 
                         Debug.Assert(copyPrefixBuffer.DataEndIdx == LZ4ParallelCompressJob.DictWindowSize);
                     }
-                    _nextPrefixBuffer = copyPrefixBuffer.AcquireRef();
+                    _nextDictBuffer = copyPrefixBuffer.AcquireRef();
                 }
             }
 
             _inputBuffer.Clear();
             CompressChunkTarget.Post(job);
         }
-
-        private void EnqueueInputEof()
-        {
-            CompressChunkTarget.Complete();
-        }
         #endregion
 
         #region MainThread - Flush, Abort, FinishWrite
         private unsafe void FinishWrite()
         {
-            Debug.Assert(_mode == Mode.Compress, "FinishWrite() cannot be called in decompression");
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
@@ -600,24 +488,12 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
-            if (_mode == Mode.Compress)
-            {
-                _outputBuffer.Clear();
+            // LZ4 parallel compression always auto-flush the output.
+            // No need to call LZ4F_flush() here.
 
-                nuint ret;
-                fixed (byte* outPtr = _outputBuffer.Buf)
-                {
-                    ret = LZ4Init.Lib.FrameFlush!(_mainCctx, outPtr, (nuint)_outputBuffer.Capacity, _frameCompOpts);
-                }
-                LZ4FrameException.CheckReturnValue(ret);
+            EnqueueInputBuffer(false);
 
-                int outSize = (int)ret;
-                if (0 < outSize)
-                    BaseStream.Write(_outputBuffer.Buf, 0, outSize);
-
-                _outputBuffer.Clear();
-            }
-            BaseStream.Flush();
+            WaitWriteJobComplete(_inSeq, null);
         }
 
         public void Abort()
@@ -653,55 +529,58 @@ namespace Joveler.Compression.LZ4
             IntPtr compCctx = IntPtr.Zero;
             try
             {
-                // Prepare cctx
-                nuint ret = LZ4Init.Lib.CreateFrameCompressContext!(ref compCctx, LZ4FrameStream.FrameVersion);
-                LZ4FrameException.CheckReturnValue(ret);
-
-                // Init and nullify frame header
-                // - Do not increase job.OutBuffer.DataEndIdx
-                if (job.PrefixBuffer == null)
-                { // First job
-                    nuint headerSizeVal;
-                    fixed (byte* outPtr = job.OutBuffer.Buf)
-                    {
-                        headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, _workCompPrefs);
-                    }
-                    LZ4FrameException.CheckReturnValue(headerSizeVal);
-                    Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
-                }
-                else
-                { // Put previous 64KB as a prefix
-                    int prefixSize = Math.Min(job.PrefixBuffer.DataEndIdx, LZ4ParallelCompressJob.DictWindowSize);
-                    int prefixStartPos = job.PrefixBuffer.DataEndIdx - prefixSize;
-
-                    nuint headerSizeVal;
-                    fixed (byte* outPtr = job.OutBuffer.Buf)
-                    fixed (byte* prefixPtr = job.PrefixBuffer.Buf)
-                    {
-                        headerSizeVal = LZ4Init.Lib.FrameCompressBeginUsingDict!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, prefixPtr + prefixStartPos, (nuint)prefixSize, _workCompPrefs);
-                    }
-                    LZ4FrameException.CheckReturnValue(headerSizeVal);
-                    Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
-                }
-
-                // Compress actual data
-                nuint outSizeVal;
-                fixed (byte* inPtr = job.InBuffer.Buf)
-                fixed (byte* outPtr = job.OutBuffer.Buf)
+                if (0 < job.InBuffer.ReadableSize)
                 {
-                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, inPtr, (nuint)job.InBuffer.ReadableSize, _frameCompOpts);
+                    // Prepare cctx
+                    nuint ret = LZ4Init.Lib.CreateFrameCompressContext!(ref compCctx, LZ4FrameStream.FrameVersion);
+                    LZ4FrameException.CheckReturnValue(ret);
+
+                    // Init and nullify frame header
+                    // - Do not increase job.OutBuffer.DataEndIdx
+                    if (job.DictBuffer == null)
+                    { // First job
+                        nuint headerSizeVal;
+                        fixed (byte* outPtr = job.OutBuffer.Buf)
+                        {
+                            headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, _workCompPrefs);
+                        }
+                        LZ4FrameException.CheckReturnValue(headerSizeVal);
+                        Debug.Assert(0 <= headerSizeVal && headerSizeVal <= int.MaxValue);
+                    }
+                    else
+                    { // Put previous 64KB as a dictionary
+                        int dictSize = Math.Min(job.DictBuffer.DataEndIdx, LZ4ParallelCompressJob.DictWindowSize);
+                        int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
+
+                        nuint headerSizeVal;
+                        fixed (byte* outPtr = job.OutBuffer.Buf)
+                        fixed (byte* dictPtr = job.DictBuffer.Buf)
+                        {
+                            headerSizeVal = LZ4Init.Lib.FrameCompressBeginUsingDict!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, dictPtr + dictStartPos, (nuint)dictSize, _workCompPrefs);
+                        }
+                        LZ4FrameException.CheckReturnValue(headerSizeVal);
+                        Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
+                    }
+
+                    // Compress actual data
+                    nuint outSizeVal;
+                    fixed (byte* inPtr = job.InBuffer.Buf)
+                    fixed (byte* outPtr = job.OutBuffer.Buf)
+                    {
+                        outSizeVal = LZ4Init.Lib.FrameCompressUpdate!(compCctx, outPtr, (nuint)job.OutBuffer.Capacity, inPtr, (nuint)job.InBuffer.DataEndIdx, _frameCompOpts);
+                    }
+                    LZ4FrameException.CheckReturnValue(outSizeVal);
+
+                    Debug.Assert(outSizeVal <= int.MaxValue, "BufferSize should be <=2GB");
+                    job.OutBuffer.DataEndIdx += (int)outSizeVal;
                 }
-                LZ4FrameException.CheckReturnValue(outSizeVal);
-
-                Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
-                job.OutBuffer.DataEndIdx += (int)outSizeVal;
-
-                if (job.IsLastBlock)
-                    _compWorkChunk.Complete();
             }
             finally
             {
-                job.PrefixBuffer?.ReleaseRef();
+                if (job.IsLastBlock)
+                    _compWorkChunk.Complete();
+
+                job.DictBuffer?.ReleaseRef();
 
                 if (compCctx != IntPtr.Zero)
                 {
@@ -738,8 +617,8 @@ namespace Joveler.Compression.LZ4
 #endif
 
                 // Increase TotalIn & TotalOut
-                TotalIn += job.RawInputSize;
-                TotalOut += job.OutBuffer.ReadableSize;
+                TotalIn += job.InBuffer.DataEndIdx;
+                TotalOut += job.OutBuffer.DataEndIdx;
 
                 if (job.IsLastBlock)
                 { // Write trailer
@@ -771,21 +650,21 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
 
-            _outputBuffer.Clear();
-
-            nuint headerSizeVal;
-            fixed (byte* dest = _outputBuffer.Buf)
+            using (PooledBuffer outBuf = new PooledBuffer(_pool, _outBlockSize))
             {
-                headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(_mainCctx, dest, (nuint)_inBlockSize, prefs);
-                LZ4FrameException.CheckReturnValue(headerSizeVal);
-            }
-            
-            Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
+                nuint headerSizeVal;
+                fixed (byte* dest = outBuf.Buf)
+                {
+                    headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(_mainCctx, dest, (nuint)_inBlockSize, prefs);
+                    LZ4FrameException.CheckReturnValue(headerSizeVal);
+                }
 
-            int headerSize = (int)headerSizeVal;
-            BaseStream.Write(_outputBuffer.Buf, 0, headerSize);
-            TotalOut += headerSize;
-            _outputBuffer.Clear();
+                Debug.Assert(0 <= headerSizeVal && headerSizeVal <= int.MaxValue);
+
+                int headerSize = (int)headerSizeVal;
+                BaseStream.Write(outBuf.Buf, 0, headerSize);
+                TotalOut += headerSize;
+            }
         }
 
         private unsafe void WriteTrailer()
@@ -794,8 +673,6 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException("This stream had been disposed.");
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
-
-            _outputBuffer.Clear();
 
             // *NOTE*: DO NOT CALL FrameCompressEnd, we do it ourselves.
             // - FrameCompressEnd checks for ContentSize, but in parallel compression mainCctx does not know about raw data size.
@@ -825,9 +702,9 @@ namespace Joveler.Compression.LZ4
 
         #region Stream Properties
         /// <inheritdoc />
-        public override bool CanRead => _mode == Mode.Decompress && BaseStream != null && BaseStream.CanRead;
+        public override bool CanRead => false;
         /// <inheritdoc />
-        public override bool CanWrite => _mode == Mode.Compress && BaseStream != null && BaseStream.CanWrite;
+        public override bool CanWrite => BaseStream != null && BaseStream.CanWrite && !_finalEnqueued && !_abortTokenSrc.IsCancellationRequested;
         /// <inheritdoc />
         public override bool CanSeek => false;
 
@@ -854,35 +731,10 @@ namespace Joveler.Compression.LZ4
         {
             get
             {
-                switch (_mode)
-                {
-                    case Mode.Compress:
-                        if (TotalIn == 0)
-                            return 0;
-                        return 100 - TotalOut * 100.0 / TotalIn;
-                    case Mode.Decompress:
-                        if (TotalOut == 0)
-                            return 0;
-                        return 100 - TotalIn * 100.0 / TotalOut;
-                    default:
-                        throw new InvalidOperationException($"Internal Logic Error at {nameof(LZ4FrameStream)}.{nameof(CompressionRatio)}");
-                }
+                if (TotalOut == 0)
+                    return 0;
+                return 100 - TotalIn * 100.0 / TotalOut;
             }
-        }
-        #endregion
-
-        #region (internal, private) Check Arguments
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void CheckReadWriteArgs(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count));
-            if (buffer.Length - offset < count)
-                throw new ArgumentOutOfRangeException(nameof(count));
         }
         #endregion
     }
