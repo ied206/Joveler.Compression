@@ -553,23 +553,26 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
-            nuint outSizeVal = 0;
-            do
+            if (_mode == Mode.Compress)
             {
-                fixed (byte* dest = _workBuf.Buf)
+                nuint outSizeVal = 0;
+                do
                 {
-                    outSizeVal = LZ4Init.Lib.FrameFlush!(_cctx, dest, (nuint)_destBufSize, _compOpts);
+                    fixed (byte* dest = _workBuf.Buf)
+                    {
+                        outSizeVal = LZ4Init.Lib.FrameFlush!(_cctx, dest, (nuint)_destBufSize, _compOpts);
+                    }
+                    LZ4FrameException.CheckReturnValue(outSizeVal);
+
+                    Debug.Assert(outSizeVal <= int.MaxValue, "BufferSize should be <=2GB");
+                    int outSize = (int)outSizeVal;
+
+                    if (0 < outSize)
+                        BaseStream.Write(_workBuf.Buf, 0, outSize);
+                    TotalOut += outSize;
                 }
-                LZ4FrameException.CheckReturnValue(outSizeVal);
-
-                Debug.Assert(outSizeVal <= int.MaxValue, "BufferSize should be <=2GB");
-                int outSize = (int)outSizeVal;
-
-                if (0 < outSize)
-                    BaseStream.Write(_workBuf.Buf, 0, outSize);
-                TotalOut += outSize;
+                while (0 < outSizeVal);
             }
-            while (0 < outSizeVal);            
 
             BaseStream.Flush();
         }
