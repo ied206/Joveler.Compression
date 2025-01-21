@@ -12,6 +12,8 @@ namespace Joveler.Compression.LZ4
         private long _outSeq = 0;
         public long OutSeq => _outSeq;
 
+        private readonly CancellationTokenSource _cancelTokenSrc;
+
         private readonly object _outSetLock = new object();
         private readonly SortedSet<LZ4ParallelCompressJob> _outSet = new SortedSet<LZ4ParallelCompressJob>(new LZ4ParallelCompressJobComparator());
 
@@ -21,6 +23,8 @@ namespace Joveler.Compression.LZ4
 
         public LZ4SortedBufferBlock(CancellationTokenSource cancelTokenSrc)
         {
+            _cancelTokenSrc = cancelTokenSrc;
+
             BufferBlock<LZ4ParallelCompressJob> sourceBlock = new BufferBlock<LZ4ParallelCompressJob>();
             _sourceBlock = sourceBlock;
 
@@ -34,29 +38,38 @@ namespace Joveler.Compression.LZ4
             // Receive a LZ4ParallelCompressJob (which completed compressing), then put it into sorted list
             _targetBlock = new ActionBlock<LZ4ParallelCompressJob>(item =>
             {
-                // Receive a LZ4ParallelCompressJob (which completed compressing), then put it into sorted list
-                _outSet.Add(item);
-
-                // Check if the jobs of right seq is available.
-                // If available, post all of the designated jobs.
-                while (0 < _outSet.Count)
+                try
                 {
-                    LZ4ParallelCompressJob? job = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
-                    if (job == null)
-                        break;
+                    // Receive a LZ4ParallelCompressJob (which completed compressing), then put it into sorted list
+                    _outSet.Add(item);
 
-                    _outSeq += 1;
-                    bool isLastBlock = job.IsLastBlock;
+                    // Check if the jobs of right seq is available.
+                    // If available, post all of the designated jobs.
+                    while (0 < _outSet.Count)
+                    {
+                        LZ4ParallelCompressJob? job = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
+                        if (job == null)
+                            break;
 
-                    sourceBlock.Post(job);
+                        _outSeq += 1;
+                        bool isLastBlock = job.IsLastBlock;
 
-                    if (isLastBlock)
-                        Complete();
+                        sourceBlock.Post(job);
+
+                        if (isLastBlock)
+                            Complete();
+                    }
                 }
+                catch
+                {
+                    _cancelTokenSrc.Cancel();
+                    throw;
+                }
+                
             },
             new ExecutionDataflowBlockOptions()
             {
-                CancellationToken = cancelTokenSrc.Token,
+                CancellationToken = _cancelTokenSrc.Token,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = 1,
             });

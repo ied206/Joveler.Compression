@@ -451,7 +451,12 @@ namespace Joveler.Compression.ZLib
                 { // Normal block, source 32K from the previous input + current input
                     // DO NOT USE _nextDictBuffer.DataStartIdx! It may be changed anytime because the buffer is shared.
                     int copyLastDictSize = ZLibParallelCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
-                    ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.Buf.AsSpan(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+
+                    ReadOnlySpan<byte> lastDictSpan;
+                    if (copyLastDictSize <= _nextDictBuffer.DataEndIdx)
+                        lastDictSpan = _nextDictBuffer.Buf.AsSpan(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                    else
+                        lastDictSpan = _nextDictBuffer.Span;
                     copyDictBuffer.Write(lastDictSpan);
 
                     // Release previous ref of the _nextDictBuffer.

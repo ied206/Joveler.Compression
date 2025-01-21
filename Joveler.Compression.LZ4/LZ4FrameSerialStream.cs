@@ -27,7 +27,9 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using Joveler.Compression.LZ4.Buffer;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -89,6 +91,10 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
         /// <summary>
+        /// Buffer pool to use for internal buffers.
+        /// </summary>
+        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+        /// <summary>
         /// Whether to leave the base stream object open after disposing the lz4 stream object.
         /// </summary>
         public bool LeaveOpen { get; set; } = false;
@@ -108,6 +114,10 @@ namespace Joveler.Compression.LZ4
         /// Size of the internal buffer.
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
+        /// <summary>
+        /// Buffer pool to use for internal buffers.
+        /// </summary>
+        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
         /// <summary>
         /// Whether to leave the base stream object open after disposing the lz4 stream object.
         /// </summary>
@@ -136,10 +146,11 @@ namespace Joveler.Compression.LZ4
         private IntPtr _dctx = IntPtr.Zero;
 
         private readonly int _bufferSize = DefaultBufferSize;
-        private readonly byte[] _workBuf;
+        private readonly ArrayPool<byte> _pool;
+        private readonly PooledBuffer _workBuf;
 
         // Compression
-        private readonly uint _destBufSize;
+        private readonly int _destBufSize;
 
         // Decompression
         private bool _firstRead = true;
@@ -209,6 +220,7 @@ namespace Joveler.Compression.LZ4
             _disposed = false;
 
             // Check and set compress options
+            _pool = compOpts.BufferPool ?? ArrayPool<byte>.Shared;
             _leaveOpen = compOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(compOpts.BufferSize);
 
@@ -232,22 +244,22 @@ namespace Joveler.Compression.LZ4
             Debug.Assert(frameSizeVal <= int.MaxValue);
             uint frameSize = (uint)frameSizeVal;
 
-            _destBufSize = (uint)_bufferSize;
+            _destBufSize = _bufferSize;
             if (_bufferSize < frameSize)
-                _destBufSize = frameSize;
-            _workBuf = new byte[_destBufSize];
+                _destBufSize = (int)frameSize;
+            _workBuf = new PooledBuffer(_pool, _destBufSize);
 
             // Write the frame header into _workBuf
             nuint headerSizeVal;
-            fixed (byte* dest = _workBuf)
+            fixed (byte* dest = _workBuf.Buf)
             {
-                headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(_cctx, dest, (nuint)_bufferSize, prefs);
+                headerSizeVal = LZ4Init.Lib.FrameCompressBegin!(_cctx, dest, (nuint)_destBufSize, prefs);
             }
             LZ4FrameException.CheckReturnValue(headerSizeVal);
             Debug.Assert(0 <= headerSizeVal && headerSizeVal < int.MaxValue);
 
             int headerSize = (int)headerSizeVal;
-            BaseStream.Write(_workBuf, 0, headerSize);
+            BaseStream.Write(_workBuf.Buf, 0, headerSize);
             TotalOut += headerSize;
         }
 
@@ -266,6 +278,7 @@ namespace Joveler.Compression.LZ4
             _disposed = false;
 
             // Check and set compress options
+            _pool = decompOpts.BufferPool ?? ArrayPool<byte>.Shared;
             _leaveOpen = decompOpts.LeaveOpen;
             _bufferSize = CheckBufferSize(decompOpts.BufferSize);
 
@@ -286,7 +299,7 @@ namespace Joveler.Compression.LZ4
                 throw new InvalidDataException("BaseStream is not a valid LZ4 Frame Format");
 
             // Prepare a work buffer
-            _workBuf = new byte[_bufferSize];
+            _workBuf = new PooledBuffer(_pool, _bufferSize);
         }
         #endregion
 
@@ -335,6 +348,9 @@ namespace Joveler.Compression.LZ4
                         BaseStream.Dispose();
                     BaseStream = null;
                 }
+
+                if (!_workBuf.Disposed)
+                    _workBuf.Dispose();
 
                 _disposed = true;
             }
@@ -412,7 +428,7 @@ namespace Joveler.Compression.LZ4
                 {
                     // Read from _baseStream
                     _decompSrcIdx = 0;
-                    _decompSrcCount = BaseStream.Read(_workBuf, 0, _workBuf.Length);
+                    _decompSrcCount = BaseStream.Read(_workBuf.Buf, 0, _workBuf.Capacity);
                     TotalIn += _decompSrcCount;
 
                     // _baseStream reached its end
@@ -427,7 +443,7 @@ namespace Joveler.Compression.LZ4
                 nuint destSizeVal = (nuint)(destLeftBytes);
 
                 nuint ret;
-                fixed (byte* src = _workBuf.AsSpan(_decompSrcIdx))
+                fixed (byte* src = _workBuf.Span.Slice(_decompSrcIdx))
                 fixed (byte* dest = span)
                 {
                     ret = LZ4Init.Lib.FrameDecompress!(_dctx, dest, ref destSizeVal, src, ref srcSizeVal, _decompOpts);
@@ -487,10 +503,10 @@ namespace Joveler.Compression.LZ4
                 int srcWorkSize = _bufferSize < span.Length ? _bufferSize : span.Length;
 
                 nuint outSizeVal;
-                fixed (byte* dest = _workBuf)
+                fixed (byte* dest = _workBuf.Buf)
                 fixed (byte* src = span)
                 {
-                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate!(_cctx, dest, _destBufSize, src, (nuint)srcWorkSize, _compOpts);
+                    outSizeVal = LZ4Init.Lib.FrameCompressUpdate!(_cctx, dest, (nuint)_destBufSize, src, (nuint)srcWorkSize, _compOpts);
                 }
 
                 LZ4FrameException.CheckReturnValue(outSizeVal);
@@ -498,7 +514,7 @@ namespace Joveler.Compression.LZ4
                 Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
                 int outSize = (int)outSizeVal;
 
-                BaseStream.Write(_workBuf, 0, outSize);
+                BaseStream.Write(_workBuf.Buf, 0, outSize);
                 TotalOut += outSize;
 
                 span = span.Slice(srcWorkSize);
@@ -516,16 +532,16 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
             nuint outSizeVal;
-            fixed (byte* dest = _workBuf)
+            fixed (byte* dest = _workBuf.Buf)
             {
-                outSizeVal = LZ4Init.Lib.FrameCompressEnd!(_cctx, dest, _destBufSize, _compOpts);
+                outSizeVal = LZ4Init.Lib.FrameCompressEnd!(_cctx, dest, (nuint)_destBufSize, _compOpts);
             }
             LZ4FrameException.CheckReturnValue(outSizeVal);
 
-            Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
+            Debug.Assert(outSizeVal <= int.MaxValue, "BufferSize should be <=2GB");
             int outSize = (int)outSizeVal;
 
-            BaseStream.Write(_workBuf, 0, outSize);
+            BaseStream.Write(_workBuf.Buf, 0, outSize);
             TotalOut += outSize;
         }
 
@@ -537,19 +553,23 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
-            nuint outSizeVal;
-            fixed (byte* dest = _workBuf)
+            nuint outSizeVal = 0;
+            do
             {
-                outSizeVal = LZ4Init.Lib.FrameCompressEnd!(_cctx, dest, _destBufSize, _compOpts);
+                fixed (byte* dest = _workBuf.Buf)
+                {
+                    outSizeVal = LZ4Init.Lib.FrameFlush!(_cctx, dest, (nuint)_destBufSize, _compOpts);
+                }
+                LZ4FrameException.CheckReturnValue(outSizeVal);
+
+                Debug.Assert(outSizeVal <= int.MaxValue, "BufferSize should be <=2GB");
+                int outSize = (int)outSizeVal;
+
+                if (0 < outSize)
+                    BaseStream.Write(_workBuf.Buf, 0, outSize);
+                TotalOut += outSize;
             }
-            LZ4FrameException.CheckReturnValue(outSizeVal);
-
-            Debug.Assert(outSizeVal < int.MaxValue, "BufferSize should be <2GB");
-            int outSize = (int)outSizeVal;
-
-            if (0 < outSize)
-                BaseStream.Write(_workBuf, 0, outSize);
-            TotalOut += outSize;
+            while (0 < outSizeVal);            
 
             BaseStream.Flush();
         }
