@@ -678,13 +678,13 @@ namespace Joveler.Compression.LZ4
                 }
                 finally
                 {
-                    _targetWrittenEvent.Set();
                     job.Dispose();
                 }
             }
             catch (Exception)
             {
                 _abortTokenSrc.Cancel();
+                _targetWrittenEvent.Set();
                 throw;
             }
         }
@@ -755,7 +755,7 @@ namespace Joveler.Compression.LZ4
             AggregateException? sortExcept = _compSortChunk.Completion.Exception;
             AggregateException? writeExcept = _compWriteChunk.Completion.Exception;
 
-            // No exceptions has been fired -> return peacefullㅛ.
+            // No exceptions has been fired -> return peacefully.
             if (compExcept == null && sortExcept == null && writeExcept == null)
                 return;
 
