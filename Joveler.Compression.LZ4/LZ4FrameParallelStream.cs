@@ -1,4 +1,4 @@
-﻿#define DEBUG_PARALLEL
+﻿// #define DEBUG_PARALLEL
 
 /*
     Derived from LZ4 header files (BSD 2-Clause)
@@ -36,7 +36,9 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Joveler.Compression.LZ4
@@ -128,18 +130,17 @@ namespace Joveler.Compression.LZ4
 
         // Compression
         // System.Threading.Tasks.DataFlow
-        private ITargetBlock<LZ4ParallelCompressJob> CompressChunkTarget => _compWorkChunk;
         private readonly TransformBlock<LZ4ParallelCompressJob, LZ4ParallelCompressJob> _compWorkChunk;
-        private ISourceBlock<LZ4ParallelCompressJob> CompressChunkSource => _compWorkChunk;
-        private ITargetBlock<LZ4ParallelCompressJob> SortChunkTarget => _compSortChunk;
-        private readonly LZ4SortedBufferBlock _compSortChunk;
-        private ISourceBlock<LZ4ParallelCompressJob> SortChunkSource => _compSortChunk;
-        private ITargetBlock<LZ4ParallelCompressJob> WriteChunkTarget => _compWriteChunk;
+        private readonly ActionBlock<LZ4ParallelCompressJob> _compSortChunk;
+
+        private readonly SortedSet<LZ4ParallelCompressJob> _outSet = new SortedSet<LZ4ParallelCompressJob>(new LZ4ParallelCompressJobComparator());
+
         private readonly ActionBlock<LZ4ParallelCompressJob> _compWriteChunk;
 
         private long _inSeq = 0;
+        private long _outSeq = 0;
         private long _latestSeq = -1;
-        private long _waitSeq = 0;
+        private long _waitSeq = -1;
 
         private bool _finalEnqueued = false;
         private readonly ManualResetEvent _targetWrittenEvent = new ManualResetEvent(true);
@@ -147,7 +148,7 @@ namespace Joveler.Compression.LZ4
         private readonly ArrayPool<byte> _pool;
         private readonly int _inBlockSize;
         private readonly int _outBlockSize;
-        private readonly ReferableBuffer _inputBuffer;
+        private readonly PooledBuffer _inputBuffer;
 
         private readonly bool _isBlockLinked;
         private ReferableBuffer? _nextDictBuffer;
@@ -156,6 +157,7 @@ namespace Joveler.Compression.LZ4
         private XXH32Stream? _xxh32;
 
         private readonly CancellationTokenSource _abortTokenSrc = new CancellationTokenSource();
+        public bool IsAborted => _abortTokenSrc.IsCancellationRequested;
 
         private IntPtr _mainCctx;
         private readonly FramePreferences _workCompPrefs;
@@ -237,7 +239,7 @@ namespace Joveler.Compression.LZ4
 
             // Allocate input buffer
             _pool = pcompOpts.BufferPool ?? ArrayPool<byte>.Shared;
-            _inputBuffer = new ReferableBuffer(_pool, _inBlockSize);
+            _inputBuffer = new PooledBuffer(_pool, _inBlockSize);
             _isBlockLinked = _workCompPrefs.FrameInfo.BlockMode == FrameBlockMode.BlockLinked;
 
             // Write the frame header
@@ -247,19 +249,25 @@ namespace Joveler.Compression.LZ4
             _compWorkChunk = new TransformBlock<LZ4ParallelCompressJob, LZ4ParallelCompressJob>(CompressProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
+                BoundedCapacity = 4 * _threads,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = _threads,
                 SingleProducerConstrained = false,
             });
 
-            _compSortChunk = new LZ4SortedBufferBlock(_abortTokenSrc);
-
-            _compWriteChunk = new ActionBlock<LZ4ParallelCompressJob>(WriterProc, new ExecutionDataflowBlockOptions()
+            _compSortChunk = new ActionBlock<LZ4ParallelCompressJob>(WriteSortProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = 1,
-                SingleProducerConstrained = false
+            });
+
+            _compWriteChunk = new ActionBlock<LZ4ParallelCompressJob>(WriterProc, new ExecutionDataflowBlockOptions()
+            {
+                CancellationToken = _abortTokenSrc.Token,
+                BoundedCapacity = 4 * _threads,
+                EnsureOrdered = true,
+                MaxDegreeOfParallelism = 1,
             });
 
             DataflowLinkOptions linkOptions = new DataflowLinkOptions
@@ -269,7 +277,6 @@ namespace Joveler.Compression.LZ4
             };
 
             _compWorkChunk.LinkTo(_compSortChunk, linkOptions);
-            _compSortChunk.LinkTo(_compWriteChunk, linkOptions);
         }
         #endregion
 
@@ -323,6 +330,8 @@ namespace Joveler.Compression.LZ4
 
                     _abortTokenSrc.Dispose();
 
+                    _targetWrittenEvent.Dispose();
+
                     if (BaseStream != null)
                     {
                         BaseStream.Flush();
@@ -330,10 +339,13 @@ namespace Joveler.Compression.LZ4
                             BaseStream.Dispose();
                         BaseStream = null;
                     }
-                }
 
-                _disposed = true;
+                    _disposed = true;
+                }
             }
+
+            // Dispose the base class
+            base.Dispose(disposing);
         }
         #endregion
 
@@ -372,8 +384,6 @@ namespace Joveler.Compression.LZ4
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
             if (span.Length == 0)
@@ -421,7 +431,7 @@ namespace Joveler.Compression.LZ4
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
 
-            // Do nothing if all of compression is already done.
+            // Do nothing if all compression is already done.
             if (_compSortChunk.Completion.IsCompleted)
                 return;
 
@@ -485,8 +495,7 @@ namespace Joveler.Compression.LZ4
             }
 
             _inputBuffer.Clear();
-            CompressChunkTarget.Post(job);
-            return;
+            _compWorkChunk.Post(job);
         }
         #endregion
 
@@ -501,9 +510,9 @@ namespace Joveler.Compression.LZ4
                 EnqueueInputBuffer(true);
 
             // Wait until dataflow completes its job.
-            _compWorkChunk.Completion.Wait();
-            _compSortChunk.Completion.Wait();
-            _compWriteChunk.Completion.Wait();
+            Task.WaitAll(_compWorkChunk.Completion,
+                _compSortChunk.Completion,
+                _compWriteChunk.Completion);
 
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -517,14 +526,27 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
+            // Check exceptions in Task instances.
+            CheckBackgroundExceptions();
+
             // LZ4 parallel compression always auto-flush the output.
             // No need to call LZ4F_flush() here.
 
             // Flush remaining input
-            EnqueueInputBuffer(false);
+            if (!_inputBuffer.IsEmpty)
+                EnqueueInputBuffer(false);
+
+            // Check exceptions in Task instances.
+            CheckBackgroundExceptions();
 
             // Block until write is complete
             WaitWriteJobComplete(_latestSeq, null);
+
+            // Check exceptions in Task instances.
+            CheckBackgroundExceptions();
+
+            // Flush the remaining compressed data into BaseStream
+            BaseStream.Flush();
         }
 
         public void Abort()
@@ -536,7 +558,6 @@ namespace Joveler.Compression.LZ4
 
         private void WaitWriteJobComplete(long checkSeqNum, TimeSpan? waitMax)
         {
-            Debug.Assert(0 <= checkSeqNum);
             Debug.Assert(_waitSeq <= checkSeqNum);
 
             Interlocked.Exchange(ref _waitSeq, checkSeqNum);
@@ -549,7 +570,7 @@ namespace Joveler.Compression.LZ4
         }
         #endregion
 
-        #region CompressThread 
+        #region CompressProc
         internal unsafe LZ4ParallelCompressJob CompressProc(LZ4ParallelCompressJob job)
         {
             if (LZ4Init.Lib == null)
@@ -638,16 +659,49 @@ namespace Joveler.Compression.LZ4
         }
         #endregion
 
-        #region WriterThread
-        internal unsafe void WriterProc(LZ4ParallelCompressJob job)
+        #region WriteSortProc
+        internal void WriteSortProc(LZ4ParallelCompressJob item)
         {
-            if (LZ4Init.Lib == null)
-                throw new ObjectDisposedException(nameof(LZ4Init));
-            if (BaseStream == null)
-                throw new ObjectDisposedException("This stream had been disposed.");
-
             try
             {
+                // Receive a LZ4ParallelCompressJob (which completed compressing), then put it into sorted list
+                _outSet.Add(item);
+
+                // Check if the jobs of right seq is available.
+                // If available, post all of the designated jobs.
+                while (0 < _outSet.Count)
+                {
+                    LZ4ParallelCompressJob? job = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
+                    if (job == null)
+                        break;
+
+                    _outSeq += 1;
+                    bool isLastBlock = job.IsLastBlock;
+
+                    _compWriteChunk.Post(job);
+
+                    if (isLastBlock)
+                        _compSortChunk.Complete();
+                }
+            }
+            catch
+            {
+                _abortTokenSrc.Cancel();
+                throw;
+            }
+        }
+        #endregion
+
+        #region WriterProc
+        internal unsafe void WriterProc(LZ4ParallelCompressJob job)
+        {
+            try
+            {
+                if (LZ4Init.Lib == null)
+                    throw new ObjectDisposedException(nameof(LZ4Init));
+                if (BaseStream == null)
+                    throw new ObjectDisposedException("This stream had been disposed.");
+
                 try
                 {
                     // Write to BaseStream
@@ -751,30 +805,28 @@ namespace Joveler.Compression.LZ4
         #region Exception Handling
         public void CheckBackgroundExceptions()
         {
-            AggregateException? compExcept = _compSortChunk.Completion.Exception;
-            AggregateException? sortExcept = _compSortChunk.Completion.Exception;
-            AggregateException? writeExcept = _compWriteChunk.Completion.Exception;
+            AggregateException?[] rawExcepts =
+            [
+                _compWorkChunk.Completion.Exception,
+                _compSortChunk.Completion.Exception,
+                _compWriteChunk.Completion.Exception
+            ];
+
+            List<AggregateException> excepts = rawExcepts.Where(x => x != null).Select(x => x!).ToList();
 
             // No exceptions has been fired -> return peacefully.
-            if (compExcept == null && sortExcept == null && writeExcept == null)
+            if (excepts.Count == 0)
                 return;
 
             // Preserve AggregateException if only one Dataflow Block has AggregateException.
-            if (compExcept != null && sortExcept == null && writeExcept == null)
-                throw compExcept;
-            if (compExcept == null && sortExcept != null && writeExcept == null)
-                throw sortExcept;
-            if (compExcept == null && sortExcept == null && writeExcept != null)
-                throw writeExcept;
+            if (excepts.Count == 1)
+                throw excepts.First(x => x != null);
 
             // Merge instances of AggregateException.
             List<Exception> innerExcepts = new List<Exception>();
-            if (compExcept != null)
-                innerExcepts.AddRange(compExcept.InnerExceptions);
-            if (sortExcept != null)
-                innerExcepts.AddRange(sortExcept.InnerExceptions);
-            if (writeExcept != null)
-                innerExcepts.AddRange(writeExcept.InnerExceptions);
+            foreach (AggregateException ae in excepts)
+                innerExcepts.AddRange(ae.InnerExceptions);
+
             Debug.Assert(0 < innerExcepts.Count);
             throw new AggregateException(innerExcepts);
         }

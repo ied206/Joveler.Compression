@@ -314,10 +314,13 @@ namespace Joveler.Compression.LZ4.Tests
                         compMs.Dispose();
                     } // lzs.Dispose() must throw exception.
                 }
-                catch (AggregateException ex)
+                catch (AggregateException)
                 {
                     exceptThrown = true;
-                    Console.WriteLine(ex);
+                }
+                catch (Exception)
+                {
+                    exceptThrown = false;
                 }
             }
 

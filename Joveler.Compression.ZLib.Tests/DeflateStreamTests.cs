@@ -299,10 +299,13 @@ namespace Joveler.Compression.ZLib.Tests
                         compMs.Dispose();
                     } // zs.Dispose() must throw exception.
                 }
-                catch (AggregateException ex)
+                catch (AggregateException)
                 {
                     exceptThrown = true;
-                    Console.WriteLine(ex);
+                }
+                catch (Exception)
+                {
+                    exceptThrown = false;
                 }
             }
 

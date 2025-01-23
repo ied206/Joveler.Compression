@@ -32,10 +32,11 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compresses zlib-related stream format in parallel.
     /// </summary>
-    internal sealed class ZLibParallelCompressJob : IDisposable, IEquatable<ZLibParallelCompressJob>, IComparable<ZLibParallelCompressJob>
+    internal sealed class ZLibThreadedCompressJob : IDisposable, IEquatable<ZLibThreadedCompressJob>, IComparable<ZLibThreadedCompressJob>
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
+        public bool IsEofBlock => Seq == EofBlockSeq;
 
         /// <summary>
         /// Acquired in the constructor, released in CompressThreadMain().
@@ -54,6 +55,16 @@ namespace Joveler.Compression.ZLib
         public const int DictWindowSize = 32 * 1024;
 
         /// <summary>
+        /// Seq of -1 means the eof block.
+        /// WorkerThreads will terminate when receiving the eof block.
+        /// </summary>
+        /// <remarks>
+        /// N * NormalJob -> FinalJob -> Threads * EofJob
+        /// </remarks>
+        public const int EofBlockSeq = -1;
+        public const int WaitSeqInit = -2;
+
+        /// <summary>
         /// Create an first/normal/final job which contains two block of input, one being the current data and another as a dictionary (last input).
         /// Most of the jobs are a normal job.
         /// </summary>
@@ -68,7 +79,7 @@ namespace Joveler.Compression.ZLib
         /// In other blocks, dictBuffer is set to the previous block's InBuffer.
         /// </param>
         /// <param name="outBufferSize"></param>
-        public ZLibParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
+        public ZLibThreadedCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
             Seq = seqNum;
 
@@ -93,7 +104,7 @@ namespace Joveler.Compression.ZLib
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
-        public ZLibParallelCompressJob(ArrayPool<byte> pool, long seqNum)
+        public ZLibThreadedCompressJob(ArrayPool<byte> pool, long seqNum)
         {
             Seq = seqNum;
 
@@ -104,7 +115,7 @@ namespace Joveler.Compression.ZLib
             InBuffer.AcquireRef();
         }
 
-        ~ZLibParallelCompressJob()
+        ~ZLibThreadedCompressJob()
         {
             Dispose(false);
         }
@@ -174,12 +185,12 @@ namespace Joveler.Compression.ZLib
 
         public override bool Equals(object? obj)
         {
-            if (obj is not ZLibParallelCompressJob other)
+            if (obj is not ZLibThreadedCompressJob other)
                 return false;
             return Equals(other);
         }
 
-        public bool Equals(ZLibParallelCompressJob? other)
+        public bool Equals(ZLibThreadedCompressJob? other)
         {
             if (other == null)
                 return false;
@@ -187,7 +198,7 @@ namespace Joveler.Compression.ZLib
             return Seq == other.Seq;
         }
 
-        public int CompareTo(ZLibParallelCompressJob? other)
+        public int CompareTo(ZLibThreadedCompressJob? other)
         {
             if (other == null)
                 throw new ArgumentNullException(nameof(other));
@@ -201,9 +212,9 @@ namespace Joveler.Compression.ZLib
         }
     }
 
-    internal sealed class ZLibParallelCompressJobComparator : IComparer<ZLibParallelCompressJob>, IEqualityComparer<ZLibParallelCompressJob>
+    internal sealed class ZLibThreadedCompressJobComparator : IComparer<ZLibThreadedCompressJob>, IEqualityComparer<ZLibThreadedCompressJob>
     {
-        public int Compare(ZLibParallelCompressJob? x, ZLibParallelCompressJob? y)
+        public int Compare(ZLibThreadedCompressJob? x, ZLibThreadedCompressJob? y)
         {
             if (x == null)
                 throw new ArgumentNullException(nameof(x));
@@ -213,7 +224,7 @@ namespace Joveler.Compression.ZLib
             return x.CompareTo(y);
         }
 
-        public bool Equals(ZLibParallelCompressJob? x, ZLibParallelCompressJob? y)
+        public bool Equals(ZLibThreadedCompressJob? x, ZLibThreadedCompressJob? y)
         {
             if (x == null)
                 return y == null;
@@ -223,7 +234,7 @@ namespace Joveler.Compression.ZLib
             return x.Equals(y);
         }
 
-        public int GetHashCode(ZLibParallelCompressJob obj)
+        public int GetHashCode(ZLibThreadedCompressJob obj)
         {
             return obj.GetHashCode();
         }
