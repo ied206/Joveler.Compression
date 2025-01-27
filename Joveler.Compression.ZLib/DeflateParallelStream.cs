@@ -117,7 +117,6 @@ namespace Joveler.Compression.ZLib
         private readonly TransformBlock<Tuple<ZLibParallelCompressJob, ZStreamHandle>, ZLibParallelCompressJob> _compWorkChunk;
         private readonly ActionBlock<ZLibParallelCompressJob> _compSortChunk;
 
-        private readonly object _outSetLock = new object();
         private readonly SortedSet<ZLibParallelCompressJob> _outSet = new SortedSet<ZLibParallelCompressJob>(new ZLibParallelCompressJobComparator());
 
         private readonly ActionBlock<ZLibParallelCompressJob> _compWriteChunk;
@@ -875,6 +874,7 @@ namespace Joveler.Compression.ZLib
                     ZLibParallelCompressJob? outJob = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
                     if (outJob == null)
                         break;
+                    _outSet.Remove(outJob);
 
                     _outSeq += 1;
                     bool isLastBlock = outJob.IsLastBlock;

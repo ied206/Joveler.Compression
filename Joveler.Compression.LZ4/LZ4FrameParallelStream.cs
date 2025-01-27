@@ -671,14 +671,15 @@ namespace Joveler.Compression.LZ4
                 // If available, post all of the designated jobs.
                 while (0 < _outSet.Count)
                 {
-                    LZ4ParallelCompressJob? job = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
-                    if (job == null)
+                    LZ4ParallelCompressJob? outJob = _outSet.FirstOrDefault(x => x.Seq == _outSeq);
+                    if (outJob == null)
                         break;
+                    _outSet.Remove(outJob);
 
                     _outSeq += 1;
-                    bool isLastBlock = job.IsLastBlock;
+                    bool isLastBlock = outJob.IsLastBlock;
 
-                    _compWriteChunk.Post(job);
+                    _compWriteChunk.Post(outJob);
 
                     if (isLastBlock)
                         _compSortChunk.Complete();
