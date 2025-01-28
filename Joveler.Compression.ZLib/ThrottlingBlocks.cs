@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Joveler.Compression.ZLib
 {
-
-
     internal class ThrottlingActionBlock<T> : ITargetBlock<T>
     {
         private readonly SemaphoreSlim _semaphore;
@@ -57,75 +53,6 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-
-    /*
-    internal class ThrottlingActionBlock<T> : ITargetBlock<T>
-    {
-        private readonly SemaphoreSlim _semaphore;
-        private readonly BufferBlock<T> _bufferBlock;
-        private readonly ActionBlock<T> _actionBlock;
-
-        private ITargetBlock<T> TargetBlock => _bufferBlock;
-        
-
-        public ThrottlingActionBlock(Action<T> action, int capacity, int maxDegreeOfParallelism, CancellationTokenSource tokenSrc)
-        {
-            _semaphore = new SemaphoreSlim(capacity);
-
-            _bufferBlock = new BufferBlock<T>(new DataflowBlockOptions()
-            {
-                CancellationToken = tokenSrc.Token,
-                BoundedCapacity = DataflowBlockOptions.Unbounded,
-            });
-            _actionBlock = new ActionBlock<T>(t =>
-            {
-                try
-                {
-                    action(t);
-                }
-                finally
-                {
-                    _semaphore.Release();
-                }
-            }, new ExecutionDataflowBlockOptions
-            {
-                CancellationToken = tokenSrc.Token,
-                BoundedCapacity = DataflowBlockOptions.Unbounded,
-                MaxDegreeOfParallelism = maxDegreeOfParallelism,
-            });
-
-            _bufferBlock.LinkTo(_actionBlock, new DataflowLinkOptions
-            {
-                PropagateCompletion = true,
-                Append = true,
-            });
-        }
-
-        #region ITargetBlock<T> members
-        DataflowMessageStatus ITargetBlock<T>.OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T>? source, bool consumeToAccept)
-        {
-            _semaphore.Wait();
-            return TargetBlock.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
-        }
-        #endregion
-
-        #region IDataflowBlock members
-        public Task Completion => _actionBlock.Completion;
-
-        public void Complete()
-        {
-            _bufferBlock.Complete();
-            _actionBlock.Complete();
-        }
-
-        public void Fault(Exception exception)
-        {
-            TargetBlock.Fault(exception);
-            ((IDataflowBlock)_actionBlock).Fault(exception);
-        }
-        #endregion
-    }
-    */
 
     internal class ThrottlingTransformBlock<TInput, TOutput> : IPropagatorBlock<TInput, TOutput>, IReceivableSourceBlock<TOutput>
     {
@@ -217,7 +144,8 @@ namespace Joveler.Compression.ZLib
 
     internal class ThrottlingBufferBlock<T> : IPropagatorBlock<T, T>, IReceivableSourceBlock<T>
     {
-        private readonly SemaphoreSlim _semaphore;
+        private readonly int _capacity;
+        private readonly ManualResetEvent _bufferFullEvent = new ManualResetEvent(true);
         private readonly BufferBlock<T> _bufferBlock;
 
         private ITargetBlock<T> TargetBlock => _bufferBlock;
@@ -226,17 +154,31 @@ namespace Joveler.Compression.ZLib
 
         public ThrottlingBufferBlock(int capacity, DataflowBlockOptions dataflowBlockOptions)
         {
-            _semaphore = new SemaphoreSlim(capacity);
+            _capacity = capacity;
 
             dataflowBlockOptions.BoundedCapacity = DataflowBlockOptions.Unbounded;
             _bufferBlock = new BufferBlock<T>(dataflowBlockOptions);
         }
 
+        private void CheckBufferFullEvent()
+        {
+            if (_capacity <= _bufferBlock.Count)
+                _bufferFullEvent.Reset();
+            else
+                _bufferFullEvent.Set();
+        }
+
         #region ITargetBlock<T> members
         DataflowMessageStatus ITargetBlock<T>.OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T>? source, bool consumeToAccept)
         {
-            _semaphore.Wait();
-            return TargetBlock.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+            _bufferFullEvent.WaitOne();
+
+            DataflowMessageStatus ret = TargetBlock.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+
+            if (ret == DataflowMessageStatus.Accepted)
+                CheckBufferFullEvent();
+
+            return ret;
         }
         #endregion
 
@@ -247,7 +189,7 @@ namespace Joveler.Compression.ZLib
         {
             bool ret = SourceBlock.TryReceive(filter, out item);
             if (item != null)
-                _semaphore.Release();
+                CheckBufferFullEvent();
             return ret;
         }
 
@@ -256,11 +198,8 @@ namespace Joveler.Compression.ZLib
 #pragma warning restore CS8767 // Ignore nullable in signature
         {
             bool ret = SourceBlock.TryReceiveAll(out items);
-            if (items != null)
-            {
-                for (int i = 0; i < items.Count; i++)
-                    _semaphore.Release();
-            }
+            if (items != null && 0 < items.Count)
+                CheckBufferFullEvent();
             return ret;
         }
         #endregion
@@ -278,7 +217,17 @@ namespace Joveler.Compression.ZLib
 
         T? ISourceBlock<T>.ConsumeMessage(DataflowMessageHeader messageHeader, ITargetBlock<T> target, out bool messageConsumed)
         {
-            return SourceBlock.ConsumeMessage(messageHeader, target, out messageConsumed);
+            T? item = SourceBlock.ConsumeMessage(messageHeader, target, out messageConsumed);
+
+            if (item != null)
+            {
+                if (_capacity <= _bufferBlock.Count)
+                    _bufferFullEvent.Reset();
+                else
+                    _bufferFullEvent.Set();
+            }
+
+            return item;
         }
 
         void ISourceBlock<T>.ReleaseReservation(DataflowMessageHeader messageHeader, ITargetBlock<T> target)
@@ -301,37 +250,4 @@ namespace Joveler.Compression.ZLib
         }
         #endregion
     }
-
-    /*
-    internal class Pipeline<T>
-    {
-        private readonly SemaphoreSlim _semaphore;
-        private readonly BufferBlock<T> _buffer;
-
-        public Pipeline(Action<T> action, int capacity)
-        {
-            _semaphore = new SemaphoreSlim(capacity, capacity);
-            _buffer = new BufferBlock<T>();
-
-            var actionBlock = new ActionBlock<T>(t => {
-                try
-                {
-                    action(t);
-                }
-                finally
-                {
-                    _semaphore.Release();
-                }
-            });
-
-            _buffer.LinkTo(actionBlock);
-        }
-
-        public void Post(T message)
-        {
-            _semaphore.Wait();
-            _buffer.Post(message);
-        }
-    }
-    */
 }
