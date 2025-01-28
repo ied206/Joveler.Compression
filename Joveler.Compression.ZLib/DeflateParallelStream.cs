@@ -28,6 +28,7 @@ using Joveler.Compression.ZLib.Checksum;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -109,10 +110,9 @@ namespace Joveler.Compression.ZLib
 
         // Compression
         // System.Threading.Tasks.DataFlow
-        private readonly BufferBlock<ZLibParallelCompressJob> _compWorkChunkQueue;
-        private readonly BufferBlock<ZStreamHandle> _compWorkHandleQueue;
-        private readonly JoinBlock<ZLibParallelCompressJob, ZStreamHandle> _compWorkJoinBlock;
-        private readonly TransformBlock<Tuple<ZLibParallelCompressJob, ZStreamHandle>, ZLibParallelCompressJob> _compWorkChunk;
+        private readonly BlockingCollection<ZStreamHandle> _zsHandles = new BlockingCollection<ZStreamHandle>();
+
+        private readonly TransformBlock<ZLibParallelCompressJob, ZLibParallelCompressJob> _compWorkChunk;
         private readonly ActionBlock<ZLibParallelCompressJob> _compSortChunk;
 
         private readonly SortedSet<ZLibParallelCompressJob> _outSet = new SortedSet<ZLibParallelCompressJob>(new ZLibParallelCompressJobComparator());
@@ -212,24 +212,11 @@ namespace Joveler.Compression.ZLib
             // - If BoundedCapacity is set, it will discard incoming message from Post() when the its queue is full.
             // - So in that case, take care to use SendAsync() instead of Post().
             int maxWaitingJobs = 4 * _threads;
-            _compWorkChunkQueue = new BufferBlock<ZLibParallelCompressJob>(new DataflowBlockOptions
+            _compWorkChunk = new TransformBlock<ZLibParallelCompressJob, ZLibParallelCompressJob>(CompressProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
                 BoundedCapacity = maxWaitingJobs,
-            });
-            _compWorkHandleQueue = new BufferBlock<ZStreamHandle>(new DataflowBlockOptions
-            {
-                CancellationToken = _abortTokenSrc.Token,
-            });
-            _compWorkJoinBlock = new JoinBlock<ZLibParallelCompressJob, ZStreamHandle>(new GroupingDataflowBlockOptions
-            {
-                CancellationToken = _abortTokenSrc.Token,
-                Greedy = false,
-            });
-            _compWorkChunk = new TransformBlock<Tuple<ZLibParallelCompressJob, ZStreamHandle>, ZLibParallelCompressJob>(CompressProc, new ExecutionDataflowBlockOptions()
-            {
-                CancellationToken = _abortTokenSrc.Token,
-                EnsureOrdered = false,
+                EnsureOrdered = true,
                 MaxDegreeOfParallelism = _threads,
             });
             _compSortChunk = new ActionBlock<ZLibParallelCompressJob>(WriteSortProc, new ExecutionDataflowBlockOptions()
@@ -253,15 +240,12 @@ namespace Joveler.Compression.ZLib
                 Append = true,
             };
 
-            _compWorkChunkQueue.LinkTo(_compWorkJoinBlock.Target1, linkOptions);
-            _compWorkHandleQueue.LinkTo(_compWorkJoinBlock.Target2, linkOptions);
-            _compWorkJoinBlock.LinkTo(_compWorkChunk, linkOptions);
             _compWorkChunk.LinkTo(_compSortChunk, linkOptions);
 
             for (int i = 0; i < _threads; i++)
             {
                 ZStreamHandle zsh = new ZStreamHandle(_format, _compLevel, _windowBits);
-                _compWorkHandleQueue.Post(zsh);
+                _zsHandles.Add(zsh);
             }
         }
 #endregion
@@ -296,15 +280,11 @@ namespace Joveler.Compression.ZLib
                     }
                     _inputBuffer.Dispose();
 
-                    while (_compWorkHandleQueue.TryReceiveAll(out IList<ZStreamHandle>? items) && items != null)
-                    {
-#if DEBUG_PARALLEL
-                        Console.WriteLine($"[{items.Count}] ZStream handles are disposed.");
-#endif
-                        foreach (ZStreamHandle zs in items)
-                            zs.Dispose();
-                    }
-                    Debug.Assert(_compWorkHandleQueue.Count == 0);
+                    Debug.Assert(_zsHandles.Count == _threads);
+                    while (_zsHandles.TryTake(out ZStreamHandle? zsh))
+                        zsh.Dispose();
+                    Debug.Assert(_zsHandles.Count == 0);
+                    _zsHandles.Dispose();
 
                     _targetWrittenEvent.Dispose();
 
@@ -478,12 +458,12 @@ namespace Joveler.Compression.ZLib
             // Final  block: job.InBuffer._refCount == 1, _nextDictBuffer == null
 
             _inputBuffer.Clear();
-            _compWorkChunkQueue.SendAsync(job).Wait();
+            _compWorkChunk.SendAsync(job).Wait();
         }
         #endregion
 
         #region MainThread - Flush, Abort, FinalizeStream
-        private async void FinishWrite()
+        private void FinishWrite()
         {
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -493,15 +473,11 @@ namespace Joveler.Compression.ZLib
                 EnqueueInputBuffer(true);
 
             // Wait until dataflow completes its job.
-            Task.WaitAll(_compWorkChunkQueue.Completion,
-                _compWorkJoinBlock.Completion,
-                _compWorkChunk.Completion,
+            Task.WaitAll(_compWorkChunk.Completion,
                 _compSortChunk.Completion,
                 _compWriteChunk.Completion);
 
-            // Complete ZStreamHandle queue after all worker threads are done.
-            _compWorkHandleQueue.Complete();
-            await _compWorkHandleQueue.Completion;
+            Debug.Assert(_zsHandles.Count == _threads);
 
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -618,13 +594,11 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region CompressProc
-        public unsafe ZLibParallelCompressJob CompressProc(Tuple<ZLibParallelCompressJob, ZStreamHandle> tup)
+        public unsafe ZLibParallelCompressJob CompressProc(ZLibParallelCompressJob job)
         {
-            ZLibParallelCompressJob job = tup.Item1;
-            ZStreamHandle zsh = tup.Item2;
-
             try
             {
+                ZStreamHandle zsh = _zsHandles.Take();
                 try
                 {
                     if (ZLibInit.Lib == null)
@@ -732,16 +706,10 @@ namespace Joveler.Compression.ZLib
                     job.DictBuffer?.ReleaseRef();
 
                     // Push zsh into handle queue again
-                    if (!_compWorkHandleQueue.Post(zsh))
-                        zsh.Dispose(); // It may fail if task was cancelled -> dispose zsh here.
+                    _zsHandles.Add(zsh);
 
                     if (job.IsLastBlock)
-                    {
-                        // DO NOT COMPLETE _compWorkHandleQUeue
-                        _compWorkChunkQueue.Complete();
-                        _compWorkJoinBlock.Complete();
                         _compWorkChunk.Complete();
-                    }
                 }
             }
             catch (Exception e)
