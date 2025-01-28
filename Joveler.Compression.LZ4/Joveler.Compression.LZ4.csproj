@@ -1,11 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0;netcoreapp3.1</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net462;netstandard2.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+    <nullable>enable</nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
     <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
+    <!-- https://duanenewman.net/blog/post/a-better-way-to-override-references-with-packagereference/ -->
     
     <PackageId>Joveler.Compression.LZ4</PackageId>
     <Title>Joveler.Compression.LZ4</Title>
@@ -15,7 +17,7 @@
     <Description>lz4 pinvoke library for .NET.
 The library provides the native implementation of LZ4FrameStream.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (C) 2018-2021 Hajin Jang</Copyright>
+    <Copyright>Copyright (C) 2018-2024 Hajin Jang</Copyright>
     <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -27,7 +29,8 @@ Supports Windows, Linux and macOS.</Description>
   <!-- PackageReference -->
   <ItemGroup>
     <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
-    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="System.Memory" Version="4.6.0" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.0" />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6.2 -->
   <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
@@ -44,8 +47,8 @@ Supports Windows, Linux and macOS.</Description>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <!-- Native Library for .NET Standard 2.0 & .NET Core 3.1 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp3.1'">
+  <!-- Native Library for .NET Standard 2.0 & .NET 8.0 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net8.0'">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -82,7 +85,6 @@ Supports Windows, Linux and macOS.</Description>
   <!-- NuGet Pacakge -->
   <ItemGroup>
     <!-- Build Script for .NET Framework -->
-    <None Include="..\.editorconfig" Link=".editorconfig" />
     <None Include="Joveler.Compression.LZ4.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.LZ4.targets" />
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />

@@ -24,6 +24,7 @@
 using Joveler.Compression.ZLib.Buffer;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Joveler.Compression.ZLib
@@ -31,7 +32,7 @@ namespace Joveler.Compression.ZLib
     /// <summary>
     /// The stream which compresses zlib-related stream format in parallel.
     /// </summary>
-    internal sealed class ParallelCompressJob : IDisposable
+    internal sealed class ZLibThreadedCompressJob : IDisposable, IEquatable<ZLibThreadedCompressJob>, IComparable<ZLibThreadedCompressJob>
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
@@ -47,7 +48,6 @@ namespace Joveler.Compression.ZLib
         public ReferableBuffer? DictBuffer { get; }
         public PooledBuffer OutBuffer { get; }
 
-        public int RawInputSize { get; set; } = 0;
         public uint Checksum { get; set; } = 0;
 
         private bool _disposed = false;
@@ -79,7 +79,7 @@ namespace Joveler.Compression.ZLib
         /// In other blocks, dictBuffer is set to the previous block's InBuffer.
         /// </param>
         /// <param name="outBufferSize"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
+        public ZLibThreadedCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
             Seq = seqNum;
 
@@ -104,7 +104,7 @@ namespace Joveler.Compression.ZLib
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
+        public ZLibThreadedCompressJob(ArrayPool<byte> pool, long seqNum)
         {
             Seq = seqNum;
 
@@ -115,7 +115,7 @@ namespace Joveler.Compression.ZLib
             InBuffer.AcquireRef();
         }
 
-        ~ParallelCompressJob()
+        ~ZLibThreadedCompressJob()
         {
             Dispose(false);
         }
@@ -174,6 +174,69 @@ namespace Joveler.Compression.ZLib
                 return int.MaxValue;
 
             return (int)newVal;
+        }
+
+        public override string ToString()
+        {
+            char isFirstFlag = Seq == 0 ? 'F' : ' ';
+            char isLastFlag = IsLastBlock ? 'L' : ' ';
+            return $"[JOB #{Seq,3}] f({isFirstFlag}{isLastFlag}): in={InBuffer} dict={DictBuffer?.ToString() ?? "null"} out={OutBuffer}";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not ZLibThreadedCompressJob other)
+                return false;
+            return Equals(other);
+        }
+
+        public bool Equals(ZLibThreadedCompressJob? other)
+        {
+            if (other == null)
+                return false;
+
+            return Seq == other.Seq;
+        }
+
+        public int CompareTo(ZLibThreadedCompressJob? other)
+        {
+            if (other == null)
+                throw new ArgumentNullException(nameof(other));
+
+            return Seq.CompareTo(other.Seq);
+        }
+
+        public override int GetHashCode()
+        {
+            return Seq.GetHashCode();
+        }
+    }
+
+    internal sealed class ZLibThreadedCompressJobComparator : IComparer<ZLibThreadedCompressJob>, IEqualityComparer<ZLibThreadedCompressJob>
+    {
+        public int Compare(ZLibThreadedCompressJob? x, ZLibThreadedCompressJob? y)
+        {
+            if (x == null)
+                throw new ArgumentNullException(nameof(x));
+            if (y == null)
+                throw new ArgumentNullException(nameof(x));
+
+            return x.CompareTo(y);
+        }
+
+        public bool Equals(ZLibThreadedCompressJob? x, ZLibThreadedCompressJob? y)
+        {
+            if (x == null)
+                return y == null;
+            if (y == null)
+                return false;
+
+            return x.Equals(y);
+        }
+
+        public int GetHashCode(ZLibThreadedCompressJob obj)
+        {
+            return obj.GetHashCode();
         }
     }
 }

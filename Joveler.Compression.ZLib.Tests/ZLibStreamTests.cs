@@ -134,7 +134,7 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
@@ -248,7 +248,7 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
@@ -292,7 +292,7 @@ namespace Joveler.Compression.ZLib.Tests
             using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (MemoryStream compMs = new MemoryStream())
             {
-                ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
                 {
                     Level = level,
                     LeaveOpen = true,
@@ -307,10 +307,13 @@ namespace Joveler.Compression.ZLib.Tests
                         compMs.Dispose();
                     } // zs.Dispose() must throw exception.
                 }
-                catch (AggregateException ex)
+                catch (AggregateException)
                 {
                     exceptThrown = true;
-                    Console.WriteLine(ex);
+                }
+                catch (Exception)
+                {
+                    exceptThrown = false;
                 }
             }
 

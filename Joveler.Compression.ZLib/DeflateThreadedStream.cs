@@ -66,7 +66,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Size of the compress block, which would be a unit of data to be compressed.
         /// </summary>
-        public int BlockSize { get; set; } = DeflateThreadedStream.DefaultBlockSize;
+        public int BlockSize { get; set; } = DeflateThreadedStream.DefaultChunkSize;
         /// <summary>
         /// <para>Control timeout to allow Write() to return early.<br/>
         /// In parallel compression, Write() may block until the data is compressed.
@@ -165,7 +165,7 @@ namespace Joveler.Compression.ZLib
         /// Also represents the number of blocks passed to the worker threads.
         /// </summary>
         private long _inSeq = 0;
-        private long _waitSeq = ParallelCompressJob.WaitSeqInit;
+        private long _waitSeq = ZLibThreadedCompressJob.WaitSeqInit;
         public long WaitSeq => Interlocked.Read(ref _waitSeq);
 
         private readonly ManualResetEvent _targetWrittenEvent = new ManualResetEvent(true);
@@ -174,9 +174,9 @@ namespace Joveler.Compression.ZLib
         private readonly int _outBlockSize;
         private static int CalcOutBlockSize(int rawBlockSize) => rawBlockSize + (rawBlockSize >> 3); // 9/8 * rawBlockSize
 
-        private readonly ConcurrentQueue<ParallelCompressJob> _inQueue;
+        private readonly ConcurrentQueue<ZLibThreadedCompressJob> _inQueue;
         private readonly object _outListLock;
-        private readonly LinkedList<ParallelCompressJob> _outList;
+        private readonly LinkedList<ZLibThreadedCompressJob> _outList;
 
         private readonly PooledBuffer _inputBuffer;
         /// <summary>
@@ -189,9 +189,9 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Default Block Size 
         /// </summary>
-        internal const int DefaultBlockSize = 128 * 1024; // pigz uses 128KB for block size
+        internal const int DefaultChunkSize = 128 * 1024; // pigz uses 128KB for block size
 
-        private static ChecksumBase<uint>? FormatChecksum(ZLibOperateFormat format)
+        private static ZLibChecksumBase<uint>? FormatChecksum(ZLibOperateFormat format)
         {
             return format switch
             {
@@ -230,9 +230,9 @@ namespace Joveler.Compression.ZLib
             _workerThreads = new Thread[threadCount];
             _workerThreadProcs = new CompressThreadProc[threadCount];
 
-            _inQueue = new ConcurrentQueue<ParallelCompressJob>();
+            _inQueue = new ConcurrentQueue<ZLibThreadedCompressJob>();
             _outListLock = new object();
-            _outList = new LinkedList<ParallelCompressJob>();
+            _outList = new LinkedList<ZLibThreadedCompressJob>();
 
             // Calculate the buffer size
             CheckBlockSize(pcompOpts.BlockSize);
@@ -255,7 +255,7 @@ namespace Joveler.Compression.ZLib
                 _workerThreadProcs[i] = compessThreadProc;
 
                 Thread workerThread = new Thread(compessThreadProc.CompressThreadMain);
-                workerThread.Name = $"ZLibParallelWorkerThread_{i:X2}_{mainThreadId:X2}";
+                workerThread.Name = $"ZLibThreadedWorkerThread_{i:X2}_{mainThreadId:X2}";
                 workerThread.Start();
                 _workerThreads[i] = workerThread;
             }
@@ -263,7 +263,7 @@ namespace Joveler.Compression.ZLib
             // Create write thread
             _writerThreadProc = new WriterThreadProc(this);
             _writerThread = new Thread(_writerThreadProc.WriterThreadMain);
-            _writerThread.Name = $"ZLibParallelWriterThread_{mainThreadId:X2}";
+            _writerThread.Name = $"ZLibThreadedWriterThread_{mainThreadId:X2}";
             _writerThread.Start();
         }
         #endregion
@@ -298,12 +298,12 @@ namespace Joveler.Compression.ZLib
                         BaseStream = null;
                     }
 
-                    while (_inQueue.TryDequeue(out ParallelCompressJob? inJob))
+                    while (_inQueue.TryDequeue(out ZLibThreadedCompressJob? inJob))
                         inJob?.Dispose();
 
                     lock (_outListLock)
                     {
-                        foreach (ParallelCompressJob outJob in _outList)
+                        foreach (ZLibThreadedCompressJob outJob in _outList)
                             outJob.Dispose();
                         _outList.Clear();
                     }
@@ -340,7 +340,7 @@ namespace Joveler.Compression.ZLib
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)
@@ -419,7 +419,7 @@ namespace Joveler.Compression.ZLib
             _finalEnqueued |= isFinal;
 
             // _refCount of job.InBuffer and _nextDictBuffer is increased in constructor call.
-            ParallelCompressJob job = new ParallelCompressJob(_pool, _inSeq, _inBlockSize, _nextDictBuffer, _outBlockSize);
+            ZLibThreadedCompressJob job = new ZLibThreadedCompressJob(_pool, _inSeq, _inBlockSize, _nextDictBuffer, _outBlockSize);
             _inSeq += 1;
 
             // [RefCount]
@@ -430,20 +430,19 @@ namespace Joveler.Compression.ZLib
                 job.IsLastBlock = true;
 
             job.InBuffer.Write(_inputBuffer.ReadablePortionSpan, true);
-            job.RawInputSize = job.InBuffer.DataEndIdx;
 
             // Prepare next dictionary buffer (pass for final block)
             if (isFinal)
             {
                 _nextDictBuffer = null; // No longer required
             }
-            else if (ParallelCompressJob.DictWindowSize <= job.InBuffer.ReadableSize)
+            else if (ZLibThreadedCompressJob.DictWindowSize <= job.InBuffer.ReadableSize)
             {
                 _nextDictBuffer = job.InBuffer.AcquireRef();
             }
             else
             { // next input is less than 32K -> retain last 32K
-                ReferableBuffer copyDictBuffer = new ReferableBuffer(_pool, ParallelCompressJob.DictWindowSize);
+                ReferableBuffer copyDictBuffer = new ReferableBuffer(_pool, ZLibThreadedCompressJob.DictWindowSize);
                 if (_nextDictBuffer == null)
                 { // First block, but the input is less than 32K -> copy the full input
                     copyDictBuffer.Write(job.InBuffer.ReadablePortionSpan);
@@ -451,8 +450,13 @@ namespace Joveler.Compression.ZLib
                 else
                 { // Normal block, source 32K from the previous input + current input
                     // DO NOT USE _nextDictBuffer.DataStartIdx! It may be changed anytime because the buffer is shared.
-                    int copyLastDictSize = ParallelCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
-                    ReadOnlySpan<byte> lastDictSpan = _nextDictBuffer.Buf.AsSpan(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                    int copyLastDictSize = ZLibThreadedCompressJob.DictWindowSize - job.InBuffer.ReadableSize;
+
+                    ReadOnlySpan<byte> lastDictSpan;
+                    if (copyLastDictSize <= _nextDictBuffer.DataEndIdx)
+                        lastDictSpan = _nextDictBuffer.Buf.AsSpan(_nextDictBuffer.DataEndIdx - copyLastDictSize, copyLastDictSize);
+                    else
+                        lastDictSpan = _nextDictBuffer.Span;
                     copyDictBuffer.Write(lastDictSpan);
 
                     // Release previous ref of the _nextDictBuffer.
@@ -461,7 +465,7 @@ namespace Joveler.Compression.ZLib
                     // Copy current input, acheiving full 32K.
                     copyDictBuffer.Write(job.InBuffer.ReadablePortionSpan);
 
-                    Debug.Assert(copyDictBuffer.DataEndIdx == ParallelCompressJob.DictWindowSize);
+                    Debug.Assert(copyDictBuffer.DataEndIdx == ZLibThreadedCompressJob.DictWindowSize);
                 }
                 _nextDictBuffer = copyDictBuffer.AcquireRef();
             }
@@ -482,7 +486,7 @@ namespace Joveler.Compression.ZLib
             // EOF block is only a simple marker to terminate the worker threads.
             for (int i = 0; i < _workerThreads.Length; i++)
             { // Worker threads will terminate when eof block appears.
-                ParallelCompressJob eofJob = new ParallelCompressJob(_pool, ParallelCompressJob.EofBlockSeq);
+                ZLibThreadedCompressJob eofJob = new ZLibThreadedCompressJob(_pool, ZLibThreadedCompressJob.EofBlockSeq);
                 _inQueue.Enqueue(eofJob);
 
                 // [RefCount]
@@ -490,11 +494,11 @@ namespace Joveler.Compression.ZLib
             }
         }
 
-        private void EnqueueOutList(ParallelCompressJob job)
+        private void EnqueueOutList(ZLibThreadedCompressJob job)
         {
             lock (_outListLock)
             {
-                LinkedListNode<ParallelCompressJob>? node = _outList.First;
+                LinkedListNode<ZLibThreadedCompressJob>? node = _outList.First;
 
                 while (node != null)
                 {
@@ -603,7 +607,7 @@ namespace Joveler.Compression.ZLib
             if (IsAborted)
                 return;
 
-            // flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
+            // Flush and enqueue a final block with remaining buffer to run ZLibFlush.Finish.
             EnqueueInputBuffer(true);
 
             // Enqueue an EOF block with empty buffer per thread
@@ -656,9 +660,8 @@ namespace Joveler.Compression.ZLib
             private readonly int _threadId;
 
             public readonly AutoResetEvent ReadSignal = new AutoResetEvent(false);
-            public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
 
-            private readonly ChecksumBase<uint>? _blockChecksum;
+            private readonly ZLibChecksumBase<uint>? _blockChecksum;
 
             private ZStreamBase? _zs;
             private GCHandle _zsPin;
@@ -698,16 +701,13 @@ namespace Joveler.Compression.ZLib
                     {
                         // Signal that this workerThread is waiting for the next job
                         // Wait for the next job to come in
-                        WaitHandle.SignalAndWait(WaitingSignal, ReadSignal);
+                        ReadSignal.WaitOne();
 
                         if (_owner.IsAborted)
                             break;
 
-                        // Reset the waiting signal
-                        WaitingSignal.Reset();
-
                         // Loop until the input queue is empty
-                        while (_owner._inQueue.TryDequeue(out ParallelCompressJob? job) && job != null)
+                        while (_owner._inQueue.TryDequeue(out ZLibThreadedCompressJob? job) && job != null)
                         {
                             // If the input is the EOF block, break the loop immediately
                             if (job.IsEofBlock)
@@ -745,7 +745,7 @@ namespace Joveler.Compression.ZLib
                                     // {In,Dict}Buffer.DataEndIdx is not changed by another worker thread, so it is safe to use.
                                     Debug.Assert(!job.DictBuffer.Disposed);
 
-                                    int dictSize = Math.Min(job.DictBuffer.DataEndIdx, ParallelCompressJob.DictWindowSize);
+                                    int dictSize = Math.Min(job.DictBuffer.DataEndIdx, ZLibThreadedCompressJob.DictWindowSize);
                                     int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
 
                                     // [Stage 03] Set dictionary (last 32KB of the previous input)
@@ -761,7 +761,6 @@ namespace Joveler.Compression.ZLib
                                 {
                                     Debug.Assert(!job.InBuffer.Disposed);
                                     Debug.Assert(job.InBuffer.DataStartIdx == 0);
-                                    Debug.Assert(job.InBuffer.DataEndIdx == job.RawInputSize);
 
                                     _blockChecksum.Reset();
                                     job.Checksum = _blockChecksum.Append(job.InBuffer.Buf, 0, job.InBuffer.DataEndIdx);
@@ -813,7 +812,7 @@ namespace Joveler.Compression.ZLib
                                 Console.WriteLine($"-- compressed (#{job.SeqNum}) : last=[{job.IsLastBlock}] in=[{job.InBuffer}] dict=[{job.DictBuffer}] out=[{job.OutBuffer}] ");
 #endif
 
-                                Debug.Assert(bytesRead == job.RawInputSize && job.RawInputSize == job.InBuffer.DataEndIdx);
+                                Debug.Assert(bytesRead == job.InBuffer.DataEndIdx);
 
                                 // [Stage 12] Insert compressed data to linked list
                                 _owner.EnqueueOutList(job);
@@ -840,18 +839,14 @@ namespace Joveler.Compression.ZLib
                         if (exitLoop)
                             break;
                     }
-
-                    WaitingSignal.Set();
                 }
                 catch (Exception e)
                 { // If any Exception has occured, abort the whole process.
-                    WaitingSignal.Set();
-
                     _owner.HandleBackgroundException(e);
                 }
             }
 
-            private unsafe int DeflateBlock(ParallelCompressJob job, int inputStartIdx, ZLibFlush flush)
+            private unsafe int DeflateBlock(ZLibThreadedCompressJob job, int inputStartIdx, ZLibFlush flush)
             {
                 Debug.Assert(!job.InBuffer.Disposed);
 
@@ -868,7 +863,7 @@ namespace Joveler.Compression.ZLib
                         // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
                         { // Expand the outBuffer if the buffer is full.
-                            int newSize = ParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            int newSize = ZLibThreadedCompressJob.CalcBufferExpandSize(job.OutBuffer.Capacity);
                             if (!job.OutBuffer.Expand(newSize))
                                 throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
@@ -876,7 +871,7 @@ namespace Joveler.Compression.ZLib
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
                         {
                             _zs.NextOut = outBufPtr + job.OutBuffer.DataEndIdx;
-                            _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.DataEndIdx);
+                            _zs.AvailOut = (uint)(job.OutBuffer.Capacity - job.OutBuffer.DataEndIdx);
 
                             uint beforeAvailIn = _zs.AvailIn;
                             uint beforeAvailOut = _zs.AvailOut;
@@ -904,7 +899,7 @@ namespace Joveler.Compression.ZLib
                 return inputStartIdx;
             }
 
-            private unsafe int DeflateBlockFinish(ParallelCompressJob job, int inputStartIdx)
+            private unsafe int DeflateBlockFinish(ZLibThreadedCompressJob job, int inputStartIdx)
             {
                 Debug.Assert(!job.InBuffer.Disposed);
 
@@ -922,7 +917,7 @@ namespace Joveler.Compression.ZLib
                         // One compressed version of inBuffer data must fit in one outBuffer.
                         if (job.OutBuffer.IsFull)
                         { // Expand the outBuffer if the buffer is full.
-                            int newSize = ParallelCompressJob.CalcBufferExpandSize(job.OutBuffer.Size);
+                            int newSize = ZLibThreadedCompressJob.CalcBufferExpandSize(job.OutBuffer.Capacity);
                             if (!job.OutBuffer.Expand(newSize))
                                 throw new InvalidOperationException($"Failed to expand [{nameof(job.OutBuffer)}] to [{newSize}] bytes.");
                         }
@@ -930,7 +925,7 @@ namespace Joveler.Compression.ZLib
                         fixed (byte* outBufPtr = job.OutBuffer.Buf) // [Out] Compressed
                         {
                             _zs.NextOut = outBufPtr + job.OutBuffer.DataEndIdx;
-                            _zs.AvailOut = (uint)(job.OutBuffer.Size - job.OutBuffer.DataEndIdx);
+                            _zs.AvailOut = (uint)(job.OutBuffer.Capacity - job.OutBuffer.DataEndIdx);
 
                             uint beforeAvailIn = _zs.AvailIn;
                             uint beforeAvailOut = _zs.AvailOut;
@@ -976,7 +971,6 @@ namespace Joveler.Compression.ZLib
                 }
 
                 ReadSignal.Dispose();
-                WaitingSignal.Dispose();
 
                 _disposed = true;
             }
@@ -1007,11 +1001,10 @@ namespace Joveler.Compression.ZLib
             public long SeqNum => Interlocked.Read(ref _outSeq);
 
             public readonly AutoResetEvent WriteSignal = new AutoResetEvent(false);
-            public readonly ManualResetEvent WaitingSignal = new ManualResetEvent(false);
 
             private bool _disposed = false;
 
-            private readonly ChecksumBase<uint>? _writeChecksum;
+            private readonly ZLibChecksumBase<uint>? _writeChecksum;
 
             public WriterThreadProc(DeflateThreadedStream owner)
             {
@@ -1038,7 +1031,7 @@ namespace Joveler.Compression.ZLib
                     while (true)
                     {
                         // Loop until the write queue is empty
-                        LinkedListNode<ParallelCompressJob>? outJobNode = null;
+                        LinkedListNode<ZLibThreadedCompressJob>? outJobNode = null;
                         do
                         {
                             // Get next OutJob
@@ -1054,7 +1047,7 @@ namespace Joveler.Compression.ZLib
 
                             _outSeq += 1;
 
-                            using (ParallelCompressJob job = outJobNode.Value)
+                            using (ZLibThreadedCompressJob job = outJobNode.Value)
                             {
                                 // Write to BaseStream
                                 _owner.BaseStream.Write(job.OutBuffer.Buf, 0, job.OutBuffer.DataEndIdx);
@@ -1064,12 +1057,12 @@ namespace Joveler.Compression.ZLib
 #endif
 
                                 // Increase TotalIn & TotalOut
-                                _owner.AddTotalIn(job.RawInputSize);
+                                _owner.AddTotalIn(job.InBuffer.DataEndIdx);
                                 _owner.AddTotalOut(job.OutBuffer.ReadableSize);
 
                                 // Combine the checksum (if necessary)
-                                if (0 < job.RawInputSize && _writeChecksum != null)
-                                    _writeChecksum.Combine(job.Checksum, job.RawInputSize);
+                                if (0 < job.InBuffer.DataEndIdx && _writeChecksum != null)
+                                    _writeChecksum.Combine(job.Checksum, job.InBuffer.DataEndIdx);
 
                                 // In case of last block, we need to write a trailer, too.
                                 if (job.IsLastBlock)
@@ -1118,21 +1111,16 @@ namespace Joveler.Compression.ZLib
 
                         // Signal about the waiting
                         // Wait for the write signal at least once
-                        WaitHandle.SignalAndWait(WaitingSignal, WriteSignal);
+                        WriteSignal.WaitOne();
 
                         if (_owner.IsAborted)
                             break;
-
-                        // Reset the waiting signal
-                        WaitingSignal.Reset();
                     }
 
-                    WaitingSignal.Set();
                     _owner._targetWrittenEvent.Set();
                 }
                 catch (Exception e)
                 { // If any Exception has occured, abort the whole process.
-                    WaitingSignal.Set();
                     _owner._targetWrittenEvent.Set();
 
                     _owner.HandleBackgroundException(e);
@@ -1151,7 +1139,6 @@ namespace Joveler.Compression.ZLib
 
                 // Dispose unmanaged resources, and set large fields to null.
                 WriteSignal.Dispose();
-                WaitingSignal.Dispose();
 
                 _disposed = true;
             }
@@ -1183,10 +1170,12 @@ namespace Joveler.Compression.ZLib
                 else
                     zlibHead += 2 << 6;
                 zlibHead += (ushort)(31 - zlibHead % 31); // Make it a multiple of 31
-                if (BitConverter.IsLittleEndian) // zlib stream is big-endian
-                    zlibHead = BinaryPrimitives.ReverseEndianness(zlibHead);
-                byte[] headBuf = BitConverter.GetBytes(zlibHead);
+
+                // zlib stream is big-endian
+                byte[] headBuf = new byte[2];
+                BinaryPrimitives.WriteUInt16BigEndian(headBuf, zlibHead);
                 BaseStream.Write(headBuf, 0, headBuf.Length);
+                AddTotalOut(headBuf.Length);
             }
             else if (_format == ZLibOperateFormat.GZip)
             { // https://datatracker.ietf.org/doc/html/rfc1952
@@ -1214,6 +1203,7 @@ namespace Joveler.Compression.ZLib
                 ];
 
                 BaseStream.Write(headBuf, 0, headBuf.Length);
+                AddTotalOut(headBuf.Length);
             }
         }
 
@@ -1224,24 +1214,26 @@ namespace Joveler.Compression.ZLib
 
             if (_format == ZLibOperateFormat.ZLib)
             { // https://datatracker.ietf.org/doc/html/rfc1950
-                uint finalAdler32 = finalChecksum;
-                if (BitConverter.IsLittleEndian) // zlib stream is big-endian
-                    finalAdler32 = BinaryPrimitives.ReverseEndianness(finalAdler32);
+                // checksum is Adler32, zlib stream uses big-endian
+                byte[] checkBuf = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(checkBuf, finalChecksum);
 
-                byte[] checkBuf = BitConverter.GetBytes(finalAdler32);
                 BaseStream.Write(checkBuf, 0, checkBuf.Length);
                 AddTotalOut(checkBuf.Length);
             }
             else if (_format == ZLibOperateFormat.GZip)
             { // https://datatracker.ietf.org/doc/html/rfc1952
-                uint finalCrc32 = finalChecksum;
-                byte[] checkBuf = BitConverter.GetBytes(finalCrc32);
-                BaseStream.Write(checkBuf, 0, checkBuf.Length);
+                // gzip uses little-endian
+                byte[] trailBuf = new byte[8];
+
+                // Checksum is CRC32
+                BinaryPrimitives.WriteUInt32LittleEndian(trailBuf, finalChecksum);
 
                 // Write the raw length (would be truncated to 32bit)
-                byte[] rawLenBuf = BitConverter.GetBytes((uint)rawLength);
-                BaseStream.Write(rawLenBuf, 0, rawLenBuf.Length);
-                AddTotalOut(checkBuf.Length + rawLenBuf.Length);
+                BinaryPrimitives.WriteUInt32LittleEndian(trailBuf.AsSpan(4), (uint)rawLength);
+
+                BaseStream.Write(trailBuf, 0, trailBuf.Length);
+                AddTotalOut(trailBuf.Length);
             }
         }
         #endregion
@@ -1310,7 +1302,7 @@ namespace Joveler.Compression.ZLib
         {
             if (blockSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(blockSize));
-            return Math.Max(blockSize, DefaultBlockSize); // At least 128KB
+            return Math.Max(blockSize, DefaultChunkSize); // At least 128KB
         }
         #endregion
     }

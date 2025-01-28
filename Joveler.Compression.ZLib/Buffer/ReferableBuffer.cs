@@ -62,7 +62,7 @@ namespace Joveler.Compression.ZLib.Buffer
 
         public override string ToString()
         {
-            return $"RBUF[{_dataStartIdx,7} - {_dataEndIdx,7}/{_size,7}] (data: {_dataEndIdx - _dataStartIdx}) (ref: {_refCount})]";
+            return $"RBUF[{_dataStartIdx,7} - {_dataEndIdx,7}/{_capacity,7}] (data: {_dataEndIdx - _dataStartIdx}) (ref: {_refCount})]";
         }
     }
 }

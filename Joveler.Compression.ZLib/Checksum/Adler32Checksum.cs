@@ -25,12 +25,11 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region Adler32Checksum
-    public sealed class Adler32Checksum : ChecksumBase<uint>
+    public sealed class Adler32Checksum : ZLibChecksumBase<uint>
     {
         #region Const
         /// <summary>
@@ -45,21 +44,10 @@ namespace Joveler.Compression.ZLib.Checksum
             ZLibInit.Manager.EnsureLoaded();
         }
 
-        public Adler32Checksum(int bufferSize) : base(Adler32Init, bufferSize)
+        [Obsolete($"Instance-level bufferSize is deprecated, use default constructor instead.")]
+        public Adler32Checksum(int bufferSize) : base(Adler32Init)
         {
             ZLibInit.Manager.EnsureLoaded();
-        }
-        #endregion
-
-        #region Reset
-        public override void Reset()
-        {
-            Checksum = Adler32Init;
-        }
-
-        public override void Reset(uint reset)
-        {
-            Checksum = reset;
         }
         #endregion
 
@@ -81,54 +69,15 @@ namespace Joveler.Compression.ZLib.Checksum
                 return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
             }
         }
+        #endregion
 
+        #region CombineCore
         /// <inheritdoc/>
         protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
         {
             return ZLibInit.Lib.NativeAbi.Adler32Combine(priorChecksum, nextChecksum, nextInputSize);
         }
         #endregion
-    }
-    #endregion
-
-    #region Adler32Algorithm
-    public sealed class Adler32Algorithm : HashAlgorithm
-    {
-        private Adler32Checksum _adler32;
-
-        public Adler32Algorithm()
-        {
-            Initialize();
-
-            if (_adler32 == null)
-                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
-        }
-
-        public override void Initialize()
-        {
-            ZLibInit.Manager.EnsureLoaded();
-
-            _adler32 = new Adler32Checksum();
-        }
-
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
-        {
-            _adler32.Append(array, ibStart, cbSize);
-        }
-
-#if NETCOREAPP
-        protected override void HashCore(ReadOnlySpan<byte> source)
-        {
-            _adler32.Append(source);
-        }
-#endif
-
-        protected override byte[] HashFinal()
-        {
-            return BitConverter.GetBytes(_adler32.Checksum);
-        }
-
-        public override int HashSize => 32;
     }
     #endregion
 }

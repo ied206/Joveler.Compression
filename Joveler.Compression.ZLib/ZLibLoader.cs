@@ -31,6 +31,9 @@ using Joveler.DynLoader;
 using System;
 using System.Runtime.InteropServices;
 
+// Disable warning of using non-capital ASCII naming for the native methods.
+#pragma warning disable CS8981
+
 namespace Joveler.Compression.ZLib
 {
     internal class ZLibLoader : DynLoaderBase

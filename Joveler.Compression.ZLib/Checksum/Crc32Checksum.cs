@@ -25,12 +25,11 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region Crc32Checksum
-    public sealed class Crc32Checksum : ChecksumBase<uint>
+    public sealed class Crc32Checksum : ZLibChecksumBase<uint>
     {
         #region Const
         /// <summary>
@@ -45,21 +44,10 @@ namespace Joveler.Compression.ZLib.Checksum
             ZLibInit.Manager.EnsureLoaded();
         }
 
-        public Crc32Checksum(int bufferSize) : base(Crc32Init, bufferSize)
+        [Obsolete($"Instance-level bufferSize is deprecated, use default constructor instead.")]
+        public Crc32Checksum(int bufferSize) : base(Crc32Init)
         {
             ZLibInit.Manager.EnsureLoaded();
-        }
-        #endregion
-
-        #region Reset
-        public override void Reset()
-        {
-            Checksum = Crc32Init;
-        }
-
-        public override void Reset(uint reset)
-        {
-            Checksum = reset;
         }
         #endregion
 
@@ -81,53 +69,14 @@ namespace Joveler.Compression.ZLib.Checksum
                 return ZLibInit.Lib.NativeAbi.Crc32(checksum, bufPtr, (uint)span.Length);
             }
         }
+        #endregion
 
+        #region CombineCore
         protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
         {
             return ZLibInit.Lib.NativeAbi.Crc32Combine(priorChecksum, nextChecksum, nextInputSize);
         }
         #endregion
-    }
-    #endregion
-
-    #region Crc32Algorithm
-    public sealed class Crc32Algorithm : HashAlgorithm
-    {
-        private Crc32Checksum _crc32;
-
-        public Crc32Algorithm()
-        {
-            Initialize();
-
-            if (_crc32 == null)
-                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
-        }
-
-        public override void Initialize()
-        {
-            ZLibInit.Manager.EnsureLoaded();
-
-            _crc32 = new Crc32Checksum();
-        }
-
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
-        {
-            _crc32.Append(array, ibStart, cbSize);
-        }
-
-#if NETCOREAPP
-        protected override void HashCore(ReadOnlySpan<byte> source)
-        {
-            _crc32.Append(source);
-        }
-#endif
-
-        protected override byte[] HashFinal()
-        {
-            return BitConverter.GetBytes(_crc32.Checksum);
-        }
-
-        public override int HashSize => 32;
     }
     #endregion
 }
