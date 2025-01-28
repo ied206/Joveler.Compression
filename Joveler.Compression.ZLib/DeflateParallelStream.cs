@@ -304,7 +304,7 @@ namespace Joveler.Compression.ZLib
                         foreach (ZStreamHandle zs in items)
                             zs.Dispose();
                     }
-                    _compWorkHandleQueue.Complete();
+                    Debug.Assert(_compWorkHandleQueue.Count == 0);
 
                     _targetWrittenEvent.Dispose();
 
@@ -483,7 +483,7 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region MainThread - Flush, Abort, FinalizeStream
-        private void FinishWrite()
+        private async void FinishWrite()
         {
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -498,7 +498,11 @@ namespace Joveler.Compression.ZLib
                 _compWorkChunk.Completion,
                 _compSortChunk.Completion,
                 _compWriteChunk.Completion);
-            
+
+            // Complete ZStreamHandle queue after all worker threads are done.
+            _compWorkHandleQueue.Complete();
+            await _compWorkHandleQueue.Completion;
+
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
         }
