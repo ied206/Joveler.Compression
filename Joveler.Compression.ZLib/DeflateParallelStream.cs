@@ -142,6 +142,8 @@ namespace Joveler.Compression.ZLib
         private readonly CancellationTokenSource _abortTokenSrc = new CancellationTokenSource();
         public bool IsAborted => _abortTokenSrc.IsCancellationRequested;
 
+        private readonly List<Exception> _taskExcepts = new List<Exception>();
+
         public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; }
         public long TotalOut { get; private set; }
@@ -398,7 +400,7 @@ namespace Joveler.Compression.ZLib
             CheckBackgroundExceptions();
         }
 
-        private async void EnqueueInputBuffer(bool isFinal)
+        private void EnqueueInputBuffer(bool isFinal)
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
@@ -476,7 +478,7 @@ namespace Joveler.Compression.ZLib
             // Final  block: job.InBuffer._refCount == 1, _nextDictBuffer == null
 
             _inputBuffer.Clear();
-            await _compWorkChunkQueue.SendAsync(job);
+            _compWorkChunkQueue.SendAsync(job).Wait();
         }
         #endregion
 
@@ -738,10 +740,10 @@ namespace Joveler.Compression.ZLib
                     }
                 }
             }
-            catch
+            catch (Exception e)
             { // If any Exception has occured, abort the whole process.
                 _abortTokenSrc.Cancel();
-                throw;
+                _taskExcepts.Add(e);
             }
 
             return job;
@@ -890,10 +892,10 @@ namespace Joveler.Compression.ZLib
                         _compSortChunk.Complete();
                 }
             }
-            catch
+            catch (Exception e)
             {
                 _abortTokenSrc.Cancel();
-                throw;
+                _taskExcepts.Add(e);
             }
         }
         #endregion
@@ -948,11 +950,11 @@ namespace Joveler.Compression.ZLib
                     job.Dispose();
                 }
             }
-            catch
+            catch (Exception e)
             {
                 _abortTokenSrc.Cancel();
                 _targetWrittenEvent.Set();
-                throw;
+                _taskExcepts.Add(e);
             }
         }
         #endregion
@@ -1049,29 +1051,42 @@ namespace Joveler.Compression.ZLib
         {
             AggregateException?[] rawExcepts =
             [
-                _compWorkChunkQueue.Completion.Exception,
-                _compWorkHandleQueue.Completion.Exception,
-                _compWorkJoinBlock.Completion.Exception,
                 _compWorkChunk.Completion.Exception,
                 _compSortChunk.Completion.Exception,
                 _compWriteChunk.Completion.Exception
             ];
 
-            List<AggregateException> excepts = rawExcepts.Where(x => x != null).Select(x => x!).ToList();
+            List<AggregateException> aggExcepts = rawExcepts.Where(x => x != null).Select(x => x!).ToList();
 
             // No exceptions has been fired -> return peacefully.
-            if (excepts.Count == 0)
-                return;
+            if (aggExcepts.Count == 0)
+            {
+                if (_taskExcepts.Count == 0)
+                {
+                    return;
+                }
+                else
+                {
+                    AggregateException ae = new AggregateException(_taskExcepts);
+                    _taskExcepts.Clear();
+                    throw ae;
+                }
+            }
 
             // Preserve AggregateException if only one Dataflow Block has AggregateException.
-            if (excepts.Count == 1)
-                throw excepts.First(x => x != null);
+            if (aggExcepts.Count == 1)
+            {
+                if (_taskExcepts.Count == 0)
+                    throw aggExcepts.First(x => x != null);
+            }
 
             // Merge instances of AggregateException.
             List<Exception> innerExcepts = new List<Exception>();
-            foreach (AggregateException ae in excepts)
+            foreach (AggregateException ae in aggExcepts)
                 innerExcepts.AddRange(ae.InnerExceptions);
-            
+            innerExcepts.AddRange(_taskExcepts);
+            _taskExcepts.Clear();
+
             Debug.Assert(0 < innerExcepts.Count);
             throw new AggregateException(innerExcepts);
         }

@@ -159,6 +159,8 @@ namespace Joveler.Compression.LZ4
         private readonly CancellationTokenSource _abortTokenSrc = new CancellationTokenSource();
         public bool IsAborted => _abortTokenSrc.IsCancellationRequested;
 
+        private readonly List<Exception> _taskExcepts = new List<Exception>();
+
         private IntPtr _mainCctx;
         private readonly FramePreferences _workCompPrefs;
         private readonly FrameCompressOptions _frameCompOpts = new FrameCompressOptions()
@@ -428,7 +430,7 @@ namespace Joveler.Compression.LZ4
             CheckBackgroundExceptions();
         }
 
-        private async void EnqueueInputBuffer(bool isFinal)
+        private void EnqueueInputBuffer(bool isFinal)
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
@@ -497,7 +499,7 @@ namespace Joveler.Compression.LZ4
             }
 
             _inputBuffer.Clear();
-            await _compWorkChunk.SendAsync(job);
+            _compWorkChunk.SendAsync(job).Wait();
         }
         #endregion
 
@@ -647,10 +649,10 @@ namespace Joveler.Compression.LZ4
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 _abortTokenSrc.Cancel();
-                throw;
+                _taskExcepts.Add(e);
             }
 
 #if DEBUG_PARALLEL
@@ -687,10 +689,10 @@ namespace Joveler.Compression.LZ4
                         _compSortChunk.Complete();
                 }
             }
-            catch
+            catch (Exception e)
             {
                 _abortTokenSrc.Cancel();
-                throw;
+                _taskExcepts.Add(e);
             }
         }
         #endregion
@@ -738,11 +740,11 @@ namespace Joveler.Compression.LZ4
                     job.Dispose();
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 _abortTokenSrc.Cancel();
                 _targetWrittenEvent.Set();
-                throw;
+                _taskExcepts.Add(e);
             }
         }
         #endregion
@@ -815,20 +817,36 @@ namespace Joveler.Compression.LZ4
                 _compWriteChunk.Completion.Exception
             ];
 
-            List<AggregateException> excepts = rawExcepts.Where(x => x != null).Select(x => x!).ToList();
+            List<AggregateException> aggExcepts = rawExcepts.Where(x => x != null).Select(x => x!).ToList();
 
             // No exceptions has been fired -> return peacefully.
-            if (excepts.Count == 0)
-                return;
+            if (aggExcepts.Count == 0)
+            {
+                if (_taskExcepts.Count == 0)
+                {
+                    return;
+                }
+                else
+                {
+                    AggregateException ae = new AggregateException(_taskExcepts);
+                    _taskExcepts.Clear();
+                    throw ae;
+                }
+            }
 
             // Preserve AggregateException if only one Dataflow Block has AggregateException.
-            if (excepts.Count == 1)
-                throw excepts.First(x => x != null);
+            if (aggExcepts.Count == 1)
+            {
+                if (_taskExcepts.Count == 0)
+                    throw aggExcepts.First(x => x != null);
+            }
 
             // Merge instances of AggregateException.
             List<Exception> innerExcepts = new List<Exception>();
-            foreach (AggregateException ae in excepts)
+            foreach (AggregateException ae in aggExcepts)
                 innerExcepts.AddRange(ae.InnerExceptions);
+            innerExcepts.AddRange(_taskExcepts);
+            _taskExcepts.Clear();
 
             Debug.Assert(0 < innerExcepts.Count);
             throw new AggregateException(innerExcepts);
