@@ -246,7 +246,7 @@ namespace Joveler.Compression.ZLib
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)

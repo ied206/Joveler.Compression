@@ -30,44 +30,23 @@ using System.Security.Cryptography;
 namespace Joveler.Compression.ZLib.Checksum
 {
     #region Adler32Algorithm
-    [Obsolete($"Result of [{nameof(Adler32Algorithm)}] depends on processor endianness. Use [{nameof(Adler32Checksum)}] instead.")]
-    public sealed class Adler32Algorithm : HashAlgorithm
+    public sealed class Adler32Algorithm : ZLibHashAlgorithmBase
     {
-        private Adler32Checksum _adler32;
-
+        [Obsolete($"Result of this constructor depends on processor endianness. Use constructor with explicit endianness instead.")]
         public Adler32Algorithm()
+            : base(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian, new Adler32Checksum())
         {
-            Initialize();
-
-            if (_adler32 == null)
-                throw new InvalidOperationException($"Failed to initialize [{nameof(Adler32Checksum)}]");
         }
 
-        public override void Initialize()
+        public Adler32Algorithm(ByteOrder endian)
+           : base(endian, new Adler32Checksum())
         {
-            ZLibInit.Manager.EnsureLoaded();
-
-            _adler32 = new Adler32Checksum();
         }
 
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
+        public static new Adler32Algorithm Create()
         {
-            _adler32.Append(array, ibStart, cbSize);
+            return new Adler32Algorithm(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian);
         }
-
-#if NETCOREAPP
-        protected override void HashCore(ReadOnlySpan<byte> source)
-        {
-            _adler32.Append(source);
-        }
-#endif
-
-        protected override byte[] HashFinal()
-        {
-            return BitConverter.GetBytes(_adler32.Checksum);
-        }
-
-        public override int HashSize => 32;
     }
     #endregion
 }

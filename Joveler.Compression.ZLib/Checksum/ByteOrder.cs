@@ -1,7 +1,4 @@
 ﻿/*
-   Derived from zlib header files (zlib license)
-   Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
-
    Written by Hajin Jang
    Copyright (C) 2017-present Hajin Jang
 
@@ -24,28 +21,11 @@
    3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-
 namespace Joveler.Compression.ZLib.Checksum
 {
-    #region Crc32Algorithm
-    public sealed class Crc32Algorithm : ZLibHashAlgorithmBase
+    public enum ByteOrder
     {
-        [Obsolete($"Result of this constructor depends on processor endianness. Use constructor with explicit endianness instead.")]
-        public Crc32Algorithm() 
-            : base(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian, new Crc32Checksum())
-        {
-        }
-
-        public Crc32Algorithm(ByteOrder endian)
-           : base(endian, new Crc32Checksum())
-        {
-        }
-
-        public static new Crc32Algorithm Create()
-        {
-            return new Crc32Algorithm(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian);
-        }
+        LittleEndian = 0,
+        BigEndian = 1,
     }
-    #endregion
 }

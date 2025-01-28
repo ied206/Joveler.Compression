@@ -26,7 +26,7 @@ using System.IO;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
-    #region BaseChecksum
+    #region ZLibChecksumBase
     public abstract class ZLibChecksumBase<T> where T : unmanaged
     {
         #region Fields and Properties

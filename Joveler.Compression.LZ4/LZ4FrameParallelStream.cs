@@ -246,13 +246,15 @@ namespace Joveler.Compression.LZ4
             WriteHeader(mainCompPrefs);
 
             // Launch CompressTask, WriterTask
+            // - If BoundedCapacity is set, it will discard incoming message from Post() when the its queue is full.
+            // - So in that case, take care to use SendAsync() instead of Post().
+            int maxWaitingJobs = 4 * _threads;
             _compWorkChunk = new TransformBlock<LZ4ParallelCompressJob, LZ4ParallelCompressJob>(CompressProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
-                BoundedCapacity = 4 * _threads,
+                BoundedCapacity = maxWaitingJobs,
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = _threads,
-                SingleProducerConstrained = false,
             });
 
             _compSortChunk = new ActionBlock<LZ4ParallelCompressJob>(WriteSortProc, new ExecutionDataflowBlockOptions()
@@ -265,7 +267,7 @@ namespace Joveler.Compression.LZ4
             _compWriteChunk = new ActionBlock<LZ4ParallelCompressJob>(WriterProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
-                BoundedCapacity = 4 * _threads,
+                BoundedCapacity = maxWaitingJobs,
                 EnsureOrdered = true,
                 MaxDegreeOfParallelism = 1,
             });
@@ -426,7 +428,7 @@ namespace Joveler.Compression.LZ4
             CheckBackgroundExceptions();
         }
 
-        private void EnqueueInputBuffer(bool isFinal)
+        private async void EnqueueInputBuffer(bool isFinal)
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
@@ -495,7 +497,7 @@ namespace Joveler.Compression.LZ4
             }
 
             _inputBuffer.Clear();
-            _compWorkChunk.Post(job);
+            await _compWorkChunk.SendAsync(job);
         }
         #endregion
 
@@ -660,7 +662,7 @@ namespace Joveler.Compression.LZ4
         #endregion
 
         #region WriteSortProc
-        internal void WriteSortProc(LZ4ParallelCompressJob item)
+        internal async void WriteSortProc(LZ4ParallelCompressJob item)
         {
             try
             {
@@ -679,7 +681,7 @@ namespace Joveler.Compression.LZ4
                     _outSeq += 1;
                     bool isLastBlock = outJob.IsLastBlock;
 
-                    _compWriteChunk.Post(outJob);
+                    await _compWriteChunk.SendAsync(outJob);
 
                     if (isLastBlock)
                         _compSortChunk.Complete();

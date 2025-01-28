@@ -30,24 +30,19 @@ using System.Security.Cryptography;
 
 namespace Joveler.Compression.LZ4.XXHash
 {
-    public enum XXHashBytesEndian
-    {
-        LittleEndian = 0,
-        BigEndian = 1,
-    }
-
     public abstract class XXHashAlgorithmBase<T> : HashAlgorithm where T : unmanaged
     {
         private bool _disposed = false;
         private readonly int _hashValSize = Marshal.SizeOf(typeof(T));
         private XXHashStreamBase<T>? _stream;
 
-        public XXHashBytesEndian Endian { get; set; }
+        public ByteOrder Endian { get; set; }
 
-        protected XXHashAlgorithmBase(XXHashBytesEndian endian, XXHashStreamBase<T> xxhStream)
+        protected XXHashAlgorithmBase(ByteOrder endian, XXHashStreamBase<T> xxhStream)
         {
             Endian = endian;
             _stream = xxhStream;
+            Initialize();
         }
 
         public override void Initialize()
@@ -105,8 +100,8 @@ namespace Joveler.Compression.LZ4.XXHash
 
             return Endian switch
             {
-                XXHashBytesEndian.LittleEndian => _stream.HashBytesLE,
-                XXHashBytesEndian.BigEndian => _stream.HashBytesBE,
+                ByteOrder.LittleEndian => _stream.HashBytesLE,
+                ByteOrder.BigEndian => _stream.HashBytesBE,
                 _ => throw new InvalidOperationException($"Invalid XXHashBytesEndian [{Endian}]"),
             };
         }
@@ -126,10 +121,10 @@ namespace Joveler.Compression.LZ4.XXHash
             T hashVal = _stream.HashValue;
             switch (Endian)
             {
-                case XXHashBytesEndian.LittleEndian:
+                case ByteOrder.LittleEndian:
                     _stream.ConvertValueToBytesLE(destination, hashVal);
                     break;
-                case XXHashBytesEndian.BigEndian:
+                case ByteOrder.BigEndian:
                     _stream.ConvertValueToBytesBE(destination, hashVal);
                     break;
                 default:

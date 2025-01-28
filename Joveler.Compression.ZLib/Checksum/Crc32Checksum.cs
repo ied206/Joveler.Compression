@@ -44,7 +44,7 @@ namespace Joveler.Compression.ZLib.Checksum
             ZLibInit.Manager.EnsureLoaded();
         }
 
-        [Obsolete($"Use default constructor instead")]
+        [Obsolete($"Instance-level bufferSize is deprecated, use default constructor instead.")]
         public Crc32Checksum(int bufferSize) : base(Crc32Init)
         {
             ZLibInit.Manager.EnsureLoaded();

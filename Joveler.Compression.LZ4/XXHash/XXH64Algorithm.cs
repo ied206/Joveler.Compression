@@ -30,13 +30,13 @@ namespace Joveler.Compression.LZ4.XXHash
 {
     public sealed class XXH64Algorithm : XXHashAlgorithmBase<ulong>
     {
-        public XXH64Algorithm(XXHashBytesEndian endian) : base(endian, new XXH64Stream())
+        public XXH64Algorithm(ByteOrder endian) : base(endian, new XXH64Stream())
         {
         }
 
         public static new XXH64Algorithm Create()
         {
-            return new XXH64Algorithm(BitConverter.IsLittleEndian ? XXHashBytesEndian.LittleEndian : XXHashBytesEndian.BigEndian);
+            return new XXH64Algorithm(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian);
         }
     }
 }

@@ -177,12 +177,12 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
                     CheckTemplate(xxh32, fileName, kind, expected);
                 }
 
-                using (XXH32Algorithm hash = new XXH32Algorithm(XXHashBytesEndian.LittleEndian))
+                using (XXH32Algorithm hash = new XXH32Algorithm(ByteOrder.LittleEndian))
                 {
                     HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
 
-                using (XXH32Algorithm hash = new XXH32Algorithm(XXHashBytesEndian.BigEndian))
+                using (XXH32Algorithm hash = new XXH32Algorithm(ByteOrder.BigEndian))
                 {
                     HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
                 }
@@ -220,12 +220,12 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
                     CheckTemplate(xxh64, fileName, kind, expected);
                 }
 
-                using (XXH64Algorithm hash = new XXH64Algorithm(XXHashBytesEndian.LittleEndian))
+                using (XXH64Algorithm hash = new XXH64Algorithm(ByteOrder.LittleEndian))
                 {
                     HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
 
-                using (XXH64Algorithm hash = new XXH64Algorithm(XXHashBytesEndian.BigEndian))
+                using (XXH64Algorithm hash = new XXH64Algorithm(ByteOrder.BigEndian))
                 {
                     HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
                 }

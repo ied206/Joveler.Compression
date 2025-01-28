@@ -28,7 +28,6 @@
 */
 
 using System;
-using System.Runtime.Serialization;
 
 namespace Joveler.Compression.ZLib
 {
@@ -65,24 +64,6 @@ namespace Joveler.Compression.ZLib
                     throw new ZLibException(ret, zs.LastErrorMsg);
             }
         }
-
-        #region Serializable
-        protected ZLibException(SerializationInfo info, StreamingContext ctx)
-        {
-            object? obj = info.GetValue(nameof(ReturnCode), typeof(ZLibRet));
-            if (obj != null)
-                ReturnCode = (ZLibRet)obj;
-            throw new ArgumentNullException(nameof(ReturnCode));
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(ReturnCode), ReturnCode);
-            base.GetObjectData(info, context);
-        }
-        #endregion
     }
     #endregion
 }
