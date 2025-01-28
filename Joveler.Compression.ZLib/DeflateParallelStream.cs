@@ -207,11 +207,13 @@ namespace Joveler.Compression.ZLib
             WriteHeader();
 
             // Launch CompressTask, WriterTask
-            // DO NOT USE BoundedCapacity in non-BufferBlock, as it will discard incoming message when the its queue is full. (which must not happen)
+            // If BoundedCapacity is set, it will discard incoming message from Post() when the its queue is full.
+            // So in that case, take care to use SendAsync() instead of Post().
             int maxWaitingJobs = 4 * _threads;
             _compWorkChunkQueue = new ThrottlingBufferBlock<ZLibParallelCompressJob>(maxWaitingJobs, new DataflowBlockOptions
             {
                 CancellationToken = _abortTokenSrc.Token,
+                BoundedCapacity = maxWaitingJobs,
             });
             _compWorkHandleQueue = new BufferBlock<ZStreamHandle>(new DataflowBlockOptions
             {
@@ -240,6 +242,7 @@ namespace Joveler.Compression.ZLib
                 CancellationToken = _abortTokenSrc.Token,
                 EnsureOrdered = true,
                 MaxDegreeOfParallelism = 1,
+                BoundedCapacity = maxWaitingJobs,
             });
 
             DataflowLinkOptions linkOptions = new DataflowLinkOptions
@@ -395,7 +398,7 @@ namespace Joveler.Compression.ZLib
             CheckBackgroundExceptions();
         }
 
-        private void EnqueueInputBuffer(bool isFinal)
+        private async void EnqueueInputBuffer(bool isFinal)
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
@@ -473,8 +476,8 @@ namespace Joveler.Compression.ZLib
             // Final  block: job.InBuffer._refCount == 1, _nextDictBuffer == null
 
             _inputBuffer.Clear();
-            bool postSucc = _compWorkChunkQueue.Post(job);
-            Debug.Assert(postSucc);
+            bool sendSucc = await _compWorkChunkQueue.SendAsync(job);
+            Debug.Assert(sendSucc);
         }
         #endregion
 
@@ -650,10 +653,13 @@ namespace Joveler.Compression.ZLib
                         int dictStartPos = job.DictBuffer.DataEndIdx - dictSize;
 
                         // [Stage 03] Set dictionary (last 32KB of the previous input)
-                        fixed (byte* dictPtr = job.DictBuffer.Buf)
+                        unsafe
                         {
-                            ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(zsh.ZStream, dictPtr + dictStartPos, (uint)dictSize);
-                            ZLibException.CheckReturnValue(ret, zsh.ZStream);
+                            fixed (byte* dictPtr = job.DictBuffer.Buf)
+                            {
+                                ret = ZLibInit.Lib.NativeAbi.DeflateSetDictionary(zsh.ZStream, dictPtr + dictStartPos, (uint)dictSize);
+                                ZLibException.CheckReturnValue(ret, zsh.ZStream);
+                            }
                         }
                     }
 
@@ -721,8 +727,8 @@ namespace Joveler.Compression.ZLib
                     job.DictBuffer?.ReleaseRef();
 
                     // Push zsh into handle queue again
-                    bool postSucc = _compWorkHandleQueue.Post(zsh);
-                    Debug.Assert(postSucc);
+                    bool sendSucc = _compWorkHandleQueue.Post(zsh);
+                    Debug.Assert(sendSucc);
 
                     if (job.IsLastBlock)
                     {
@@ -860,7 +866,7 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region WriteSortProc
-        public void WriteSortProc(ZLibParallelCompressJob item)
+        public async void WriteSortProc(ZLibParallelCompressJob item)
         {
             try
             {
@@ -879,8 +885,8 @@ namespace Joveler.Compression.ZLib
                     _outSeq += 1;
                     bool isLastBlock = outJob.IsLastBlock;
 
-                    bool postSucc = _compWriteChunk.Post(outJob);
-                    Debug.Assert(postSucc);
+                    bool sendSucc = await _compWriteChunk.SendAsync(outJob);
+                    Debug.Assert(sendSucc);
 
                     if (isLastBlock)
                         _compSortChunk.Complete();
