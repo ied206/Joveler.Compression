@@ -95,8 +95,6 @@ namespace Joveler.Compression.ZLib
         public bool LeaveOpen { get; set; } = false;
     }
 
-    
-
     internal sealed class DeflateParallelStream : Stream
     {
         #region Fields and Properties
@@ -111,11 +109,11 @@ namespace Joveler.Compression.ZLib
 
         // Compression
         // System.Threading.Tasks.DataFlow
-        private readonly BufferBlock<ZLibParallelCompressJob> _compWorkChunkQueue;
+        private readonly ThrottlingBufferBlock<ZLibParallelCompressJob> _compWorkChunkQueue;
         private readonly BufferBlock<ZStreamHandle> _compWorkHandleQueue;
         private readonly JoinBlock<ZLibParallelCompressJob, ZStreamHandle> _compWorkJoinBlock;
         private readonly TransformBlock<Tuple<ZLibParallelCompressJob, ZStreamHandle>, ZLibParallelCompressJob> _compWorkChunk;
-        private readonly ActionBlock<ZLibParallelCompressJob> _compSortChunk;
+        private readonly ThrottlingActionBlock<ZLibParallelCompressJob> _compSortChunk;
 
         private readonly SortedSet<ZLibParallelCompressJob> _outSet = new SortedSet<ZLibParallelCompressJob>(new ZLibParallelCompressJobComparator());
 
@@ -209,10 +207,11 @@ namespace Joveler.Compression.ZLib
             WriteHeader();
 
             // Launch CompressTask, WriterTask
-            _compWorkChunkQueue = new BufferBlock<ZLibParallelCompressJob>(new DataflowBlockOptions
+            // DO NOT USE BoundedCapacity in non-BufferBlock, as it will discard incoming message when the its queue is full. (which must not happen)
+            int maxWaitingJobs = 4 * _threads;
+            _compWorkChunkQueue = new ThrottlingBufferBlock<ZLibParallelCompressJob>(maxWaitingJobs, new DataflowBlockOptions
             {
                 CancellationToken = _abortTokenSrc.Token,
-                BoundedCapacity = 4 * _threads,
             });
             _compWorkHandleQueue = new BufferBlock<ZStreamHandle>(new DataflowBlockOptions
             {
@@ -229,7 +228,7 @@ namespace Joveler.Compression.ZLib
                 EnsureOrdered = false,
                 MaxDegreeOfParallelism = _threads,
             });
-            _compSortChunk = new ActionBlock<ZLibParallelCompressJob>(WriteSortProc, new ExecutionDataflowBlockOptions()
+            _compSortChunk = new ThrottlingActionBlock<ZLibParallelCompressJob>(WriteSortProc, maxWaitingJobs, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
                 EnsureOrdered = false,
@@ -239,7 +238,6 @@ namespace Joveler.Compression.ZLib
             _compWriteChunk = new ActionBlock<ZLibParallelCompressJob>(WriterProc, new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = _abortTokenSrc.Token,
-                BoundedCapacity = 4 * _threads,
                 EnsureOrdered = true,
                 MaxDegreeOfParallelism = 1,
             });
@@ -475,7 +473,8 @@ namespace Joveler.Compression.ZLib
             // Final  block: job.InBuffer._refCount == 1, _nextDictBuffer == null
 
             _inputBuffer.Clear();
-            _compWorkChunkQueue.Post(job);
+            bool postSucc = _compWorkChunkQueue.Post(job);
+            Debug.Assert(postSucc);
         }
         #endregion
 
@@ -722,7 +721,8 @@ namespace Joveler.Compression.ZLib
                     job.DictBuffer?.ReleaseRef();
 
                     // Push zsh into handle queue again
-                    _compWorkHandleQueue.Post(zsh);
+                    bool postSucc = _compWorkHandleQueue.Post(zsh);
+                    Debug.Assert(postSucc);
 
                     if (job.IsLastBlock)
                     {
@@ -879,7 +879,8 @@ namespace Joveler.Compression.ZLib
                     _outSeq += 1;
                     bool isLastBlock = outJob.IsLastBlock;
 
-                    _compWriteChunk.Post(outJob);
+                    bool postSucc = _compWriteChunk.Post(outJob);
+                    Debug.Assert(postSucc);
 
                     if (isLastBlock)
                         _compSortChunk.Complete();
