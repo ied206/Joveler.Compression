@@ -598,11 +598,13 @@ namespace Joveler.Compression.ZLib
         {
             try
             {
-                ZStreamHandle zsh = _zsHandles.Take();
+                ZStreamHandle? zsh = null;
                 try
                 {
                     if (ZLibInit.Lib == null)
                         throw new ObjectDisposedException(nameof(ZLibInit));
+
+                    zsh = _zsHandles.Take(_abortTokenSrc.Token);
                     if (zsh.ZStream == null)
                         throw new ObjectDisposedException("zlib stream handle had been disposed.");
 
@@ -706,7 +708,8 @@ namespace Joveler.Compression.ZLib
                     job.DictBuffer?.ReleaseRef();
 
                     // Push zsh into handle queue again
-                    _zsHandles.Add(zsh);
+                    if (zsh != null)
+                        _zsHandles.Add(zsh);
 
                     if (job.IsLastBlock)
                         _compWorkChunk.Complete();
