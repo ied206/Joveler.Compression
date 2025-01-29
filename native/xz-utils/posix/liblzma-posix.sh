@@ -85,6 +85,7 @@ if [ "${OS}" = Linux ]; then
         exit 1
     fi
 elif [ "${OS}" = Darwin ]; then
+    export MACOSX_DEPLOYMENT_TARGET=11
     # https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
     # https://gist.github.com/andrewgrant/477c7037b1fc0dd7275109d3f2254ea9
     if [ "${CROSS_ARCH}" = x86_64 ]; then
