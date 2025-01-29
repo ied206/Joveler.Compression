@@ -68,19 +68,38 @@ fi
 BASE_DIR=$(dirname "${BASE_ABS_PATH}")
 DEST_DIR="${BASE_DIR}/build"
 
-# Set target triple (for Linux)
+# Set target triple (for Linux) or mac_arch (for macOS)
 TARGET_TRIPLE=""
-if [ "${CROSS_ARCH}" = i686 ]; then
-    TARGET_TRIPLE="i686-linux-gnu"
-elif [ "${CROSS_ARCH}" = x86_64 ]; then
-    TARGET_TRIPLE="x86_64-linux-gnu"
-elif [ "${CROSS_ARCH}" = armhf ]; then
-    TARGET_TRIPLE="arm-linux-gnueabihf"
-elif [ "${CROSS_ARCH}" = aarch64 ]; then
-    TARGET_TRIPLE="aarch64-linux-gnu"
-elif [ "${CROSS_ARCH}" != "" ]; then
-    echo "[${ARCH}] is not a pre-defined architecture" >&2
-    exit 1
+TARGET_MAC_ARCH=""
+if [ "${OS}" = Linux ]; then
+    if [ "${CROSS_ARCH}" = i686 ]; then
+        TARGET_TRIPLE="i686-linux-gnu"
+    elif [ "${CROSS_ARCH}" = x86_64 ]; then
+        TARGET_TRIPLE="x86_64-linux-gnu"
+    elif [ "${CROSS_ARCH}" = armhf ]; then
+        TARGET_TRIPLE="arm-linux-gnueabihf"
+    elif [ "${CROSS_ARCH}" = aarch64 ]; then
+        TARGET_TRIPLE="aarch64-linux-gnu"
+    elif [ "${CROSS_ARCH}" != "" ]; then
+        echo "[${ARCH}] is not a pre-defined architecture" >&2
+        exit 1
+    fi
+elif [ "${OS}" = Darwin ]; then
+    # https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
+    # https://gist.github.com/andrewgrant/477c7037b1fc0dd7275109d3f2254ea9
+    if [ "${CROSS_ARCH}" = x86_64 ]; then
+        TARGET_ARCH="x86_64"
+        #TARGET_ARCH="x86_64-apple-macos"
+    elif [ "${CROSS_ARCH}" = aarch64 ]; then
+        TARGET_ARCH="arm64"
+        #TARGET_ARCH="arm64-apple-macos"
+    elif [ "${CROSS_ARCH}" = arm64 ]; then
+        TARGET_ARCH="arm64"
+        #TARGET_ARCH="arm64-apple-macos"
+    elif [ "${CROSS_ARCH}" != "" ]; then
+        echo "[${ARCH}] is not a pre-defined architecture" >&2
+        exit 1
+    fi
 fi
 
 if [ "${CROSS_ARCH}" != "" ]; then
@@ -102,16 +121,28 @@ BUILD_MODES=( "exe" "lib" )
 pushd "${SRC_DIR}" > /dev/null
 for BUILD_MODE in "${BUILD_MODES[@]}"; do
     CONFIGURE_ARGS=""
+    CPPFLAGS=""
+    CFLAGS=""
+    LDFLAGS=""
     if [ "$BUILD_MODE" = "lib" ]; then
         CONFIGURE_ARGS="${CONFIGURE_ARGS} --enable-shared --disable-xz"
     elif [ "$BUILD_MODE" = "exe" ]; then
-        CONFIGURE_ARGS="${CONFIGURE_ARGS} --disable-shared CFLAGS=-Os"
+        CONFIGURE_ARGS="${CONFIGURE_ARGS} --disable-shared"
+        CFLAGS="${CFLAGS} -Os"
     fi
 
     if [ "${TARGET_TRIPLE}" != "" ]; then
         CONFIGURE_ARGS="${CONFIGURE_ARGS} --host=${TARGET_TRIPLE}"
     fi 
-    
+    if [ "${TARGET_ARCH}" != "" ]; then
+        CPPFLAGS="${CPPFLAGS} -arch ${TARGET_ARCH}"
+        CFLAGS="${CFLAGS} -arch ${TARGET_ARCH}"
+        LDFLAGS="${LDFLAGS} -arch ${TARGET_ARCH}"
+        #CPPFLAGS="${CPPFLAGS} --target=${TARGET_ARCH}"
+        #CFLAGS="${CFLAGS} --target=${TARGET_ARCH}"
+        #LDFLAGS="${LDFLAGS} --target=${TARGET_ARCHi}"
+    fi
+
     make clean
     ./configure \
         --disable-debug \
@@ -122,6 +153,9 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
         --disable-lzmadec \
         --disable-lzmainfo \
         --disable-lzma-links \
+        CPPFLAGS="${CPPFLAGS}" \
+        CFLAGS="${CFLAGS}" \
+        LDFLAGS="${LDFLAGS}" \
         ${CONFIGURE_ARGS}
     make "-j${CORES}"
 
