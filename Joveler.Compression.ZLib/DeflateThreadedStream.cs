@@ -38,7 +38,7 @@ using System.Threading;
 
 namespace Joveler.Compression.ZLib
 {
-    public sealed class ZLibThreadedCompressOptions
+    internal sealed class ZLibThreadedCompressOptions
     {
         /// <summary>
         /// Compression level. The Default is `ZLibCompLevel.Default`.
@@ -670,6 +670,9 @@ namespace Joveler.Compression.ZLib
 
             public CompressThreadProc(DeflateThreadedStream owner, int threadId)
             {
+                if (ZLibInit.Lib == null)
+                    throw new ObjectDisposedException(nameof(ZLibInit));
+
                 _owner = owner;
                 _threadId = threadId;
                 _blockChecksum = FormatChecksum(owner._format);
@@ -692,6 +695,8 @@ namespace Joveler.Compression.ZLib
             {
                 try
                 {
+                    if (ZLibInit.Lib == null)
+                        throw new ObjectDisposedException(nameof(ZLibInit));
                     if (_zs == null)
                         throw new ObjectDisposedException($"[{nameof(_zs)}] is null.");
 
@@ -850,6 +855,9 @@ namespace Joveler.Compression.ZLib
             {
                 Debug.Assert(!job.InBuffer.Disposed);
 
+                if (ZLibInit.Lib == null)
+                    throw new ObjectDisposedException(nameof(ZLibInit));
+
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
                     Debug.Assert(0 <= inputStartIdx && inputStartIdx <= job.InBuffer.DataEndIdx && job.InBuffer.DataStartIdx == 0);
@@ -902,6 +910,9 @@ namespace Joveler.Compression.ZLib
             private unsafe int DeflateBlockFinish(ZLibThreadedCompressJob job, int inputStartIdx)
             {
                 Debug.Assert(!job.InBuffer.Disposed);
+
+                if (ZLibInit.Lib == null)
+                    throw new ObjectDisposedException(nameof(ZLibInit));
 
                 fixed (byte* inBufPtr = job.InBuffer.Buf) // [In] RAW
                 {
@@ -965,6 +976,9 @@ namespace Joveler.Compression.ZLib
                 // Dispose unmanaged resources, and set large fields to null.
                 if (_zs != null)
                 {
+                    if (ZLibInit.Lib == null)
+                        throw new ObjectDisposedException(nameof(ZLibInit));
+
                     ZLibInit.Lib.NativeAbi.DeflateEnd(_zs);
                     _zsPin.Free();
                     _zs = null;

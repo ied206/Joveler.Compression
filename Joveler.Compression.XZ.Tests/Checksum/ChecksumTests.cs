@@ -28,7 +28,9 @@
 using Joveler.Compression.XZ.Checksum;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 
 namespace Joveler.Compression.XZ.Tests.Checksum
@@ -45,7 +47,7 @@ namespace Joveler.Compression.XZ.Tests.Checksum
             Stream,
         }
 
-        private void CheckTemplate<T>(BaseChecksum<T> check, string fileName, TestKind kind, T expected)
+        private void CheckTemplate<T>(XZChecksumBase<T> check, string fileName, TestKind kind, T expected) where T : unmanaged
         {
             check.Reset();
             try
@@ -95,38 +97,23 @@ namespace Joveler.Compression.XZ.Tests.Checksum
             }
         }
 
-        private void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, ulong expected)
+        private static void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, byte[] expectedBytes)
         {
-            byte[] checksum;
+            byte[] actualBytes;
             string filePath = Path.Combine(TestSetup.SampleDir, fileName);
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 byte[] buffer = new byte[fs.Length];
                 int bytesRead = fs.Read(buffer, 0, buffer.Length);
-                checksum = hash.ComputeHash(buffer, 0, bytesRead);
+                actualBytes = hash.ComputeHash(buffer, 0, bytesRead);
             }
 
-            if (checksum.Length == 8)
-            {
-                ulong actual = BitConverter.ToUInt64(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
-                Assert.AreEqual(expected, actual);
-            }
-            else if (checksum.Length == 4)
-            {
-                uint actual = BitConverter.ToUInt32(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
-                Assert.AreEqual((uint)expected, actual);
-            }
-            else
-            {
-                Assert.Fail();
-            }
+            Console.WriteLine($"(Hash) Expected   hash of {fileName} : 0x{BitConverter.ToString(expectedBytes).Replace("-", string.Empty)}");
+            Console.WriteLine($"(Hash) Calculated hash of {fileName} : 0x{BitConverter.ToString(actualBytes).Replace("-", string.Empty)}");
+            Assert.IsTrue(expectedBytes.SequenceEqual(actualBytes));
         }
 
-        private void ResetTemplate<T>(BaseChecksum<T> check, string firstFileName, string secondFileName)
+        private void ResetTemplate<T>(XZChecksumBase<T> check, string firstFileName, string secondFileName) where T : unmanaged
         {
             try
             {
@@ -170,7 +157,7 @@ namespace Joveler.Compression.XZ.Tests.Checksum
         [TestMethod]
         public void Crc32()
         {
-            (string FileName, uint Checksum)[] samples = new (string, uint)[]
+            (string FileName, uint Checksum)[] samples =
             {
                 ("A.pdf", 0x07A6FCC5u),
                 ("B.txt", 0x675845AEu),
@@ -178,16 +165,27 @@ namespace Joveler.Compression.XZ.Tests.Checksum
             };
 
             Crc32Checksum crc = new Crc32Checksum();
-            foreach ((string fileName, uint checksum) in samples)
+            foreach ((string fileName, uint expected) in samples)
             {
+                byte[] expectedBytesLE = new byte[4];
+                BinaryPrimitives.WriteUInt32LittleEndian(expectedBytesLE, expected);
+
+                byte[] expectedBytesBE = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(expectedBytesBE, expected);
+
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    CheckTemplate(crc, fileName, kind, checksum);
+                    CheckTemplate(crc, fileName, kind, expected);
                 }
 
-                using (Crc32Algorithm hash = new Crc32Algorithm())
+                using (Crc32Algorithm hash = new Crc32Algorithm(ByteOrder.LittleEndian))
                 {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
+                }
+
+                using (Crc32Algorithm hash = new Crc32Algorithm(ByteOrder.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
                 }
             }
 
@@ -199,7 +197,7 @@ namespace Joveler.Compression.XZ.Tests.Checksum
         [TestMethod]
         public void Crc64()
         {
-            (string FileName, ulong Checksum)[] samples = new (string, ulong)[]
+            (string FileName, ulong Checksum)[] samples = 
             {
                 ("A.pdf", 0x70DAC0EC5A353DCELu),
                 ("B.txt", 0x221708D24F085975Lu),
@@ -207,14 +205,27 @@ namespace Joveler.Compression.XZ.Tests.Checksum
             };
 
             Crc64Checksum crc = new Crc64Checksum();
-            foreach ((string fileName, ulong checksum) in samples)
+            foreach ((string fileName, ulong expected) in samples)
             {
-                foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
-                    CheckTemplate(crc, fileName, kind, checksum);
+                byte[] expectedBytesLE = new byte[8];
+                BinaryPrimitives.WriteUInt64LittleEndian(expectedBytesLE, expected);
 
-                using (Crc64Algorithm hash = new Crc64Algorithm())
+                byte[] expectedBytesBE = new byte[8];
+                BinaryPrimitives.WriteUInt64BigEndian(expectedBytesBE, expected);
+
+                foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
+                    CheckTemplate(crc, fileName, kind, expected);
+                }
+
+                using (Crc64Algorithm hash = new Crc64Algorithm(ByteOrder.LittleEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
+                }
+
+                using (Crc64Algorithm hash = new Crc64Algorithm(ByteOrder.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
                 }
             }
 

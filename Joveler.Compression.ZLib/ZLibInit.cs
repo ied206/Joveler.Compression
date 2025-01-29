@@ -55,7 +55,7 @@ namespace Joveler.Compression.ZLib
     {
         #region LoadManager
         internal static ZLibLoadManager Manager = new ZLibLoadManager();
-        internal static ZLibLoader Lib => Manager.Lib;
+        internal static ZLibLoader? Lib => Manager.Lib;
         #endregion
 
         #region GlobalInit, GlobalCleanup
@@ -185,6 +185,10 @@ namespace Joveler.Compression.ZLib
         public static string VersionString()
         {
             Manager.EnsureLoaded();
+
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
+
             return Lib.NativeAbi.ZLibVersion();
         }
         #endregion
@@ -193,6 +197,10 @@ namespace Joveler.Compression.ZLib
         public static ZLibCompileFlags CompileFlags()
         {
             Manager.EnsureLoaded();
+
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
+
             uint flags = Lib.NativeAbi.ZLibCompileFlags();
             return new ZLibCompileFlags(flags);
         }

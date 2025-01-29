@@ -1,24 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0;netcoreapp3.1</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
-    
+    <TargetFrameworks>net462;netstandard2.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>AnyCPU</Platforms>  
     <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
-    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="Joveler.DynLoader" Version="2.3.1" />
+    <PackageReference Include="System.Memory" Version="4.6.0" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   
   <!-- Native Library for .NET Framework 4.6.2 -->
@@ -37,7 +31,7 @@
     </None>
   </ItemGroup>
   <!-- Native Library for .NET Standard 2.0 & .NET Core 3.1 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp3.1'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net8.0'">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

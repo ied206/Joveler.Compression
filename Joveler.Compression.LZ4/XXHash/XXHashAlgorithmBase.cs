@@ -102,7 +102,7 @@ namespace Joveler.Compression.LZ4.XXHash
             {
                 ByteOrder.LittleEndian => _stream.HashBytesLE,
                 ByteOrder.BigEndian => _stream.HashBytesBE,
-                _ => throw new InvalidOperationException($"Invalid XXHashBytesEndian [{Endian}]"),
+                _ => throw new InvalidOperationException($"Invalid {nameof(ByteOrder)} [{Endian}]"),
             };
         }
 

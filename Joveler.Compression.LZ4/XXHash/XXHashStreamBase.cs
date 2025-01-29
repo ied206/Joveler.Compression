@@ -35,7 +35,7 @@ namespace Joveler.Compression.LZ4.XXHash
         protected readonly T _defaultSeed;
         public T DefaultSeed => _defaultSeed;
 
-        private readonly int _hashValueSize = Marshal.SizeOf(typeof(T));
+        private readonly int _hashValueSize = Marshal.SizeOf<T>();
         public int HashValueSize => _hashValueSize;
 
         protected T? _hashFinal;
@@ -46,10 +46,14 @@ namespace Joveler.Compression.LZ4.XXHash
         public T HashValue => Digest();
 
         /// <summary>
-        /// Returns result of xxhash in bytes (Big Endian).
+        /// Returns result of xxhash in bytes.
         /// After getting the hash value, you cannot put more data until you call Reset().
         /// </summary>
         public byte[] HashBytesLE => ConvertValueToBytesLE(HashValue);
+        /// <summary>
+        /// Returns result of xxhash in bytes.
+        /// After getting the hash value, you cannot put more data until you call Reset().
+        /// </summary>
         public byte[] HashBytesBE => ConvertValueToBytesBE(HashValue);
         public void GetHashBytesLE(Span<byte> destSpan)
         {

@@ -150,52 +150,52 @@ namespace Joveler.Compression.XZ
         internal delegate LzmaRet lzma_code(
             LzmaStream strm,
             LzmaAction action);
-        internal lzma_code LzmaCode;
+        internal lzma_code? LzmaCode;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void lzma_end(LzmaStream strm);
-        internal lzma_end LzmaEnd;
+        internal lzma_end? LzmaEnd;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void lzma_get_progress(
             LzmaStream strm,
             ref ulong progress_in,
             ref ulong progress_out);
-        internal lzma_get_progress LzmaGetProgress;
+        internal lzma_get_progress? LzmaGetProgress;
         #endregion
 
         #region Container - Encoders and Decoders
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_easy_encoder_memusage(uint preset);
-        internal lzma_easy_encoder_memusage LzmaEasyEncoderMemUsage;
+        internal lzma_easy_encoder_memusage? LzmaEasyEncoderMemUsage;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_easy_decoder_memusage(uint preset);
-        internal lzma_easy_decoder_memusage LzmaEasyDecoderMemUsage;
+        internal lzma_easy_decoder_memusage? LzmaEasyDecoderMemUsage;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_easy_encoder(
             LzmaStream strm,
             uint preset,
             LzmaCheck check);
-        internal lzma_easy_encoder LzmaEasyEncoder;
+        internal lzma_easy_encoder? LzmaEasyEncoder;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder(
             LzmaStream strm,
             [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters,
             LzmaCheck check);
-        internal lzma_stream_encoder LzmaStreamEncoder;
+        internal lzma_stream_encoder? LzmaStreamEncoder;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_stream_encoder_mt_memusage(LzmaMt options);
-        internal lzma_stream_encoder_mt_memusage LzmaStreamEncoderMtMemUsage;
+        internal lzma_stream_encoder_mt_memusage? LzmaStreamEncoderMtMemUsage;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate LzmaRet lzma_stream_encoder_mt(
             LzmaStream strm,
             LzmaMt options);
-        internal lzma_stream_encoder_mt LzmaStreamEncoderMt;
+        internal lzma_stream_encoder_mt? LzmaStreamEncoderMt;
 
 #if LZMA_MICROLZMA_ENABLE
         /// <summary>
@@ -282,7 +282,7 @@ namespace Joveler.Compression.XZ
             LzmaStream strm,
             ulong memlimit,
             LzmaDecodingFlag flags);
-        internal lzma_stream_decoder LzmaStreamDecoder;
+        internal lzma_stream_decoder? LzmaStreamDecoder;
 
         /// <summary>
         /// Initialize multithreaded .xz Stream decoder
@@ -314,7 +314,7 @@ namespace Joveler.Compression.XZ
         internal delegate LzmaRet lzma_stream_decoder_mt(
             LzmaStream strm,
             LzmaMt options);
-        internal lzma_stream_decoder_mt LzmaStreamDecoderMt;
+        internal lzma_stream_decoder_mt? LzmaStreamDecoderMt;
 
         /// <summary>
         /// Decode .xz, .lzma, and .lz (lzip) files with autodetection
@@ -358,7 +358,7 @@ namespace Joveler.Compression.XZ
             LzmaStream strm,
             ulong memlimit,
             LzmaDecodingFlag flags);
-        internal lzma_auto_decoder LzmaAutoDecoder;
+        internal lzma_auto_decoder? LzmaAutoDecoder;
 
         /// <summary>
         /// Initialize .lzma decoder (legacy file format)
@@ -384,7 +384,7 @@ namespace Joveler.Compression.XZ
         internal delegate LzmaRet lzma_alone_decoder(
             LzmaStream strm,
             ulong memlimit);
-        internal lzma_alone_decoder LzmaAloneDecoder;
+        internal lzma_alone_decoder? LzmaAloneDecoder;
 
         /// <summary>
         /// Initialize .lz (lzip) decoder (a foreign file format)
@@ -448,17 +448,17 @@ namespace Joveler.Compression.XZ
             LzmaStream strm,
             ulong memlimit,
             LzmaDecodingFlag flags);
-        internal lzma_lzip_decoder LzmaLZipDecoder;
+        internal lzma_lzip_decoder? LzmaLZipDecoder;
         #endregion
 
         #region Hardware - PhyMem & CPU Threads
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_physmem();
-        internal lzma_physmem LzmaPhysMem;
+        internal lzma_physmem? LzmaPhysMem;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_cputhreads();
-        internal lzma_cputhreads LzmaCpuThreads;
+        internal lzma_cputhreads? LzmaCpuThreads;
         #endregion
 
         #region Filter (DISABLED)
@@ -491,7 +491,7 @@ namespace Joveler.Compression.XZ
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_mt_block_size(
             [MarshalAs(UnmanagedType.LPArray)] LzmaFilter[] filters);
-        internal lzma_mt_block_size LzmaMtBlockSize;
+        internal lzma_mt_block_size? LzmaMtBlockSize;
 #endif
         #endregion
 
@@ -520,7 +520,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_memusage(LzmaStream strm);
-        internal lzma_memusage LzmaMemusage;
+        internal lzma_memusage? LzmaMemusage;
 
         /// <summary>
         /// This function is supported only when *strm has been initialized with
@@ -532,7 +532,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_memlimit_get(LzmaStream strm);
-        internal lzma_memlimit_get LzmaMemlimitGet;
+        internal lzma_memlimit_get? LzmaMemlimitGet;
 
         /// <summary>
         /// Set the memory usage limit
@@ -558,7 +558,7 @@ namespace Joveler.Compression.XZ
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate ulong lzma_memlimit_set(LzmaStream strm);
-        internal lzma_memlimit_set LzmaMemlimitSet;
+        internal lzma_memlimit_set? LzmaMemlimitSet;
 #endif
         #endregion
 
@@ -568,24 +568,24 @@ namespace Joveler.Compression.XZ
             byte* buf,
             UIntPtr size, // size_t
             uint crc);
-        internal lzma_crc32 LzmaCrc32;
+        internal lzma_crc32? LzmaCrc32;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal unsafe delegate ulong lzma_crc64(
             byte* buf,
             UIntPtr size, // size_t
             ulong crc);
-        internal lzma_crc64 LzmaCrc64;
+        internal lzma_crc64? LzmaCrc64;
         #endregion
 
         #region Version - LzmaVersionNumber, LzmaVersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint lzma_version_number();
-        internal lzma_version_number LzmaVersionNumber;
+        internal lzma_version_number? LzmaVersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr lzma_version_string();
-        internal lzma_version_string LzmaVersionString;
+        internal lzma_version_string? LzmaVersionString;
         #endregion
         #endregion
     }

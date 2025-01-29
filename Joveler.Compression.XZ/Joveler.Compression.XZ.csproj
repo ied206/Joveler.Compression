@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net46;netstandard2.0;netcoreapp3.1</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net462;netstandard2.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">netstandard2.0;net8.0</TargetFrameworks>
+    <nullable>enable</nullable>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
@@ -16,7 +17,7 @@
 The library provides the fast native implementation of XZStream.
 It also supports fast calculation of CRC32 and CRC64 checksum.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (c) 2018-2023 Hajin Jang</Copyright>
+    <Copyright>Copyright (c) 2018-present Hajin Jang</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -28,11 +29,11 @@ Supports Windows, Linux and macOS.</Description>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
-    <PackageReference Include="System.Memory" Version="4.5.5" Condition=" '$(TargetFramework)' == 'net46' or '$(TargetFramework)' == 'netstandard2.0' " />
+    <PackageReference Include="Joveler.DynLoader" Version="2.3.1" />
+    <PackageReference Include="System.Memory" Version="4.6.0" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6 -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net46' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>x86\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -46,8 +47,8 @@ Supports Windows, Linux and macOS.</Description>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <!-- Native Library for .NET Standard 2.0 & .NET Core 3.1 -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp3.1' ">
+  <!-- Native Library for .NET Standard 2.0 & .NET 8.0 -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net8.0' ">
     <None Include="runtimes\win-x86\native\*.dll">
       <Link>runtimes\win-x86\native\%(FileName)%(Extension)</Link> <!-- Project Reference -->
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -88,7 +89,7 @@ Supports Windows, Linux and macOS.</Description>
     <!-- NuGet Pacakge Icon -->
     <None Include="..\Image\Logo.png" Pack="true" PackagePath="images\Logo.png" />
     <!-- Build Script for .NET Framework -->
-    <None Include="Joveler.Compression.XZ.netfx.targets" Pack="true" PackagePath="build\net46\Joveler.Compression.XZ.targets" />
+    <None Include="Joveler.Compression.XZ.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.XZ.targets" />
     <!-- Native Library -->
     <None Include="runtimes\win-x86\native\*.dll" Pack="true" PackagePath="runtimes\win-x86\native" />
     <None Include="runtimes\win-x64\native\*.dll" Pack="true" PackagePath="runtimes\win-x64\native" />

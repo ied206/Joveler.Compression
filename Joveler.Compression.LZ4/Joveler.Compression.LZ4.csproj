@@ -7,7 +7,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU</Platforms>
     <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
-    <!-- https://duanenewman.net/blog/post/a-better-way-to-override-references-with-packagereference/ -->
     
     <PackageId>Joveler.Compression.LZ4</PackageId>
     <Title>Joveler.Compression.LZ4</Title>
@@ -17,7 +16,7 @@
     <Description>lz4 pinvoke library for .NET.
 The library provides the native implementation of LZ4FrameStream.
 Supports Windows, Linux and macOS.</Description>
-    <Copyright>Copyright (C) 2018-2024 Hajin Jang</Copyright>
+    <Copyright>Copyright (C) 2018-present Hajin Jang</Copyright>
     <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
@@ -28,9 +27,9 @@ Supports Windows, Linux and macOS.</Description>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
-    <PackageReference Include="Joveler.DynLoader" Version="2.3.0" />
+    <PackageReference Include="Joveler.DynLoader" Version="2.3.1" />
     <PackageReference Include="System.Memory" Version="4.6.0" Condition=" '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'netstandard2.0' " />
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.0" />
+    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.1" />
   </ItemGroup>
   <!-- Native Library for .NET Framework 4.6.2 -->
   <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">

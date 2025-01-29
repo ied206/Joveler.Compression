@@ -55,15 +55,15 @@ namespace Joveler.Compression.ZLib.Checksum
         /// <inheritdoc/>
         protected override unsafe uint AppendCore(uint checksum, byte[] buffer, int offset, int count)
         {
-            fixed (byte* bufPtr = buffer.AsSpan(offset, count))
-            {
-                return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)count);
-            }
+            return AppendCore(checksum, buffer.AsSpan(offset, count));
         }
 
         /// <inheritdoc/>
         protected override unsafe uint AppendCore(uint checksum, ReadOnlySpan<byte> span)
         {
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
+
             fixed (byte* bufPtr = span)
             {
                 return ZLibInit.Lib.NativeAbi.Adler32(checksum, bufPtr, (uint)span.Length);
@@ -75,6 +75,9 @@ namespace Joveler.Compression.ZLib.Checksum
         /// <inheritdoc/>
         protected override uint CombineCore(uint priorChecksum, uint nextChecksum, int nextInputSize)
         {
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
+
             return ZLibInit.Lib.NativeAbi.Adler32Combine(priorChecksum, nextChecksum, nextInputSize);
         }
         #endregion

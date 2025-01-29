@@ -24,7 +24,9 @@
 using Joveler.Compression.ZLib.Checksum;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -111,35 +113,20 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             }
         }
 
-        private static void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, ulong expected)
+        private static void HashAlgorithmTemplate(HashAlgorithm hash, string fileName, byte[] expectedBytes)
         {
-            byte[] checksum;
+            byte[] actualBytes;
             string filePath = Path.Combine(TestSetup.SampleDir, fileName);
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 byte[] buffer = new byte[fs.Length];
                 int bytesRead = fs.Read(buffer, 0, buffer.Length);
-                checksum = hash.ComputeHash(buffer, 0, bytesRead);
+                actualBytes = hash.ComputeHash(buffer, 0, bytesRead);
             }
 
-            if (checksum.Length == 8)
-            {
-                ulong actual = BitConverter.ToUInt64(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X16}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X16}");
-                Assert.AreEqual(expected, actual);
-            }
-            else if (checksum.Length == 4)
-            {
-                uint actual = BitConverter.ToUInt32(checksum, 0);
-                Console.WriteLine($"(Hash) Expected   checksum of {fileName} : 0x{expected:X8}");
-                Console.WriteLine($"(Hash) Calculated checksum of {fileName} : 0x{actual:X8}");
-                Assert.AreEqual((uint)expected, actual);
-            }
-            else
-            {
-                Assert.Fail();
-            }
+            Console.WriteLine($"(Hash) Expected   hash of {fileName} : 0x{BitConverter.ToString(expectedBytes).Replace("-", string.Empty)}");
+            Console.WriteLine($"(Hash) Calculated hash of {fileName} : 0x{BitConverter.ToString(actualBytes).Replace("-", string.Empty)}");
+            Assert.IsTrue(expectedBytes.SequenceEqual(actualBytes));
         }
 
         private void ResetTemplate<T>(ZLibChecksumBase<T> check, string firstFileName, string secondFileName) where T : unmanaged
@@ -194,19 +181,28 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             };
 
             Crc32Checksum crc32 = new Crc32Checksum();
-            foreach ((string fileName, uint checksum) in samples)
+            foreach ((string fileName, uint expected) in samples)
             {
+                byte[] expectedBytesLE = new byte[4];
+                BinaryPrimitives.WriteUInt32LittleEndian(expectedBytesLE, expected);
+
+                byte[] expectedBytesBE = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(expectedBytesBE, expected);
+
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    CheckTemplate(crc32, fileName, kind, checksum);
+                    CheckTemplate(crc32, fileName, kind, expected);
                 }
 
-#pragma warning disable CS0618 // Ignore Obsolete
-                using (Crc32Algorithm hash = new Crc32Algorithm())
+                using (Crc32Algorithm hash = new Crc32Algorithm(ByteOrder.LittleEndian))
                 {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
-#pragma warning restore CS0618 // Ignore Obsolete
+
+                using (Crc32Algorithm hash = new Crc32Algorithm(ByteOrder.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
+                }
             }
 
             ResetTemplate(crc32, samples[0].FileName, samples[1].FileName);
@@ -260,19 +256,28 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
             };
 
             Adler32Checksum adler32 = new Adler32Checksum();
-            foreach ((string fileName, uint checksum) in samples)
+            foreach ((string fileName, uint expected) in samples)
             {
+                byte[] expectedBytesLE = new byte[4];
+                BinaryPrimitives.WriteUInt32LittleEndian(expectedBytesLE, expected);
+
+                byte[] expectedBytesBE = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(expectedBytesBE, expected);
+
                 foreach (TestKind kind in Enum.GetValues(typeof(TestKind)))
                 {
-                    CheckTemplate(adler32, fileName, kind, checksum);
+                    CheckTemplate(adler32, fileName, kind, expected);
                 }
 
-#pragma warning disable CS0618 // Ignore Obsolete
-                using (Adler32Algorithm hash = new Adler32Algorithm())
+                using (Adler32Algorithm hash = new Adler32Algorithm(ByteOrder.LittleEndian))
                 {
-                    HashAlgorithmTemplate(hash, fileName, checksum);
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesLE);
                 }
-#pragma warning restore CS0618 // Ignore Obsolete
+
+                using (Adler32Algorithm hash = new Adler32Algorithm(ByteOrder.BigEndian))
+                {
+                    HashAlgorithmTemplate(hash, fileName, expectedBytesBE);
+                }
             }
 
             ResetTemplate(adler32, samples[0].FileName, samples[1].FileName);

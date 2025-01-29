@@ -73,7 +73,7 @@ namespace Joveler.Compression.ZLib
         #endregion
 
         #region HandleLoadData
-        protected override void HandleLoadData(object data)
+        protected override void HandleLoadData(object? data)
         {
             if (data is not ZLibInitOptions initOpts)
                 return;

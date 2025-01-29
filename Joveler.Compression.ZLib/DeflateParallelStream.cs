@@ -549,6 +549,9 @@ namespace Joveler.Compression.ZLib
 
             public ZStreamHandle(ZLibOperateFormat format, ZLibCompLevel compLevel, ZLibWindowBits windowBits)
             {
+                if (ZLibInit.Lib == null)
+                    throw new ObjectDisposedException(nameof(ZLibInit));
+
                 ZStream = ZLibInit.Lib.CreateZStream();
                 _zsPin = GCHandle.Alloc(ZStream, GCHandleType.Pinned);
 
@@ -583,6 +586,9 @@ namespace Joveler.Compression.ZLib
                 // Dispose unmanaged resources, and set large fields to null.
                 if (ZStream != null)
                 {
+                    if (ZLibInit.Lib == null)
+                        throw new ObjectDisposedException(nameof(ZLibInit));
+
                     ZLibInit.Lib.NativeAbi.DeflateEnd(ZStream);
                     _zsPin.Free();
                     ZStream = null;

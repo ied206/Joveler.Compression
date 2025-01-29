@@ -25,7 +25,6 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.ZLib.Checksum
 {

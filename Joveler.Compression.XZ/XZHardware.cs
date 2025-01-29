@@ -36,14 +36,20 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaPhysMem();
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaPhysMem?.Invoke() ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaPhysMem));
         }
 
         public static uint CpuThreads()
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaCpuThreads();
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaCpuThreads?.Invoke() ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaCpuThreads));
         }
         #endregion
 

@@ -143,6 +143,9 @@ namespace Joveler.Compression.ZLib
         {
             ZLibInit.Manager.EnsureLoaded();
 
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
+
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
 
             _disposed = false;
@@ -167,6 +170,9 @@ namespace Joveler.Compression.ZLib
         public DeflateSerialStream(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
+
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = ZLibStreamOperateMode.Decompress;
@@ -215,6 +221,9 @@ namespace Joveler.Compression.ZLib
 
                 if (_zs != null)
                 {
+                    if (ZLibInit.Lib == null)
+                        throw new ObjectDisposedException(nameof(ZLibInit));
+
                     ZLibInit.Lib.NativeAbi.DeflateEnd(_zs);
                     _zsPin.Free();
                     _zs = null;
@@ -256,6 +265,8 @@ namespace Joveler.Compression.ZLib
                 throw new NotSupportedException("Read() not supported on compression");
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
 
             // Discard the additional data if decompress is already done
             if (_workBuffer.Disposed)
@@ -328,6 +339,8 @@ namespace Joveler.Compression.ZLib
                 throw new NotSupportedException("Write() not supported on decompression");
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
 
             TotalIn += span.Length;
 
@@ -364,6 +377,8 @@ namespace Joveler.Compression.ZLib
         {
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
 
             fixed (byte* writePtr = _workBuffer.Buf)
             {
@@ -400,6 +415,8 @@ namespace Joveler.Compression.ZLib
         {
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+            if (ZLibInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZLibInit));
 
             if (_mode == ZLibStreamOperateMode.Decompress)
             {

@@ -174,6 +174,9 @@ namespace Joveler.Compression.XZ
 
         internal LzmaMt ToLzmaMt(XZThreadedDecompressOptions threadOpts)
         {
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             // Default soft limit values used within xz-utils are
             // - 64bit systems: TOTAL_RAM / 4.
             // - 32bit systems: + ceiling of 1.4GB (1400U << 20)
@@ -327,7 +330,7 @@ namespace Joveler.Compression.XZ
         private readonly bool _leaveOpen;
         private bool _disposed = false;
 
-        private LzmaStream _lzmaStream;
+        private LzmaStream? _lzmaStream;
         private GCHandle _lzmaStreamPin;
 
         private readonly int _bufferSize = DefaultBufferSize;
@@ -337,7 +340,7 @@ namespace Joveler.Compression.XZ
         private bool _isAborted = false;
 
         // Property
-        public Stream BaseStream { get; private set; }
+        public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
         /// <summary>
@@ -388,6 +391,9 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
             _disposed = false;
@@ -406,11 +412,11 @@ namespace Joveler.Compression.XZ
             CheckPreset(preset);
 
             // Initialize the encoder
-            LzmaRet ret = XZInit.Lib.LzmaEasyEncoder(_lzmaStream, preset, compOpts.Check);
+            LzmaRet ret = XZInit.Lib.LzmaEasyEncoder!(_lzmaStream, preset, compOpts.Check);
             XZException.CheckReturnValueNormal(ret);
 
             // Set possible max memory usage.
-            MaxMemUsage = XZInit.Lib.LzmaEasyEncoderMemUsage(preset);
+            MaxMemUsage = XZInit.Lib.LzmaEasyEncoderMemUsage!(preset);
         }
 
         /// <summary>
@@ -430,6 +436,9 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
             _disposed = false;
@@ -448,11 +457,11 @@ namespace Joveler.Compression.XZ
             CheckPreset(mt.Preset);
 
             // Initialize the encoder
-            LzmaRet ret = XZInit.Lib.LzmaStreamEncoderMt(_lzmaStream, mt);
+            LzmaRet ret = XZInit.Lib.LzmaStreamEncoderMt!(_lzmaStream, mt);
             XZException.CheckReturnValueNormal(ret);
 
             // Set possible max memory usage.
-            MaxMemUsage = XZInit.Lib.LzmaStreamEncoderMtMemUsage(mt);
+            MaxMemUsage = XZInit.Lib.LzmaStreamEncoderMtMemUsage!(mt);
         }
         #endregion
 
@@ -474,6 +483,9 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
             _disposed = false;
@@ -492,16 +504,16 @@ namespace Joveler.Compression.XZ
             switch (fileFormat)
             {
                 case CoderFormat.XZ:
-                    ret = XZInit.Lib.LzmaStreamDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    ret = XZInit.Lib.LzmaStreamDecoder!(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
                     break;
                 case CoderFormat.Auto:
-                    ret = XZInit.Lib.LzmaAutoDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    ret = XZInit.Lib.LzmaAutoDecoder!(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
                     break;
                 case CoderFormat.LegacyLzma:
-                    ret = XZInit.Lib.LzmaAloneDecoder(_lzmaStream, decompOpts.MemLimit);
+                    ret = XZInit.Lib.LzmaAloneDecoder!(_lzmaStream, decompOpts.MemLimit);
                     break;
                 case CoderFormat.LZip:
-                    ret = XZInit.Lib.LzmaLZipDecoder(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
+                    ret = XZInit.Lib.LzmaLZipDecoder!(_lzmaStream, decompOpts.MemLimit, decompOpts.DecodeFlags);
                     break;
             }
             XZException.CheckReturnValueNormal(ret);
@@ -525,6 +537,9 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
             _disposed = false;
@@ -542,7 +557,7 @@ namespace Joveler.Compression.XZ
             LzmaMt mt = decompOpts.ToLzmaMt(threadOpts);
 
             // Initialize the decoder
-            LzmaRet ret = XZInit.Lib.LzmaStreamDecoderMt(_lzmaStream, mt);
+            LzmaRet ret = XZInit.Lib.LzmaStreamDecoderMt!(_lzmaStream, mt);
             XZException.CheckReturnValueNormal(ret);
         }
         #endregion
@@ -593,11 +608,14 @@ namespace Joveler.Compression.XZ
         #region LzmaStream management and Abort
         private void FreeLzmaStream()
         {
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             // lzma_end frees memory allocated for coder data structures.
             // It must be called to avoid memory leak.
             if (_lzmaStream != null)
             {
-                XZInit.Lib.LzmaEnd(_lzmaStream);
+                XZInit.Lib.LzmaEnd!(_lzmaStream);
             }
         }
 
@@ -638,12 +656,19 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe int Read(Span<byte> span)
 #else
         public unsafe int Read(Span<byte> span)
 #endif
         { // For Decompress
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+            if (_lzmaStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+
             if (_mode != Mode.Decompress)
                 throw new NotSupportedException($"{nameof(Read)}() not supported on compression.");
             if (_workBufPos == ReadDone)
@@ -678,7 +703,7 @@ namespace Joveler.Compression.XZ
                     ulong bakAvailIn = _lzmaStream.AvailIn;
                     ulong bakAvailOut = _lzmaStream.AvailOut;
 
-                    LzmaRet ret = XZInit.Lib.LzmaCode(_lzmaStream, action);
+                    LzmaRet ret = XZInit.Lib.LzmaCode!(_lzmaStream, action);
 
                     _workBufPos += (int)(bakAvailIn - _lzmaStream.AvailIn);
                     readSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
@@ -724,12 +749,19 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
+#if NETCOREAPP
         public override unsafe void Write(ReadOnlySpan<byte> span)
 #else
         public unsafe void Write(ReadOnlySpan<byte> span)
 #endif
         { // For Compress
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+            if (_lzmaStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+
             if (_mode != Mode.Compress)
                 throw new NotSupportedException($"{nameof(Write)}() not supported on decompression.");
 
@@ -746,7 +778,7 @@ namespace Joveler.Compression.XZ
                 // Return condition : _lzmaStream.AvailIn == 0
                 while (_lzmaStream.AvailIn != 0)
                 {
-                    LzmaRet ret = XZInit.Lib.LzmaCode(_lzmaStream, LzmaAction.Run);
+                    LzmaRet ret = XZInit.Lib.LzmaCode!(_lzmaStream, LzmaAction.Run);
                     _workBufPos = (int)((ulong)_workBuf.Length - _lzmaStream.AvailOut);
 
                     // If the output buffer is full, write the data from the output bufffer to the output file.
@@ -770,6 +802,13 @@ namespace Joveler.Compression.XZ
 
         private unsafe void FinishWrite()
         {
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+            if (_lzmaStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+
             Debug.Assert(_mode == Mode.Compress, $"{nameof(FinishWrite)}() must not be called in decompression.");
 
             fixed (byte* writePtr = _workBuf)
@@ -783,7 +822,7 @@ namespace Joveler.Compression.XZ
                 while (ret != LzmaRet.StreamEnd)
                 {
                     ulong bakAvailOut = _lzmaStream.AvailOut;
-                    ret = XZInit.Lib.LzmaCode(_lzmaStream, LzmaAction.Finish);
+                    ret = XZInit.Lib.LzmaCode!(_lzmaStream, LzmaAction.Finish);
                     _workBufPos = (int)(bakAvailOut - _lzmaStream.AvailOut);
 
                     // If the compression finished successfully,
@@ -811,11 +850,19 @@ namespace Joveler.Compression.XZ
         /// <inheritdoc />
         public override unsafe void Flush()
         {
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+
             if (_mode == Mode.Decompress)
             {
                 BaseStream.Flush();
                 return;
             }
+
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+            if (_lzmaStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
 
             fixed (byte* writePtr = _workBuf)
             {
@@ -831,7 +878,7 @@ namespace Joveler.Compression.XZ
                     if (_lzmaStream.AvailOut != 0)
                     {
                         ulong bakAvailOut = _lzmaStream.AvailOut;
-                        ret = XZInit.Lib.LzmaCode(_lzmaStream, LzmaAction.FullFlush);
+                        ret = XZInit.Lib.LzmaCode!(_lzmaStream, LzmaAction.FullFlush);
                         writeSize += (int)(bakAvailOut - _lzmaStream.AvailOut);
                     }
                     _workBufPos += writeSize;
@@ -854,9 +901,9 @@ namespace Joveler.Compression.XZ
         }
 
         /// <inheritdoc />
-        public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        public override bool CanRead => _mode == Mode.Decompress && BaseStream != null && BaseStream.CanRead;
         /// <inheritdoc />
-        public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
+        public override bool CanWrite => _mode == Mode.Compress && BaseStream != null && BaseStream.CanWrite;
         /// <inheritdoc />
         public override bool CanSeek => false;
 
@@ -899,8 +946,6 @@ namespace Joveler.Compression.XZ
         }
         #endregion
 
-
-
         #region GetProgress
         /// <summary>
         /// Get progress information of XZ stream.
@@ -924,13 +969,16 @@ namespace Joveler.Compression.XZ
         /// </remarks>
         public void GetProgress(out ulong progressIn, out ulong progressOut)
         {
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+            if (_lzmaStream == null)
+                throw new ObjectDisposedException(nameof(XZStreamBase));
+            
             progressIn = 0;
             progressOut = 0;
-            XZInit.Lib.LzmaGetProgress(_lzmaStream, ref progressIn, ref progressOut);
+            XZInit.Lib.LzmaGetProgress!(_lzmaStream, ref progressIn, ref progressOut);
         }
         #endregion
-
-
 
         #region Memory Usage (Decompression Only) - DISABLED
         // lzma_memusage() only works on per-thread basis.
@@ -989,7 +1037,7 @@ namespace Joveler.Compression.XZ
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 4096);
+            return Math.Max(bufferSize, 16 * 1024);
         }
         #endregion
     }
