@@ -259,7 +259,7 @@ Console.WriteLine($"0x{digest:X4}");
 digest = XXH32Stream.XXH32(bin);
 Console.WriteLine($"0x{digest:X4}");
 
-digest = XXH32Stream.XXH32(XXH32Stream.XXH32Init, bin);
+digest = XXH32Stream.XXH32(XXH32Stream.DefaultSeed, bin);
 Console.WriteLine($"0x{digest:X4}");
 ```
 
@@ -298,7 +298,7 @@ Console.WriteLine($"0x{digest:X8}");
 digest = XXH64Stream.XXH64(bin);
 Console.WriteLine($"0x{digest:X8}");
 
-digest = XXH64Stream.XXH64(XXH64Stream.XXH64Init, bin);
+digest = XXH64Stream.XXH64(XXH64Stream.DefaultSeed, bin);
 Console.WriteLine($"0x{digest:X8}");
 ```
 

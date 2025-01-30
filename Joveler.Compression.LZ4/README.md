@@ -17,42 +17,32 @@ Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than th
 ## Features
 
 - LZ4FrameStream, the stream for [lz4 frame format](https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md).
+- (EXPERIMENTAL) Parallel compression support on LZ4FrameStream.
 
 ## Support
 
 ### Targeted .NET platforms
 
-- .NET Standard 2.1 (.NET Core 3.0+)
-- .NET Standard 2.0 (.NET Framework 4.6.1+, .NET Core 2.0+)
-- .NET Framework 4.5.1
+- .NET 8.0
+- .NET Standard 2.0
+- .NET Framework 4.6.2
 
 ### Supported OS platforms
 
-| Platform | Architecture | Tested |
-|----------|--------------|--------|
-| Windows  | x86          | Yes    |
-|          | x64          | Yes    |
-|          | arm64        | Yes    |
-| Linux    | x64          | Yes    |
-|          | armhf        | Yes    |
-|          | arm64        | Yes    |
-| macOS    | x64          | Yes    |
+| Platform | Architecture | Minimum Target | Tested |
+|----------|--------------|----------------|--------|
+| Windows  | x86          | Windows 7 SP1  | Yes    |
+|          | x64          | Windows 7 SP1  | Yes    |
+|          | arm64        | Windows 7 SP1  | Yes    |
+| Linux    | x64          | Ubuntu 20.04   | Yes    |
+|          | armhf        | Ubuntu 20.04   | Yes    |
+|          | arm64        | Ubuntu 20.04   | Yes    |
+| macOS    | x64          | macOS 11       | Yes    |
+|          | arm64        | macOS 11       | Yes    |
 
-macOS arm64 should be supported on theory, but I do not have access to an Apple Sillicon device to test. Please contribute if you have an ARM64 macOS machine.
+### Supported LZ4 versions
 
-#### Tested linux distributions
-
-| Architecture  | Distribution | Note |
-|---------------|--------------|------|
-| x64           | Ubuntu 18.04 | Tested on AppVeyor CI |
-| armhf         | Debian 10    | Emulated on QEMU      |
-| arm64         | Debian 10    | Emulated on QEMU      |
-
-### Supported LZ4 version
-
-- 1.9.1
-- 1.9.2
-- 1.9.3 (Included)
+- 1.10.0 (Included)
 
 ## Usage
 

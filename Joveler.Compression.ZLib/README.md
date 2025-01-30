@@ -16,7 +16,8 @@ Joveler.Compression.ZLib exposes fast zlib capabilities with backed by zlib-ng.
 
 - ZLibStream, the stream implementation conforms [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt).
 - Improved DeflateStream and GZipStream, conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt) and [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt).
-- Fast Adler32 and CRC32 checksum.
+- (EXPERIMENTAL) Parallel compression support on ZLibStream, DeflateStream and GZipStream.
+- Fast native implementation of Adler32 and CRC32 checksum.
 
 ## How is Joveler.Compression.ZLib different from System.IO.Compression?
 
@@ -25,6 +26,7 @@ Joveler.Compression.ZLib exposes fast zlib capabilities with backed by zlib-ng.
 Here is the list where this library differs from .NET BCL:
 
 1. Joveler.Compression.ZLib ships with fast zlib-ng fork, and performs better than .NET BCL.
+1. Joveler.Compression.ZLib supports parallel compression.
 1. System.IO.Compression lacks some zlib capabilities, which Joveler.Compression.ZLib does.
     - System.IO.Compression did not support ZLibStream and GZipStream until .NET 6.0, and still does not in .NET Framework.
     - System.IO.Compression did not support best compressoin level until .NET 6.0, and still does not in .NET Framework.
@@ -34,17 +36,9 @@ Here is the list where this library differs from .NET BCL:
 
 ### Targeted .NET platforms
 
-- .NET Core 3.1
+- .NET 8.0
 - .NET Standard 2.0
-- .NET Framework 4.6
-
-#### Discontinued target frameworks
-
-| Platform | Last Supported Version |
-|----------|------------------------|
-| .NET Framework 4.5 | [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) |
-| .NET Standard 1.3 | [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) |
-| .NET Framework 4.5.1 | [v4.1.0](https://www.nuget.org/packages/Joveler.Compression.ZLib/4.1.0) |
+- .NET Framework 4.6.2
 
 ### Supported OS platforms
 
@@ -59,13 +53,13 @@ Here is the list where this library differs from .NET BCL:
 | macOS    | x64          | Yes    |
 |          | arm64        | Yes    |
 
-### Supported zlib version
+### Supported zlib versions
 
-- zlib-ng 2.1.3 compat ABI (Included)
+- zlib-ng 2.2.3 compat ABI (Included)
     - Compatible with traditional zlib ABI, such as `zlib1.dll`.
 - zlib 1.3
     - Supports both `zlib1.dll` and `zlibwapi.dll` on Windows.
-- zlib-ng 2.1.3 modern ABI
+- zlib-ng 2.2.3 modern ABI
 
 ## Changelog
 

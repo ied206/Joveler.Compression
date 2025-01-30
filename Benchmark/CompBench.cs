@@ -203,7 +203,7 @@ namespace Benchmark
         }
 
 
-        [GlobalSetup(Targets = [nameof(LZ4NativeJoveler)])]
+        [GlobalSetup(Targets = [nameof(LZ4NativeJoveler), nameof(LZ4ParallelOneNativeJoveler), nameof(LZ4ParallelTwoNativeJoveler)])]
         public void LZ4Setup()
         {
             Program.NativeGlobalInit(AlgorithmFlags.LZ4);
@@ -276,6 +276,7 @@ namespace Benchmark
                 Joveler.Compression.ZLib.ZLibParallelCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
                 {
                     Threads = threads,
+                    WriteTimeout = TimeSpan.Zero,
                 };
 
                 using (MemoryStream rms = new MemoryStream(rawData))
@@ -453,6 +454,68 @@ namespace Benchmark
             {
                 using (MemoryStream rms = new MemoryStream(rawData))
                 using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, compOpts))
+                {
+                    rms.CopyTo(lzs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+            return (double)compLen / rawData.Length;
+        }
+
+        [Benchmark(Description = "lz4-T1 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.LZ4)]
+        public double LZ4ParallelOneNativeJoveler()
+        {
+            Joveler.Compression.LZ4.LZ4FrameCompressOptions compOpts = new Joveler.Compression.LZ4.LZ4FrameCompressOptions()
+            {
+                Level = NativeLZ4LevelDict[Level],
+                LeaveOpen = true,
+            };
+            Joveler.Compression.LZ4.LZ4FrameParallelCompressOptions pcompOpts = new Joveler.Compression.LZ4.LZ4FrameParallelCompressOptions()
+            {
+                Threads = 1,
+                WriteTimeout = TimeSpan.Zero,
+            };
+
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, compOpts, pcompOpts))
+                {
+                    rms.CopyTo(lzs);
+                }
+
+                ms.Flush();
+                compLen = ms.Position;
+            }
+            return (double)compLen / rawData.Length;
+        }
+
+        [Benchmark(Description = "lz4-T2 (n_Joveler)")]
+        [BenchmarkCategory(BenchConfig.LZ4)]
+        public double LZ4ParallelTwoNativeJoveler()
+        {
+            Joveler.Compression.LZ4.LZ4FrameCompressOptions compOpts = new Joveler.Compression.LZ4.LZ4FrameCompressOptions()
+            {
+                Level = NativeLZ4LevelDict[Level],
+                LeaveOpen = true,
+            };
+            Joveler.Compression.LZ4.LZ4FrameParallelCompressOptions pcompOpts = new Joveler.Compression.LZ4.LZ4FrameParallelCompressOptions()
+            {
+                Threads = 2,
+                WriteTimeout = TimeSpan.Zero,
+            };
+
+            long compLen;
+            byte[] rawData = SrcFiles[SrcFileName];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (MemoryStream rms = new MemoryStream(rawData))
+                using (Joveler.Compression.LZ4.LZ4FrameStream lzs = new Joveler.Compression.LZ4.LZ4FrameStream(ms, compOpts, pcompOpts))
                 {
                     rms.CopyTo(lzs);
                 }
