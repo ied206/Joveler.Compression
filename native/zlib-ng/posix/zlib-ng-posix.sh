@@ -55,13 +55,14 @@ OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
 # Set path and command vars
 # BASE_ABS_PATH: Absolute path of this script, e.g. /home/user/bin/foo.sh
 # BASE_DIR: Absolute path of the parent dir of this script, e.g. /home/user/bin
-if [ "${OS}" = Linux ]; then
+if [[ "${OS}" == Linux ]]; then
     BASE_ABS_PATH=$(readlink -f "$0")
     CORES=$(grep -c ^processor /proc/cpuinfo)
     DEST_EXT="so"
     STRIP="strip"
     CHECKDEP="ldd"
-elif [ "${OS}" = Darwin ]; then
+elif [[ "${OS}" == Darwin ]]; then
+    export MACOSX_DEPLOYMENT_TARGET=11
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
     DEST_EXT="dylib"
@@ -76,10 +77,15 @@ DEST_DIR="${BASE_DIR}/build"
 
 # Cross-compile
 CMAKE_OPT_PARAMS=""
-if [ "${CROSS_ARCH}" != "" ]; then
+if [[ "${CROSS_ARCH}" != "" ]]; then
     echo "Setup cross-compile for [${CROSS_ARCH}]"
-    CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_TOOLCHAIN_FILE=${SRC_DIR}/cmake/toolchain-${CROSS_ARCH}.cmake"
     DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
+
+    if [[ "${OS}" == Linux ]]; then   
+        CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_TOOLCHAIN_FILE=${SRC_DIR}/cmake/toolchain-${CROSS_ARCH}.cmake"
+    elif [[ "${OS}" == Darwin ]]; then
+        CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_OSX_ARCHITECTURES=${CROSS_ARCH}"
+    fi
 fi
 
 # Create dest directory
@@ -89,10 +95,10 @@ mkdir -p "${DEST_DIR}"
 # Compile zlib-ng
 BUILD_MODES=( "newapi" "compat" )
 for BUILD_MODE in "${BUILD_MODES[@]}"; do
-    if [ "$BUILD_MODE" = "newapi" ]; then
+    if [[ "$BUILD_MODE" = "newapi" ]]; then
         ZLIB_COMPAT_VALUE="OFF"
         DEST_LIB="libz-ng.${DEST_EXT}"
-    elif [ "$BUILD_MODE" = "compat" ]; then
+    elif [[ "$BUILD_MODE" = "compat" ]]; then
         ZLIB_COMPAT_VALUE="ON"
         DEST_LIB="libz.${DEST_EXT}"
     fi
@@ -124,4 +130,3 @@ pushd "${DEST_DIR}" > /dev/null
 file *.${DEST_EXT}
 ${CHECKDEP} *.${DEST_EXT}
 popd > /dev/null
-

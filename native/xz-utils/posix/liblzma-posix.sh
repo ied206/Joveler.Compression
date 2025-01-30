@@ -47,14 +47,15 @@ OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
 # Set path and command vars
 # BASE_ABS_PATH: Absolute path of this script, e.g. /home/user/bin/foo.sh
 # BASE_DIR: Absolute path of the parent dir of this script, e.g. /home/user/bin
-if [ "${OS}" = Linux ]; then
+if [[ "${OS}" == Linux ]]; then
     BASE_ABS_PATH=$(readlink -f "$0")
     CORES=$(grep -c ^processor /proc/cpuinfo)
     DEST_LIB="liblzma.so"
     DEST_EXE="xz"
     STRIP="strip"
     CHECKDEP="ldd"
-elif [ "${OS}" = Darwin ]; then
+elif [[ "${OS}" == Darwin ]]; then
+    export MACOSX_DEPLOYMENT_TARGET=11
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
     DEST_LIB="liblzma.dylib"
@@ -71,48 +72,47 @@ DEST_DIR="${BASE_DIR}/build"
 # Set target triple (for Linux) or mac_arch (for macOS)
 TARGET_TRIPLE=""
 TARGET_MAC_ARCH=""
-if [ "${OS}" = Linux ]; then
-    if [ "${CROSS_ARCH}" = i686 ]; then
+if [[ "${OS}" == Linux ]]; then
+    if [[ "${CROSS_ARCH}" == i686 ]]; then
         TARGET_TRIPLE="i686-linux-gnu"
-    elif [ "${CROSS_ARCH}" = x86_64 ]; then
+    elif [[ "${CROSS_ARCH}" == x86_64 ]]; then
         TARGET_TRIPLE="x86_64-linux-gnu"
-    elif [ "${CROSS_ARCH}" = armhf ]; then
+    elif [[ "${CROSS_ARCH}" == armhf ]]; then
         TARGET_TRIPLE="arm-linux-gnueabihf"
-    elif [ "${CROSS_ARCH}" = aarch64 ]; then
+    elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
         TARGET_TRIPLE="aarch64-linux-gnu"
-    elif [ "${CROSS_ARCH}" != "" ]; then
+    elif [[ "${CROSS_ARCH}" != "" ]]; then
         echo "[${ARCH}] is not a pre-defined architecture" >&2
         exit 1
     fi
-elif [ "${OS}" = Darwin ]; then
-    export MACOSX_DEPLOYMENT_TARGET=11
+
+    if [[ "${CROSS_ARCH}" != "" ]]; then
+        DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
+    elif [[ "${CROSS_TRIPLE}" != "" ]]; then
+        TARGET_TRIPLE="${CROSS_TRIPLE}"
+        DEST_DIR="${DEST_DIR}-${CROSS_TRIPLE}"
+    fi
+    if [ "${TARGET_TRIPLE}" != "" ]; then
+        echo "(Cross compile) Target triple set to [${TARGET_TRIPLE}]"
+    fi 
+elif [[ "${OS}" == Darwin ]]; then
     # https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
     # https://gist.github.com/andrewgrant/477c7037b1fc0dd7275109d3f2254ea9
-    if [ "${CROSS_ARCH}" = x86_64 ]; then
+    if [[ "${CROSS_ARCH}" == x86_64 ]]; then
         TARGET_ARCH="x86_64"
         #TARGET_ARCH="x86_64-apple-macos"
-    elif [ "${CROSS_ARCH}" = aarch64 ]; then
+    elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
         TARGET_ARCH="arm64"
         #TARGET_ARCH="arm64-apple-macos"
-    elif [ "${CROSS_ARCH}" = arm64 ]; then
-        TARGET_ARCH="arm64"
-        #TARGET_ARCH="arm64-apple-macos"
-    elif [ "${CROSS_ARCH}" != "" ]; then
+    elif [[ "${CROSS_ARCH}" != "" ]]; then
         echo "[${ARCH}] is not a pre-defined architecture" >&2
         exit 1
     fi
-fi
 
-if [ "${CROSS_ARCH}" != "" ]; then
-    DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
-elif [ "${CROSS_TRIPLE}" != "" ]; then
-    TARGET_TRIPLE="${CROSS_TRIPLE}"
-    DEST_DIR="${DEST_DIR}-${CROSS_TRIPLE}"
+    if [ "${CROSS_ARCH}" != "" ]; then
+        echo "(Cross compile) Target architecture set to [${CROSS_ARCH}]"
+    fi 
 fi
-
-if [ "${TARGET_TRIPLE}" != "" ]; then
-    echo "(Cross compile) Target triple set to [${TARGET_TRIPLE}]"
-fi 
 
 # Create dest directory
 mkdir -p "${DEST_DIR}"
@@ -125,17 +125,17 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
     CPPFLAGS=""
     CFLAGS=""
     LDFLAGS=""
-    if [ "$BUILD_MODE" = "lib" ]; then
+    if [[ "$BUILD_MODE" == "lib" ]]; then
         CONFIGURE_ARGS="${CONFIGURE_ARGS} --enable-shared --disable-xz"
-    elif [ "$BUILD_MODE" = "exe" ]; then
+    elif [[ "$BUILD_MODE" == "exe" ]]; then
         CONFIGURE_ARGS="${CONFIGURE_ARGS} --disable-shared"
         CFLAGS="${CFLAGS} -Os"
     fi
 
-    if [ "${TARGET_TRIPLE}" != "" ]; then
+    if [[ "${TARGET_TRIPLE}" != "" ]]; then
         CONFIGURE_ARGS="${CONFIGURE_ARGS} --host=${TARGET_TRIPLE}"
     fi 
-    if [ "${TARGET_ARCH}" != "" ]; then
+    if [[ "${TARGET_ARCH}" != "" ]]; then
         CPPFLAGS="${CPPFLAGS} -arch ${TARGET_ARCH}"
         CFLAGS="${CFLAGS} -arch ${TARGET_ARCH}"
         LDFLAGS="${LDFLAGS} -arch ${TARGET_ARCH}"
@@ -154,15 +154,15 @@ for BUILD_MODE in "${BUILD_MODES[@]}"; do
         --disable-lzmadec \
         --disable-lzmainfo \
         --disable-lzma-links \
+        ${CONFIGURE_ARGS} \
         CPPFLAGS="${CPPFLAGS}" \
         CFLAGS="${CFLAGS}" \
-        LDFLAGS="${LDFLAGS}" \
-        ${CONFIGURE_ARGS}
+        LDFLAGS="${LDFLAGS}"
     make "-j${CORES}"
 
-    if [ "$BUILD_MODE" = "lib" ]; then
+    if [[ "$BUILD_MODE" == "lib" ]]; then
         cp "src/liblzma/.libs/${DEST_LIB}" "${DEST_DIR}/${DEST_LIB}"
-    elif [ "$BUILD_MODE" = "exe" ]; then
+    elif [[ "$BUILD_MODE" == "exe" ]]; then
         cp "src/xz/${DEST_EXE}" "${DEST_DIR}/${DEST_EXE}"
     fi    
 done 
