@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2023 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -34,81 +34,73 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 
 namespace Joveler.Compression.Zstd
 {
     #region ZstdException
-    [Serializable]
     public class ZstdException : Exception
     {
-        public UIntPtr ReturnCode { get; set; }
+        public nuint ReturnCode { get; set; }
 
-        public ZstdException(UIntPtr code)
+        public ZstdException(nuint code)
             : base(ForgeErrorMessage(code))
         {
             ReturnCode = code;
         }
 
-        public ZstdException(UIntPtr code, Exception innerException)
+        public ZstdException(nuint code, Exception innerException)
             : base(ForgeErrorMessage(code), innerException)
         {
             ReturnCode = code;
         }
 
-        public ZstdException(UIntPtr code, string msg)
+        public ZstdException(nuint code, string msg)
             : base(msg)
         {
             ReturnCode = code;
         }
 
-        public ZstdException(UIntPtr code, string msg, Exception innerException)
+        public ZstdException(nuint code, string msg, Exception innerException)
             : base(msg, innerException)
         {
             ReturnCode = code;
         }
 
-        private static string ForgeErrorMessage(UIntPtr code, string msg = null)
+        private static string ForgeErrorMessage(nuint code, string? msg = null)
         {
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
             if (msg == null)
             {
                 // ZSTD_getErrorName returns const char*, which does not require freeing string.
-                IntPtr strPtr = ZstdInit.Lib.GetErrorName(code);
+                IntPtr strPtr = ZstdInit.Lib.GetErrorName!(code);
                 msg = Marshal.PtrToStringAnsi(strPtr);
             }
             return msg ?? $"ZSTD Unknown Error";
         }
 
-        internal static void CheckReturnValue(UIntPtr code)
+        internal static void CheckReturnValue(nuint code)
         {
             ZstdInit.Manager.EnsureLoaded();
 
-            if (ZstdInit.Lib.IsError(code) != 0)
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            if (ZstdInit.Lib.IsError!(code) != 0)
                 throw new ZstdException(code);
         }
 
-        internal static void CheckReturnValueWithCStream(UIntPtr code, IntPtr cstream)
+        internal static void CheckReturnValueWithCStream(nuint code, IntPtr cstream)
         {
             ZstdInit.Manager.EnsureLoaded();
 
-            if (ZstdInit.Lib.IsError(code) != 0)
-            {
-                UIntPtr resetCode = ZstdInit.Lib.CCtxReset(cstream, ResetDirective.ResetSessionOnly);
-                if (ZstdInit.Lib.IsError(resetCode) != 0)
-                    throw new ZstdException(code, new ZstdException(resetCode));
-                else
-                    throw new ZstdException(code);
-            }
-                
-        }
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
 
-        internal static void CheckReturnValueWithDStream(UIntPtr code, IntPtr dstream)
-        {
-            ZstdInit.Manager.EnsureLoaded();
-
-            if (ZstdInit.Lib.IsError(code) != 0)
+            if (ZstdInit.Lib.IsError!(code) != 0)
             {
-                UIntPtr resetCode = ZstdInit.Lib.DctxReset(dstream, ResetDirective.ResetSessionOnly);
+                nuint resetCode = ZstdInit.Lib.CCtxReset!(cstream, ResetDirective.ResetSessionOnly);
                 if (ZstdInit.Lib.IsError(resetCode) != 0)
                     throw new ZstdException(code, new ZstdException(resetCode));
                 else
@@ -116,20 +108,22 @@ namespace Joveler.Compression.Zstd
             }
         }
 
-        #region Serializable
-        protected ZstdException(SerializationInfo info, StreamingContext ctx)
+        internal static void CheckReturnValueWithDStream(nuint code, IntPtr dstream)
         {
-            ReturnCode = (UIntPtr)info.GetValue(nameof(ReturnCode), typeof(UIntPtr));
-        }
+            ZstdInit.Manager.EnsureLoaded();
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(ReturnCode), ReturnCode);
-            base.GetObjectData(info, context);
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            if (ZstdInit.Lib.IsError!(code) != 0)
+            {
+                nuint resetCode = ZstdInit.Lib.DctxReset!(dstream, ResetDirective.ResetSessionOnly);
+                if (ZstdInit.Lib.IsError(resetCode) != 0)
+                    throw new ZstdException(code, new ZstdException(resetCode));
+                else
+                    throw new ZstdException(code);
+            }
         }
-        #endregion
     }
     #endregion
 }
