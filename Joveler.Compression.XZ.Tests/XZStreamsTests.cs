@@ -104,7 +104,7 @@ namespace Joveler.Compression.XZ.Tests
                         }
                         else if (0 < threads)
                         { // Multi-thread compression
-                            XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                            XZParallelCompressOptions threadOpts = new XZParallelCompressOptions
                             {
                                 Threads = threads,
                             };
@@ -233,7 +233,7 @@ namespace Joveler.Compression.XZ.Tests
                         }
                         else if (0 < threads)
                         { // Multi-thread compression
-                            XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                            XZParallelDecompressOptions threadOpts = new XZParallelDecompressOptions
                             {
                                 Threads = threads,
                             };
@@ -503,7 +503,7 @@ namespace Joveler.Compression.XZ.Tests
                         }
                         else if (0 < threads)
                         { // Multi-thread compression
-                            XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+                            XZParallelCompressOptions threadOpts = new XZParallelCompressOptions
                             {
                                 Threads = threads,
                             };
@@ -584,7 +584,7 @@ namespace Joveler.Compression.XZ.Tests
                         }
                         else if (0 < threads)
                         { // Multi-thread compression
-                            XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+                            XZParallelDecompressOptions threadOpts = new XZParallelDecompressOptions
                             {
                                 Threads = threads,
                             };
