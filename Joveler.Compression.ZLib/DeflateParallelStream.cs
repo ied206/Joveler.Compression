@@ -45,10 +45,11 @@ namespace Joveler.Compression.ZLib
     {
         /// <summary>
         /// The number of threads to use for parallel compression.
+        /// Set to 0 to use the default value (CPU core count).
         /// </summary>
-        public int Threads { get; set; } = 1;
+        public int Threads { get; set; } = 0;
         /// <summary>
-        /// Size of the compress chunk, which would be a unit of data to be compressed.
+        /// Size of the compress chunk, which would be a unit of data to be compressed per thread.
         /// </summary>
         public int ChunkSize { get; set; } = DeflateParallelStream.DefaultChunkSize;
         /// <summary>

@@ -158,8 +158,18 @@ namespace Joveler.Compression.LZ4.XXHash
         #endregion
 
         #region Static
-        /// <inheritdoc/>
-        public static unsafe ulong XXHash64(ulong seed, byte[] buffer, int offset, int count)
+        /// <summary>
+        /// One-time XXH64 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe ulong XXH64(byte[] buffer, int offset, int count)
+        {
+            return XXH64(XXH64Init, buffer, offset, count);
+        }
+
+        /// <summary>
+        /// One-time XXH64 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe ulong XXH64(ulong seed, byte[] buffer, int offset, int count)
         {
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
@@ -170,8 +180,18 @@ namespace Joveler.Compression.LZ4.XXHash
             }
         }
 
-        /// <inheritdoc/>
-        public static unsafe ulong XXHash64(ulong seed, ReadOnlySpan<byte> span)
+        /// <summary>
+        /// One-time XXH64 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe ulong XXH64(ReadOnlySpan<byte> span)
+        {
+            return XXH64(XXH64Init, span);
+        }
+
+        /// <summary>
+        /// One-time XXH64 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe ulong XXH64(ulong seed, ReadOnlySpan<byte> span)
         {
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));

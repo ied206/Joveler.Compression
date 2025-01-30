@@ -54,8 +54,9 @@ namespace Joveler.Compression.LZ4
     {
         /// <summary>
         /// The number of threads to use for parallel compression.
+        /// Set to 0 to use the default value (CPU core count).
         /// </summary>
-        public int Threads { get; set; } = 1;
+        public int Threads { get; set; } = 0;
         /// <summary>
         /// <para>Control timeout to allow Write() to return early.<br/>
         /// In parallel compression, Write() may block until the data is compressed.

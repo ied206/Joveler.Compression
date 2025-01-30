@@ -159,15 +159,17 @@ namespace Joveler.Compression.LZ4.XXHash
 
         #region Static
         /// <summary>
-        /// One-time
+        /// One-time XXH32 calculation, which would be faster than stream instance in small data.
         /// </summary>
-        /// <param name="seed"></param>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        /// <exception cref="ObjectDisposedException"></exception>
-        public static unsafe uint XXHash32(uint seed, byte[] buffer, int offset, int count)
+        public static unsafe uint XXH32(byte[] buffer, int offset, int count)
+        {
+            return XXH32(XXH32Init, buffer, offset, count);
+        }
+
+        /// <summary>
+        /// One-time XXH32 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe uint XXH32(uint seed, byte[] buffer, int offset, int count)
         {
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
@@ -179,13 +181,17 @@ namespace Joveler.Compression.LZ4.XXHash
         }
 
         /// <summary>
-        /// 
+        /// One-time XXH32 calculation, which would be faster than stream instance in small data.
         /// </summary>
-        /// <param name="seed"></param>
-        /// <param name="span"></param>
-        /// <returns></returns>
-        /// <exception cref="ObjectDisposedException"></exception>
-        public static unsafe uint XXHash32(uint seed, ReadOnlySpan<byte> span)
+        public static unsafe uint XXH32(ReadOnlySpan<byte> span)
+        {
+            return XXH32(XXH32Init, span);
+        }
+
+        /// <summary>
+        /// One-time XXH32 calculation, which would be faster than stream instance in small data.
+        /// </summary>
+        public static unsafe uint XXH32(uint seed, ReadOnlySpan<byte> span)
         {
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));

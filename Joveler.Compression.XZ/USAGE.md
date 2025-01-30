@@ -86,34 +86,34 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.4.4`. They will be copied into the build directory at build time.
+Joveler.Compression.XZ comes with sets of static binaries of `liblzma 5.6.4`. They will be copied into the build directory at build time.
 
 #### On .NET/.NET Core & .NET Standard
 
-| Platform              | Binary                                       | License       | C Runtime     |
-|-----------------------|----------------------------------------------|---------------|---------------|
-| Windows x86           | `$(OutDir)\runtimes\win-x86\liblzma.dll`     | Public Domain | Universal CRT |
-| Windows x64           | `$(OutDir)\runtimes\win-x64\liblzma.dll`     | Public Domain | Universal CRT |
-| Windows arm64         | `$(OutDir)\runtimes\win-arm64\liblzma.dll`   | Public Domain | Universal CRT |
-| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\liblzma.so`    | Public Domain | glibc         |
-| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\liblzma.so`    | Public Domain | glibc         |
-| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\liblzma.so`  | Public Domain | glibc         |
-| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`   | Public Domain | libSystem     |
-| macOS Monterey arm64  | `$(OutDir)\runtimes\osx-arm64\liblzma.dylib` | Public Domain | libSystem     |
+| Platform      | Minimum Target | Binary                                       | License      | C Runtime     |
+|---------------|----------------|----------------------------------------------|--------------|---------------|
+| Windows x86   | Windows 7 SP1  | `$(OutDir)\runtimes\win-x86\liblzma.dll`     | BSD 0-Clause | Universal CRT |
+| Windows x64   | Windows 7 SP1  | `$(OutDir)\runtimes\win-x64\liblzma.dll`     | BSD 0-Clause | Universal CRT |
+| Windows arm64 | Windows 7 SP1  | `$(OutDir)\runtimes\win-arm64\liblzma.dll`   | BSD 0-Clause | Universal CRT |
+| Linux x64     | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-x64\liblzma.so`    | BSD 0-Clause | glibc         |
+| Linux armhf   | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-arm\liblzma.so`    | BSD 0-Clause | glibc         |
+| Linux arm64   | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-arm64\liblzma.so`  | BSD 0-Clause | glibc         |
+| macOS x64     | macOS 11       | `$(OutDir)\runtimes\osx-x64\liblzma.dylib`   | BSD 0-Clause | libSystem     |
+| macOS arm64   | macOS 11       | `$(OutDir)\runtimes\osx-arm64\liblzma.dylib` | BSD 0-Clause | libSystem     |
 
 - Bundled Windows binaires targets [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) to ensure interoperability with modern .NET runtime.
-    - If you encounter a dependency issue on Windows Vista, 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
+    - If you encounter a dependency issue on Windows 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
 - If you call `XZInit.GlobalInit()` without the `libPath` parameter on Linux or macOS, it will search for system-installed liblzma.
 - Linux binaries are not portable. They may not work on your distribution.
     - You may call parameter-less `XZInit.GlobalInit()` to use system-installed liblzma.
 
 #### On .NET Framework
 
-| Platform         | Binary                        | License       | C Runtime     |
-|------------------|-------------------------------|---------------|---------------|
-| Windows x86      | `$(OutDir)\x86\liblzma.dll`   | Public Domain | Universal CRT |
-| Windows x64      | `$(OutDir)\x64\liblzma.dll`   | Public Domain | Universal CRT |
-| Windows arm64    | `$(OutDir)\arm64\liblzma.dll` | Public Domain | Universal CRT |
+| Platform         | Binary                        | License      | C Runtime     |
+|------------------|-------------------------------|--------------|---------------|
+| Windows x86      | `$(OutDir)\x86\liblzma.dll`   | BSD 0-Clause | Universal CRT |
+| Windows x64      | `$(OutDir)\x64\liblzma.dll`   | BSD 0-Clause | Universal CRT |
+| Windows arm64    | `$(OutDir)\arm64\liblzma.dll` | BSD 0-Clause | Universal CRT |
 
 - Create an empty file named `Joveler.Compression.XZ.Precompiled.Exclude` in the project directory to prevent copying of the package-embedded binary.
 
@@ -134,12 +134,12 @@ To unload the liblzma library explicitly, call `XZInit.GlobalCleanup()`.
 ```csharp
 // Create a compressing XZStream instance.
 public XZStream(Stream baseStream, XZCompressOptions compOpts)
-// Create a multi-threaded compressing XZStream instance.
-public XZStream(Stream baseStream, XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+// Create a parallel compressing XZStream instance.
+public XZStream(Stream baseStream, XZCompressOptions compOpts, XZParallelCompressOptions threadOpts)
 // Create a decompressing XZStream instance.
 public XZStream(Stream baseStream, XZDecompressOptions decompOpts)
-// Create a multi-threaded decompressing XZStream instance.
-public XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZThreadedDecompressOptions threadOpts)
+// Create a parallel decompressing XZStream instance.
+public XZStream(Stream baseStream, XZDecompressOptions decompOpts, XZParallelDecompressOptions threadOpts)
 ```
 
 #### XZCompressOptions
@@ -172,7 +172,7 @@ It may contain more advanced options.
 | 8      |  32 MiB  | 6       | 370 MiB |  33 MiB |
 | 9      |  64 MiB  | 6       | 674 MiB |  65 MiB |
 
-#### XZThreadedCompressOptions
+#### XZParallelCompressOptions
 
 If you want to compress in parallel, pass an instance of this class to the `XZStream` constructor.
 
@@ -199,7 +199,7 @@ You can tune xz decompress options with this class.
 
 It also contains more advanced options. 
 
-#### XZThreadedDecompressOptions
+#### XZParallelDecompressOptions
 
 If you want to decompress in parallel, pass an instance of this class to the `XZStream` constructor.
 
@@ -246,7 +246,7 @@ XZCompressOptions compOpts = new XZCompressOptions
     Level = LzmaCompLevel.Level9,
     ExtremeFlag = true,
 };
-XZThreadedCompressOptions threadOpts = new XZThreadedCompressOptions
+XZParallelCompressOptions threadOpts = new XZParallelCompressOptions
 {
     Threads = Environment.ProcesserCount,
 };
@@ -280,7 +280,7 @@ using (XZStream zs = new XZStream(fsCompp, decompOpts))
 using Joveler.Compression.XZ;
 
 XZDecompressOptions decompOpts = new XZDecompressOptions();
-XZThreadedDecompressOptions threadOpts = new XZThreadedDecompressOptions
+XZParallelDecompressOptions threadOpts = new XZParallelDecompressOptions
 {
     Threads = Environment.ProcesserCount,
 };
@@ -353,7 +353,6 @@ using (FileStream fs = new FileStream("read.txt", FileMode.Open))
 `Crc32Algorithm` is the class designed to compute CRC32 checksum.
 
 It inherits and implements [HashAlgorithm](https://docs.microsoft.com/en-US/dotnet/api/system.security.cryptography.hashalgorithm).
-
 
 ## Crc64Checksum
 

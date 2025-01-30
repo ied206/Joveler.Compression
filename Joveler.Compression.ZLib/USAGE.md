@@ -96,34 +96,34 @@ public static void InitNativeLibrary()
 
 ### Embedded binary
 
-Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.1.3 (compat ABI)`. They will be copied into the build directory at build time.
+Joveler.Compression.ZLib comes with sets of static binaries of `zlib-ng 2.2.3 (compat ABI)`. They will be copied into the build directory at build time.
 
 #### On .NET/.NET Core & .NET Standard
 
-| Platform              | Binary                                    | License       | C Runtime     |
-|-----------------------|-------------------------------------------|---------------|---------------|
-| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
-| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
-| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
-| Ubuntu 20.04 x64      | `$(OutDir)\runtimes\linux-x64\libz.so`    | zlib          | glibc         |
-| Debian 12 armhf       | `$(OutDir)\runtimes\linux-arm\libz.so`    | zlib          | glibc         |
-| Debian 12 arm64       | `$(OutDir)\runtimes\linux-arm64\libz.so`  | zlib          | glibc         |
-| macOS Big Sur x64     | `$(OutDir)\runtimes\osx-x64\libz.dylib`   | zlib          | libSystem     |
-| macOS Ventura arm64   | `$(OutDir)\runtimes\osx-arm64\libz.dylib` | zlib          | libSystem     |
+| Platform      | Minimum Target | Binary                                    | License | C Runtime     |
+|---------------|----------------|-------------------------------------------|---------|---------------|
+| Windows x86   | Windows 7 SP1  | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib    | Universal CRT |
+| Windows x64   | Windows 7 SP1  | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib    | Universal CRT |
+| Windows arm64 | Windows 7 SP1  | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib    | Universal CRT |
+| Linux x64     | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-x64\libz.so`    | zlib    | glibc         |
+| Linux armhf   | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-arm\libz.so`    | zlib    | glibc         |
+| Linux arm64   | Ubuntu 20.04   | `$(OutDir)\runtimes\linux-arm64\libz.so`  | zlib    | glibc         |
+| macOS x64     | macOS 11       | `$(OutDir)\runtimes\osx-x64\libz.dylib`   | zlib    | libSystem     |
+| macOS arm64   | macOS 11       | `$(OutDir)\runtimes\osx-arm64\libz.dylib` | zlib    | libSystem     |
 
 - Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
 - Bundled Windows binaires targets [Universal CRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170) to ensure interoperability with modern .NET runtime.
-    - If you encounter a dependency issue on Windows Vista, 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
+    - If you encounter a dependency issue on Windows 7 or 8.1, try [installing UCRT manually](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=msvc-170).
 - If you call `ZLibInit.GlobalInit()` without `libPath` parameter on Linux or macOS, it will search for system-installed zlib.
 - Linux binaries are not portable. They may not work on your distribution. In that case, call parameter-less `ZLibInit.GlobalInit()` to use system-installed zlib.
 
 #### For .NET Framework 
 
-| Platform              | Binary                                    | License       | C Runtime     |
-|-----------------------|-------------------------------------------|---------------|---------------|
-| Windows x86           | `$(OutDir)\runtimes\win-x86\zlib1.dll`    | zlib          | Universal CRT |
-| Windows x64           | `$(OutDir)\runtimes\win-x64\zlib1.dll`    | zlib          | Universal CRT |
-| Windows arm64         | `$(OutDir)\runtimes\win-arm64\zlib1.dll`  | zlib          | Universal CRT |
+| Platform         | Binary                      | License | C Runtime     |
+|------------------|-----------------------------|---------|---------------|
+| Windows x86      | `$(OutDir)\x86\zlib1.dll`   | zlib    | Universal CRT |
+| Windows x64      | `$(OutDir)\x64\zlib1.dll`   | zlib    | Universal CRT |
+| Windows arm64    | `$(OutDir)\arm64\zlib1.dll` | zlib    | Universal CRT |
 
 - Create an empty file named `Joveler.Compression.ZLib.Precompiled.Exclude` in the project directory to prevent a copy of the package-embedded binary.
 - Precompiled binaries were built from zlib-ng in compat mode, which is compatible with traditional zlib cdecl ABI.
@@ -190,6 +190,8 @@ To unload the zlib library explicitly, call `ZLibInit.GlobalCleanup()` or `ZLibI
 ```csharp
 // Create a compressing DeflateStream instance
 public DeflateStream(Stream baseStream, ZLibCompressOptions compOpts)
+// Create a parallel compressing DeflateStream instance (EXPERIMENTAL)
+public DeflateStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts)
 // Create a decompressing DeflateStream instance
 public DeflateStream(Stream baseStream, ZLibDecompressOptions decompOpts)
 ```
@@ -201,10 +203,18 @@ You can tune zlib compress options with this class.
 | Property | Summary |
 |----------|---------|
 | Level | Compression level. The Default is `ZLibCompLevel.Default`. |
-| BufferSize | Size of the internal buffer. The default is 256KB. |
+| BufferSize | Size of the internal buffer. The default is 256KB. This value is ignored in parallel compression, and use ChunkSize instead. |
 | LeaveOpen | Whether to leave the base stream object open after disposing of the zlib stream object. |
 
 It also contains more advanced options.
+
+#### ZLibParallelCompressOptions **(EXPERIMENTAL)**
+
+| Property | Summary |
+|----------|---------|
+| Threads     | The number of threads to use for parallel compression. |
+| ChunkSize   | Size of the compress chunk, which would be a unit of data to be compressed per thread. |
+| WaitTimeout | Controls timeout to allow Write() to return early. Set to null to block until compress & write is complete. Set to TimeSpan value to enable an upper limit on blocking. Timeout value is kept as best effort. |
 
 #### ZLibDecompressOptions
 
@@ -230,6 +240,28 @@ ZLibCompressOptions compOpts = new ZLibCompressOptions()
 using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
 using (FileStream fsComp = new FileStream("test.deflate", FileMode.Create))
 using (DeflateStream zs = new DeflateStream(fsComp, compOpts))
+{
+    fsOrigin.CopyTo(zs);
+}
+```
+
+#### Compress a file into deflate stream format, in parallel
+
+```csharp
+using Joveler.Compression.ZLib;
+
+ZLibCompressOptions compOpts = new ZLibCompressOptions()
+{
+    Level = ZLibCompLevel.Default,
+};
+ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+{
+    Threads = Environment.ProcessorCount,
+};
+
+using (FileStream fsOrigin = new FileStream("file_origin.bin", FileMode.Open))
+using (FileStream fsComp = new FileStream("test.deflate", FileMode.Create))
+using (DeflateStream zs = new DeflateStream(fsComp, compOpts, pcompOpts))
 {
     fsOrigin.CopyTo(zs);
 }
@@ -309,19 +341,17 @@ using (FileStream fs = new FileStream("read.txt", FileMode.Open))
 }
 ```
 
-## Crc32Checksum
-
-`Crc32Checksum` is the class to compute CRC32 checksum.
-
-It has the same usage as `Adler32Checksum`.
-
-**NOTE**: xz-utils provides twice faster CRC32 implementation than zlib. Install [Joveler.Compression.XZ](https://www.nuget.org/packages/Joveler.Compression.XZ/) if you only need CRC32 calculation.
-
 ## Adler32Algorithm
 
 `Adler32Algorithm` is the class designed to compute Adler32 checksum.
 
 It inherits and implements [HashAlgorithm](https://docs.microsoft.com/en-US/dotnet/api/system.security.cryptography.hashalgorithm).
+
+## Crc32Checksum
+
+`Crc32Checksum` is the class to compute CRC32 checksum.
+
+It has the same usage as `Adler32Checksum`.
 
 ## Crc32Algorithm
 
