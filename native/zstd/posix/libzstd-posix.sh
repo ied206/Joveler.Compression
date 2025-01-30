@@ -52,13 +52,14 @@ OS=$(uname -s) # Linux, Darwin, MINGW64_NT-10.0-19042, MSYS_NT-10.0-18363, ...
 # Set path and command vars
 # BASE_ABS_PATH: Absolute path of this script, e.g. /home/user/bin/foo.sh
 # BASE_DIR: Absolute path of the parent dir of this script, e.g. /home/user/bin
-if [ "${OS}" = Linux ]; then
+if [[ "${OS}" == Linux ]]; then
     BASE_ABS_PATH=$(readlink -f "$0")
     CORES=$(grep -c ^processor /proc/cpuinfo)
     DEST_EXT="so"
     STRIP="strip"
     CHECKDEP="ldd"
-elif [ "${OS}" = Darwin ]; then
+elif [[ "${OS}" == Darwin ]]; then
+    export MACOSX_DEPLOYMENT_TARGET=11
     BASE_ABS_PATH="$(cd $(dirname "$0");pwd)/$(basename "$0")"
     CORES=$(sysctl -n hw.logicalcpu)
     DEST_EXT="dylib"
@@ -75,21 +76,30 @@ DEST_LIB="libzstd.${DEST_EXT}"
 DEST_EXE="zstd"
 
 # Check cross-compile architecture (for Linux)
-if [ "${CROSS_ARCH}" = i686 ]; then
+if [[ "${CROSS_ARCH}" == i686 ]]; then
     :
-elif [ "${CROSS_ARCH}" = x86_64 ]; then
+elif [[ "${CROSS_ARCH}" == x86_64 ]]; then
     :
-elif [ "${CROSS_ARCH}" = armhf ]; then
+elif [[ "${CROSS_ARCH}" == armhf ]]; then
     :
-elif [ "${CROSS_ARCH}" = aarch64 ]; then
+elif [[ "${CROSS_ARCH}" == aarch64 ]]; then
     :
-elif [ "${CROSS_ARCH}" != "" ]; then
+elif [[ "${CROSS_ARCH}" != "" ]]; then
     echo "[${ARCH}] is not a pre-defined architecture" >&2
     exit 1
 fi
 
-if [ "${CROSS_ARCH}" != "" ]; then
+# Cross-compile
+CMAKE_OPT_PARAMS=""
+if [[ "${CROSS_ARCH}" != "" ]]; then
+    echo "Setup cross-compile for [${CROSS_ARCH}]"
     DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
+
+    if [[ "${OS}" == Linux ]]; then
+        CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_TOOLCHAIN_FILE=${BASE_DIR}/linux-gcc-cross.cmake -DCMAKE_SYSTEM_PROCESSOR=${CROSS_ARCH}"
+    elif [[ "${OS}" == Darwin ]]; then
+        CMAKE_OPT_PARAMS="${CMAKE_OPT_PARAMS} -DCMAKE_OSX_ARCHITECTURES=${CROSS_ARCH}"
+    fi
 fi
 
 # Create dest directory
@@ -101,10 +111,7 @@ rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 pushd "${BUILD_DIR}" > /dev/null
 
-CONFIGURE_ARGS=""
-if [ "${CROSS_ARCH}" != "" ]; then
-    CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_TOOLCHAIN_FILE=${BASE_DIR}/linux-gcc-cross.cmake -DCMAKE_SYSTEM_PROCESSOR=${CROSS_ARCH}"
-fi 
+
 
 cmake ../build/cmake -G "Unix Makefiles" \
     "-DZSTD_BUILD_DYNAMIC=ON" \
@@ -116,7 +123,7 @@ cmake ../build/cmake -G "Unix Makefiles" \
     "-DZSTD_LZ4_SUPPORT=OFF" \
     "-DZSTD_BUILD_TESTS=OFF" \
     "-DCMAKE_BUILD_TYPE=Release" \
-    ${CONFIGURE_ARGS}
+    ${CMAKE_OPT_PARAMS}
 # TODO: --config not required because of `-DCMAKE_BUILD_TYPE`?
 cmake --build . --config Release --parallel "${CORES}"
 
