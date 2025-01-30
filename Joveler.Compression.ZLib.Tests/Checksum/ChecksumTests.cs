@@ -248,7 +248,7 @@ namespace Joveler.Compression.ZLib.Tests.Checksum
         [TestMethod]
         public void Adler32()
         {
-            (string FileName, uint Checksum)[] samples = 
+            (string FileName, uint Checksum)[] samples =
             {
                 ("ex1.jpg", 0xD77C7044u),
                 ("ex2.jpg", 0x9B97EDADu),

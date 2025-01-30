@@ -197,7 +197,7 @@ namespace Joveler.Compression.XZ.Tests.Checksum
         [TestMethod]
         public void Crc64()
         {
-            (string FileName, ulong Checksum)[] samples = 
+            (string FileName, ulong Checksum)[] samples =
             {
                 ("A.pdf", 0x70DAC0EC5A353DCELu),
                 ("B.txt", 0x221708D24F085975Lu),

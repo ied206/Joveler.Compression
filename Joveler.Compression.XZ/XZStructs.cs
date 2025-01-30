@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -27,19 +27,11 @@
 
 using System;
 using System.Runtime.InteropServices;
-// ReSharper disable UnusedMember.Global
-#pragma warning disable 414
 
 /*
  * This file includes definition from external C library.
  * This lines suppresses error and warning from code analyzer, due to the file's C-style naming and others.
  */
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
-// ReSharper disable InconsistentNaming
-// ReSharper disable UnusedMember.Local
-#pragma warning disable 169
-#pragma warning disable IDE0044
 
 namespace Joveler.Compression.XZ
 {

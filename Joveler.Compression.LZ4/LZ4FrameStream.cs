@@ -83,6 +83,19 @@ namespace Joveler.Compression.LZ4
             }
         }
 
+        private bool _isAborted = false;
+        public bool IsAborted
+        {
+            get
+            {
+                if (_serialStream != null)
+                    _isAborted = _serialStream.IsAborted;
+                if (_parallelStream != null)
+                    _isAborted = _parallelStream.IsAborted;
+                return _isAborted;
+            }
+        }
+
         // Singlethread Compress/Decompress
         private LZ4FrameSerialStream? _serialStream = null;
         // Multithread Parallel Compress
@@ -103,9 +116,9 @@ namespace Joveler.Compression.LZ4
             _serialStream = new LZ4FrameSerialStream(baseStream, compOpts);
         }
 
-        public LZ4FrameStream(Stream baseStream, LZ4FrameParallelCompressOptions pcompOpts)
+        public LZ4FrameStream(Stream baseStream, LZ4FrameCompressOptions compOpts, LZ4FrameParallelCompressOptions pcompOpts)
         {
-            _parallelStream = new LZ4FrameParallelStream(baseStream, pcompOpts);
+            _parallelStream = new LZ4FrameParallelStream(baseStream, compOpts, pcompOpts);
         }
 
         /// <summary>
@@ -115,13 +128,6 @@ namespace Joveler.Compression.LZ4
         {
             _serialStream = new LZ4FrameSerialStream(baseStream, decompOpts);
         }
-
-        /*
-        public LZ4FrameStream(Stream baseStream, LZ4FrameParallelDecompressOptions pdecompOpts)
-        {
-            _parallelStream = new LZ4FrameParallelStream(baseStream, pdecompOpts);
-        }
-        */
         #endregion
 
         #region Disposable Pattern
@@ -146,6 +152,7 @@ namespace Joveler.Compression.LZ4
 
                     _totalIn = _serialStream.TotalIn;
                     _totalOut = _serialStream.TotalOut;
+                    _isAborted = _serialStream.IsAborted;
 
                     _serialStream = null;
                 }
@@ -156,11 +163,12 @@ namespace Joveler.Compression.LZ4
 
                     _totalIn = _parallelStream.TotalIn;
                     _totalOut = _parallelStream.TotalOut;
+                    _isAborted = _parallelStream.IsAborted;
 
                     _parallelStream = null;
                 }
 
-                _disposed = true;    
+                _disposed = true;
             }
 
             // Dispose the base class
@@ -249,6 +257,23 @@ namespace Joveler.Compression.LZ4
             if (_serialStream != null)
             {
                 _serialStream.Flush();
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
+        }
+
+        public void Abort()
+        {
+            if (_parallelStream != null)
+            {
+                _parallelStream.Abort();
+                return;
+            }
+
+            if (_serialStream != null)
+            {
+                _serialStream.Abort();
                 return;
             }
 

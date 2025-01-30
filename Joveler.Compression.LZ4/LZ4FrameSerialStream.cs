@@ -75,7 +75,8 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         public ulong ContentSize { get; set; } = 0;
         /// <summary>
-        /// 1 == always flush, to reduce usage of internal buffers
+        /// 1 == always flush, to reduce usage of internal buffers.<br/>
+        /// This value is ignored in parallel compression, and always auto-flushes.
         /// </summary>
         public bool AutoFlush { get; set; } = false;
         /// <summary>
@@ -87,7 +88,8 @@ namespace Joveler.Compression.LZ4
         /// </remarks>
         public bool FavorDecSpeed { get; set; } = false;
         /// <summary>
-        /// Size of the internal buffer.
+        /// Size of the internal buffer.<br/>
+        /// This value is ignored in parallel compression, and the buffer is always set to size of block - see <see cref="BlockSizeId"/>.
         /// </summary>
         public int BufferSize { get; set; } = LZ4FrameStream.DefaultBufferSize;
         /// <summary>
@@ -141,6 +143,7 @@ namespace Joveler.Compression.LZ4
         private readonly Mode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
+        private bool _isAborted = false;
 
         private IntPtr _cctx = IntPtr.Zero;
         private IntPtr _dctx = IntPtr.Zero;
@@ -161,13 +164,14 @@ namespace Joveler.Compression.LZ4
         public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
+        public bool IsAborted => _isAborted;
 
         // LZ4F_compressOptions_t, LZ4F_decompressOptions_t
-        private FrameCompressOptions _compOpts = new FrameCompressOptions()
+        private readonly FrameCompressOptions _compOpts = new FrameCompressOptions()
         {
             StableSrc = 0,
         };
-        private FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
+        private readonly FrameDecompressOptions _decompOpts = new FrameDecompressOptions()
         {
             StableDst = 0,
             SkipChecksums = 0,
@@ -176,7 +180,7 @@ namespace Joveler.Compression.LZ4
         // Const
         private const int DecompressComplete = -1;
         // https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md
-        
+
         private static readonly byte[] FrameMagicNumber = { 0x04, 0x22, 0x4D, 0x18 }; // 0x184D2204 (LE)
         private static readonly byte[] FrameMagicSkippableStart = { 0x50, 0x2A, 0x4D, 0x18 }; // 0x184D2A50 (LE)
         /*
@@ -218,6 +222,7 @@ namespace Joveler.Compression.LZ4
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Compress;
             _disposed = false;
+            _isAborted = false;
 
             // Check and set compress options
             _pool = compOpts.BufferPool ?? ArrayPool<byte>.Shared;
@@ -276,6 +281,7 @@ namespace Joveler.Compression.LZ4
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
             _disposed = false;
+            _isAborted = false;
 
             // Check and set compress options
             _pool = decompOpts.BufferPool ?? ArrayPool<byte>.Shared;
@@ -321,12 +327,14 @@ namespace Joveler.Compression.LZ4
                 if (LZ4Init.Lib == null)
                     throw new ObjectDisposedException(nameof(LZ4Init));
 
-                Flush();
+                if (!_isAborted)
+                    Flush();
 
                 // Dispose unmanaged resources, and set large fields to null.
                 if (_cctx != IntPtr.Zero)
                 { // Compress
-                    FinishWrite();
+                    if (!_isAborted)
+                        FinishWrite();
 
                     nuint ret = LZ4Init.Lib.FreeFrameCompressContext!(_cctx);
                     LZ4FrameException.CheckReturnValue(ret);
@@ -357,6 +365,16 @@ namespace Joveler.Compression.LZ4
         }
         #endregion
 
+        #region Abort
+        public void Abort()
+        {
+            if (_isAborted)
+                return;
+
+            _isAborted = true;
+        }
+        #endregion
+
         #region Stream Methods
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
@@ -365,6 +383,7 @@ namespace Joveler.Compression.LZ4
                 throw new NotSupportedException("Read() not supported on compression");
             if (LZ4Init.Lib == null)
                 throw new ObjectDisposedException(nameof(LZ4Init));
+
             CheckReadWriteArgs(buffer, offset, count);
             if (count == 0)
                 return 0;
@@ -386,6 +405,9 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
+
+            if (_isAborted)
+                throw new InvalidOperationException($"{nameof(LZ4FrameStream)} had been aborted.");
 
             // Reached end of stream
             if (_decompSrcIdx == DecompressComplete)
@@ -496,6 +518,9 @@ namespace Joveler.Compression.LZ4
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
 
+            if (_isAborted)
+                throw new InvalidOperationException($"{nameof(LZ4FrameStream)} had been aborted.");
+
             int inputSize = span.Length;
 
             while (0 < span.Length)
@@ -552,6 +577,9 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
+
+            if (_isAborted)
+                throw new InvalidOperationException($"{nameof(LZ4FrameStream)} had been aborted.");
 
             if (_mode == Mode.Compress)
             {
@@ -643,7 +671,7 @@ namespace Joveler.Compression.LZ4
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 64 * 1024);
+            return Math.Max(bufferSize, 16 * 1024);
         }
         #endregion
     }

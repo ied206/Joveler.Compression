@@ -82,7 +82,7 @@ namespace Joveler.Compression.LZ4.Tests
                 CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, -1, testOpts);
                 CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, -1, testOpts);
                 CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, -1, testOpts);
-            }           
+            }
         }
 
         [TestMethod]
@@ -136,19 +136,23 @@ namespace Joveler.Compression.LZ4.Tests
                     }
                     else
                     {
-                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
                         {
                             Level = compLevel,
                             BlockSizeId = blockSizeId,
                             LeaveOpen = true,
-                            Threads = threads,
                         };
                         if (testOpts.EnableContentSize)
-                            pcompOpts.ContentSize = (ulong)sampleFs.Length;
+                            compOpts.ContentSize = (ulong)sampleFs.Length;
+                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
 
-                        lzs = new LZ4FrameStream(lz4CompFs, pcompOpts);
+
+                        lzs = new LZ4FrameStream(lz4CompFs, compOpts, pcompOpts);
                     }
-                    
+
                     using (lzs)
                     {
                         if (testOpts.StreamFlush)
@@ -253,15 +257,18 @@ namespace Joveler.Compression.LZ4.Tests
                     }
                     else
                     {
-                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
                         {
                             Level = compLevel,
                             BlockSizeId = blockSizeId,
                             LeaveOpen = true,
-                            Threads = threads,
                             BufferPool = pool,
                         };
-                        lzs = new LZ4FrameStream(compMs, pcompOpts);
+                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
+                        lzs = new LZ4FrameStream(compMs, compOpts, pcompOpts);
                     }
 
                     using (lzs)
@@ -298,17 +305,20 @@ namespace Joveler.Compression.LZ4.Tests
             using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (MemoryStream compMs = new MemoryStream())
             {
-                LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
                 {
                     Level = compLevel,
                     BlockSizeId = blockSizeId,
                     LeaveOpen = true,
+                };
+                LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                {
                     Threads = threads,
                 };
 
                 try
                 {
-                    using (LZ4FrameStream lzs = new LZ4FrameStream(compMs, pcompOpts))
+                    using (LZ4FrameStream lzs = new LZ4FrameStream(compMs, compOpts, pcompOpts))
                     {
                         sampleFs.CopyTo(lzs);
                         compMs.Dispose();

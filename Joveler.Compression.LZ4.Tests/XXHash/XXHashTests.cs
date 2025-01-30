@@ -148,7 +148,7 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
                 exceptThrown = true;
             }
             Assert.IsTrue(exceptThrown);
-            
+
         }
         #endregion
 
@@ -199,7 +199,7 @@ namespace Joveler.Compression.LZ4.Tests.XXHash
         [TestMethod]
         public void XXH64()
         {
-            (string FileName, ulong Checksum)[] samples = 
+            (string FileName, ulong Checksum)[] samples =
             {
                 ("A.pdf", 0xc1937d274a057194Lu),
                 ("B.txt", 0x3eac76f46cd95d27Lu),

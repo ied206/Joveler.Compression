@@ -32,7 +32,7 @@ namespace Joveler.Compression.ZLib.Checksum
     public sealed class Crc32Algorithm : ZLibHashAlgorithmBase
     {
         [Obsolete($"Result of this constructor depends on processor endianness. Use constructor with explicit endianness instead.")]
-        public Crc32Algorithm() 
+        public Crc32Algorithm()
             : base(BitConverter.IsLittleEndian ? ByteOrder.LittleEndian : ByteOrder.BigEndian, new Crc32Checksum())
         {
         }

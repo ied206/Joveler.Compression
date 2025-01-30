@@ -268,15 +268,18 @@ namespace Benchmark
             byte[] rawData = SrcFiles[SrcFileName];
             using (MemoryStream ms = new MemoryStream())
             {
-                Joveler.Compression.ZLib.ZLibParallelCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
+                Joveler.Compression.ZLib.ZLibCompressOptions compOpts = new Joveler.Compression.ZLib.ZLibCompressOptions()
                 {
                     Level = NativeZLibLevelDict[Level],
-                    Threads = threads,
                     LeaveOpen = true,
+                };
+                Joveler.Compression.ZLib.ZLibParallelCompressOptions pcompOpts = new Joveler.Compression.ZLib.ZLibParallelCompressOptions()
+                {
+                    Threads = threads,
                 };
 
                 using (MemoryStream rms = new MemoryStream(rawData))
-                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, pcompOpts))
+                using (Joveler.Compression.ZLib.ZLibStream zs = new Joveler.Compression.ZLib.ZLibStream(ms, compOpts, pcompOpts))
                 {
                     rms.CopyTo(zs);
                 }
@@ -414,7 +417,7 @@ namespace Benchmark
 
                 // LZMA2 threaded compression with -9 option takes a lot of memory.
                 // To prevent memory starvation and make test results consistent, test only 1 threads.
-                Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
+                Joveler.Compression.XZ.XZParallelCompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelCompressOptions
                 {
                     Threads = 1,
                 };

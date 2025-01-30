@@ -59,17 +59,18 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public ZLibMemLevel MemLevel { get; set; } = ZLibMemLevel.Default;
         /// <summary>
-        /// Size of the internal buffer.
+        /// Size of the internal buffer.<br/>
+        /// This value is ignored in parallel compmression, and the buffer is sized after the <see cref="ZLibParallelCompressOptions.ChunkSize"/>.
         /// </summary>
         public int BufferSize { get; set; } = DeflateStreamBase.DefaultBufferSize;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the zlib stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
         /// <summary>
         /// Buffer pool to use for internal buffer.
         /// </summary>
         public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
     }
 
     public sealed class ZLibDecompressOptions
@@ -88,13 +89,13 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public int BufferSize { get; set; } = DeflateStreamBase.DefaultBufferSize;
         /// <summary>
-        /// Whether to leave the base stream object open after disposing the zlib stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
-        /// <summary>
         /// Buffer pool to use for internal buffer.
         /// </summary>
         public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
+        /// <summary>
+        /// Whether to leave the base stream object open after disposing the zlib stream object.
+        /// </summary>
+        public bool LeaveOpen { get; set; } = false;
     }
     #endregion
 
@@ -108,6 +109,7 @@ namespace Joveler.Compression.ZLib
         private readonly ZLibStreamOperateMode _mode;
         private readonly bool _leaveOpen;
         private bool _disposed = false;
+        private bool _isAborted = false;
 
         // Singlethread Compress/Decompress
         private ZStreamBase? _zs;
@@ -119,6 +121,7 @@ namespace Joveler.Compression.ZLib
         public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
+        public bool IsAborted => _isAborted;
 
         // Default Buffer Size
         /* Benchmark - 256K is the fatest.
@@ -213,7 +216,11 @@ namespace Joveler.Compression.ZLib
                 if (BaseStream != null)
                 {
                     if (_mode == ZLibStreamOperateMode.Compress)
-                        FinishWrite();
+                    {
+                        if (!_isAborted)
+                            FinishWrite();
+                    }
+
                     if (!_leaveOpen)
                         BaseStream.Dispose();
                     BaseStream = null;
@@ -263,10 +270,14 @@ namespace Joveler.Compression.ZLib
         { // For Decompress
             if (_mode != ZLibStreamOperateMode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
+
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
             if (ZLibInit.Lib == null)
                 throw new ObjectDisposedException(nameof(ZLibInit));
+
+            if (_isAborted)
+                throw new InvalidOperationException("This stream had been aborted.");
 
             // Discard the additional data if decompress is already done
             if (_workBuffer.Disposed)
@@ -337,10 +348,14 @@ namespace Joveler.Compression.ZLib
         {
             if (_mode != ZLibStreamOperateMode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
+
             if (BaseStream == null || _zs == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
             if (ZLibInit.Lib == null)
                 throw new ObjectDisposedException(nameof(ZLibInit));
+
+            if (_isAborted)
+                throw new InvalidOperationException("This stream had been aborted.");
 
             TotalIn += span.Length;
 
@@ -418,6 +433,9 @@ namespace Joveler.Compression.ZLib
             if (ZLibInit.Lib == null)
                 throw new ObjectDisposedException(nameof(ZLibInit));
 
+            if (_isAborted)
+                throw new InvalidOperationException("This stream had been aborted.");
+
             if (_mode == ZLibStreamOperateMode.Decompress)
             {
                 BaseStream.Flush();
@@ -451,6 +469,13 @@ namespace Joveler.Compression.ZLib
             }
 
             BaseStream.Flush();
+        }
+
+        public void Abort()
+        {
+            if (_isAborted)
+                return;
+            _isAborted = true;
         }
 
         /// <inheritdoc />
@@ -505,7 +530,7 @@ namespace Joveler.Compression.ZLib
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 4096);
+            return Math.Max(bufferSize, 16 * 1024);
         }
         #endregion
     }

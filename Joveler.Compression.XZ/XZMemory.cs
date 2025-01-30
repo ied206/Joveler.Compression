@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -93,7 +93,7 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for encoding with the given options. 
         /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
         /// </returns>
-        public static ulong ThreadedEncoderMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        public static ulong ParallelEncoderMemUsage(XZCompressOptions compOpts, XZParallelCompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
 
@@ -102,6 +102,19 @@ namespace Joveler.Compression.XZ
 
             LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
             return XZInit.Lib.LzmaStreamEncoderMtMemUsage?.Invoke(mtOpts) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaStreamEncoderMtMemUsage));
+        }
+
+        /// <summary>
+        /// Calculate approximate memory usage of multithreaded .xz encoder
+        /// </summary>
+        /// <returns>
+        /// Number of bytes of memory required for encoding with the given options. 
+        /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
+        /// </returns>
+        [Obsolete($"Renamed to [{nameof(ParallelEncoderMemUsage)}].")]
+        public static ulong ThreadedEncoderMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        {
+            return ParallelEncoderMemUsage(compOpts, threadOpts.ToParallel());
         }
 
         /// <summary>

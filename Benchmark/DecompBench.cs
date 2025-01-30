@@ -210,7 +210,7 @@ namespace Benchmark
             byte[] compData = SrcFiles[CompFileKey(Level, SrcFileName, "xz")];
             using MemoryStream ms = new MemoryStream();
             Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
-            Joveler.Compression.XZ.XZThreadedDecompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedDecompressOptions()
+            Joveler.Compression.XZ.XZParallelDecompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelDecompressOptions()
             {
                 // LZMA2 threaded compression with -9 option takes a lot of memory.
                 // To prevent memory starvation and make test results consistent, test only 1 threads.

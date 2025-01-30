@@ -199,7 +199,7 @@ namespace Joveler.Compression.LZ4.Buffer
 
                 Debug.Assert(_dataStartIdx <= _dataEndIdx);
                 return readLength;
-            }    
+            }
         }
 
         public int Write(byte[] buffer, int offset, int count)

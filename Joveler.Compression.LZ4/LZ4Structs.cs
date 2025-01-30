@@ -27,7 +27,6 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 /*
@@ -263,7 +262,7 @@ namespace Joveler.Compression.LZ4
     #endregion
 
     #region 
-    public enum XXHashErrorCode: int
+    public enum XXHashErrorCode : int
     {
         Ok = 0,
         Error,

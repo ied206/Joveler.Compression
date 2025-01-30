@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v5.x
+
+### v5.0.0
+
+- (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0.
+- Upgrades packaged xz4 binaries to 5.6.4.
+
 ## v4.x
 
 ### v4.3.0

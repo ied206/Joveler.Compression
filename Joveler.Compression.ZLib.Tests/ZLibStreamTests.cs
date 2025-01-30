@@ -134,13 +134,16 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
+                        };
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
                             Threads = threads,
                         };
-                        zs = new ZLibStream(archiveFs, pcompOpts);
+                        zs = new ZLibStream(archiveFs, compOpts, pcompOpts);
                     }
 
                     using (zs)
@@ -248,14 +251,17 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
-                            Threads = threads,
                             BufferPool = pool,
                         };
-                        zs = new ZLibStream(compMs, pcompOpts);
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
+                        zs = new ZLibStream(compMs, compOpts, pcompOpts);
                     }
 
                     using (zs)
@@ -292,16 +298,19 @@ namespace Joveler.Compression.ZLib.Tests
             using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (MemoryStream compMs = new MemoryStream())
             {
-                ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                ZLibCompressOptions compOpts = new ZLibCompressOptions()
                 {
                     Level = level,
                     LeaveOpen = true,
+                };
+                ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                {
                     Threads = threads,
                 };
 
                 try
                 {
-                    using (ZLibStream zs = new ZLibStream(compMs, pcompOpts))
+                    using (ZLibStream zs = new ZLibStream(compMs, compOpts, pcompOpts))
                     {
                         sampleFs.CopyTo(zs);
                         compMs.Dispose();

@@ -45,49 +45,13 @@ namespace Joveler.Compression.LZ4
 {
     #region StreamOptions
     /// <summary>
-    /// Compress options for LZ4FrameStream
+    /// Options to control parallel LZ4 frame compression
     /// </summary>
     /// <remarks>
     /// Default value is based on default value of lz4 cli
     /// </remarks>
     public sealed class LZ4FrameParallelCompressOptions
     {
-        /// <summary>
-        /// 0: default (fast mode); values > LZ4CompLevel.Level12 count as LZ4CompLevel.Level12; values < 0 trigger "fast acceleration"
-        /// </summary>
-        public LZ4CompLevel Level { get; set; } = LZ4CompLevel.Default;
-        /// <summary>
-        /// max64KB, max256KB, max1MB, max4MB
-        /// </summary>
-        public FrameBlockSizeId BlockSizeId { get; set; } = FrameBlockSizeId.Max4MB;
-        /// <summary>
-        /// LZ4F_blockLinked, LZ4F_blockIndependent
-        /// </summary>
-        public FrameBlockMode BlockMode { get; set; } = FrameBlockMode.BlockLinked;
-        /// <summary>
-        /// if enabled, frame is terminated with a 32-bits checksum of decompressed data
-        /// </summary>
-        public FrameContentChecksum ContentChecksumFlag { get; set; } = FrameContentChecksum.ContentChecksumEnabled;
-        /// <summary>
-        /// read-only field : LZ4F_frame or LZ4F_skippableFrame
-        /// </summary>
-        public FrameType FrameType { get; set; } = FrameType.Frame;
-        /// <summary>
-        /// if enabled, each block is followed by a checksum of block's compressed data
-        /// </summary>
-        public FrameBlockChecksum BlockChecksumFlag { get; set; } = FrameBlockChecksum.NoBlockChecksum;
-        /// <summary>
-        /// Size of uncompressed content ; 0 == unknown
-        /// </summary>
-        public ulong ContentSize { get; set; } = 0;
-        /// <summary>
-        /// 1 == parser favors decompression speed vs compression ratio.<br/>
-        /// Only works for high compression modes (>= LZ4CompLevel.Level10)
-        /// </summary>
-        /// <remarks>
-        /// v1.8.2+ 
-        /// </remarks>
-        public bool FavorDecSpeed { get; set; } = false;
         /// <summary>
         /// The number of threads to use for parallel compression.
         /// </summary>
@@ -108,14 +72,6 @@ namespace Joveler.Compression.LZ4
         /// Timeout value is kept as best effort, and it may block longer time.
         /// </remarks>
         public TimeSpan? WriteTimeout { get; set; } = null;
-        /// <summary>
-        /// Buffer pool to use for internal buffers.
-        /// </summary>
-        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the lz4 stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
     }
     #endregion
 
@@ -182,7 +138,7 @@ namespace Joveler.Compression.LZ4
         /// <summary>
         /// Create compressing LZ4FrameStream.
         /// </summary>
-        public unsafe LZ4FrameParallelStream(Stream baseStream, LZ4FrameParallelCompressOptions pcompOpts)
+        public unsafe LZ4FrameParallelStream(Stream baseStream, LZ4FrameCompressOptions compOpts, LZ4FrameParallelCompressOptions pcompOpts)
         {
             LZ4Init.Manager.EnsureLoaded();
 
@@ -192,7 +148,7 @@ namespace Joveler.Compression.LZ4
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _disposed = false;
             _writeTimeout = pcompOpts.WriteTimeout;
-            _leaveOpen = pcompOpts.LeaveOpen;
+            _leaveOpen = compOpts.LeaveOpen;
 
             int threadCount = pcompOpts.Threads;
             if (threadCount < 0)
@@ -206,31 +162,31 @@ namespace Joveler.Compression.LZ4
             LZ4FrameException.CheckReturnValue(ret);
 
             // Prepare xxh32
-            _calcChecksum = pcompOpts.ContentChecksumFlag == FrameContentChecksum.ContentChecksumEnabled;
+            _calcChecksum = compOpts.ContentChecksumFlag == FrameContentChecksum.ContentChecksumEnabled;
             if (_calcChecksum)
                 _xxh32 = new XXH32Stream();
 
             // Prepare FramePreferences
             _workCompPrefs = new FramePreferences()
             { // Ignore pcompOpts.AutoFlush in parallel compress
-                FrameInfo = new FrameInfo(pcompOpts.BlockSizeId, pcompOpts.BlockMode, FrameContentChecksum.NoContentChecksum,
-                    pcompOpts.FrameType, pcompOpts.ContentSize, 0, pcompOpts.BlockChecksumFlag),
-                CompressionLevel = pcompOpts.Level,
+                FrameInfo = new FrameInfo(compOpts.BlockSizeId, compOpts.BlockMode, FrameContentChecksum.NoContentChecksum,
+                    compOpts.FrameType, compOpts.ContentSize, 0, compOpts.BlockChecksumFlag),
+                CompressionLevel = compOpts.Level,
                 AutoFlush = 1u, // Each compress worker should flush all of its output
-                FavorDecSpeed = pcompOpts.FavorDecSpeed ? 1u : 0u,
+                FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
             };
 
             FramePreferences mainCompPrefs = new FramePreferences()
             { // Ignore pcompOpts.AutoFlush in parallel compress
-                FrameInfo = new FrameInfo(pcompOpts.BlockSizeId, pcompOpts.BlockMode, pcompOpts.ContentChecksumFlag,
-                    pcompOpts.FrameType, pcompOpts.ContentSize, 0, pcompOpts.BlockChecksumFlag),
-                CompressionLevel = pcompOpts.Level,
+                FrameInfo = new FrameInfo(compOpts.BlockSizeId, compOpts.BlockMode, compOpts.ContentChecksumFlag,
+                    compOpts.FrameType, compOpts.ContentSize, 0, compOpts.BlockChecksumFlag),
+                CompressionLevel = compOpts.Level,
                 AutoFlush = 1u, // Each compress worker should flush all of its output
-                FavorDecSpeed = pcompOpts.FavorDecSpeed ? 1u : 0u,
+                FavorDecSpeed = compOpts.FavorDecSpeed ? 1u : 0u,
             };
 
             // Get block size of the compression config
-            nuint blockSizeVal = LZ4Init.Lib.FrameGetBlockSize!(pcompOpts.BlockSizeId);
+            nuint blockSizeVal = LZ4Init.Lib.FrameGetBlockSize!(compOpts.BlockSizeId);
             LZ4FrameException.CheckReturnValue(blockSizeVal);
             _inBlockSize = (int)blockSizeVal;
 
@@ -240,7 +196,7 @@ namespace Joveler.Compression.LZ4
             _outBlockSize = (int)outBufferSizeVal;
 
             // Allocate input buffer
-            _pool = pcompOpts.BufferPool ?? ArrayPool<byte>.Shared;
+            _pool = compOpts.BufferPool ?? ArrayPool<byte>.Shared;
             _inputBuffer = new PooledBuffer(_pool, _inBlockSize);
             _isBlockLinked = _workCompPrefs.FrameInfo.BlockMode == FrameBlockMode.BlockLinked;
 
@@ -396,9 +352,9 @@ namespace Joveler.Compression.LZ4
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
 
-            // Do nothing if the instance was already aborted.
+            // Throw if the instance was already aborted.
             if (_abortTokenSrc.IsCancellationRequested)
-                return;
+                throw new InvalidOperationException("This stream had been aborted.");
 
             // Pool the input buffer until it is full.
             bool enqueued = false;
@@ -434,6 +390,10 @@ namespace Joveler.Compression.LZ4
         {
             if (_finalEnqueued)
                 throw new InvalidOperationException("The final block has already been enqueued.");
+
+            // Throw if the instance was already aborted.
+            if (_abortTokenSrc.IsCancellationRequested)
+                throw new InvalidOperationException("This stream had been aborted.");
 
             // Do nothing if all compression is already done.
             if (_compSortChunk.Completion.IsCompleted)
@@ -510,7 +470,7 @@ namespace Joveler.Compression.LZ4
             CheckBackgroundExceptions();
 
             // Flush and enqueue a final block with remaining buffer.
-            if (!_abortTokenSrc.IsCancellationRequested)                
+            if (!_abortTokenSrc.IsCancellationRequested)
                 EnqueueInputBuffer(true);
 
             // Wait until dataflow completes its job.
@@ -529,6 +489,10 @@ namespace Joveler.Compression.LZ4
                 throw new ObjectDisposedException(nameof(LZ4Init));
             if (BaseStream == null)
                 throw new ObjectDisposedException(nameof(LZ4FrameStream));
+
+            // Throw if the instance was already aborted.
+            if (_abortTokenSrc.IsCancellationRequested)
+                throw new InvalidOperationException("This stream had been aborted.");
 
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -808,7 +772,7 @@ namespace Joveler.Compression.LZ4
         #endregion
 
         #region Exception Handling
-        public void CheckBackgroundExceptions()
+        internal void CheckBackgroundExceptions()
         {
             AggregateException?[] rawExcepts =
             [
@@ -842,7 +806,7 @@ namespace Joveler.Compression.LZ4
             }
 
             // Merge instances of AggregateException.
-            List<Exception> innerExcepts = new List<Exception>();
+            List<Exception> innerExcepts = [];
             foreach (AggregateException ae in aggExcepts)
                 innerExcepts.AddRange(ae.InnerExceptions);
             innerExcepts.AddRange(_taskExcepts);

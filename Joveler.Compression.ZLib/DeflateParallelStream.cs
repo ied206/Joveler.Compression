@@ -44,32 +44,13 @@ namespace Joveler.Compression.ZLib
     public sealed class ZLibParallelCompressOptions
     {
         /// <summary>
-        /// Compression level. The Default is `ZLibCompLevel.Default`.
-        /// </summary>
-        public ZLibCompLevel Level { get; set; } = ZLibCompLevel.Default;
-        /// <summary>
-        /// The base two logarithm of the window size (the size of the history buffer).  
-        /// It should be in the range from 9 to 15. The default value is 15.
-        /// Larger values of this parameter result in better compression at the expense of memory usage.
-        /// </summary>
-        /// <remarks>
-        /// C library allows value of 8 but it have been prohibitted in here due to multiple issues.
-        /// </remarks>
-        public ZLibWindowBits WindowBits { get; set; } = ZLibWindowBits.Default;
-        /// <summary>
-        /// Specifies how much memory should be allocated for the internal compression state.
-        /// 1 uses minimum memory but is slow and reduces compression ratio; 9 uses maximum memory for optimal speed.
-        /// The default value is 8.
-        /// </summary>
-        public ZLibMemLevel MemLevel { get; set; } = ZLibMemLevel.Default;
-        /// <summary>
         /// The number of threads to use for parallel compression.
         /// </summary>
         public int Threads { get; set; } = 1;
         /// <summary>
-        /// Size of the compress block, which would be a unit of data to be compressed.
+        /// Size of the compress chunk, which would be a unit of data to be compressed.
         /// </summary>
-        public int BlockSize { get; set; } = DeflateParallelStream.DefaultChunkSize;
+        public int ChunkSize { get; set; } = DeflateParallelStream.DefaultChunkSize;
         /// <summary>
         /// <para>Control timeout to allow Write() to return early.<br/>
         /// In parallel compression, Write() may block until the data is compressed.
@@ -86,16 +67,11 @@ namespace Joveler.Compression.ZLib
         /// Timeout value is kept as best effort, and it may block longer time.
         /// </remarks>
         public TimeSpan? WriteTimeout { get; set; } = null;
-        /// <summary>
-        /// Buffer pool to use for internal buffers.
-        /// </summary>
-        public ArrayPool<byte>? BufferPool { get; set; } = ArrayPool<byte>.Shared;
-        /// <summary>
-        /// Whether to leave the base stream object open after disposing the zlib stream object.
-        /// </summary>
-        public bool LeaveOpen { get; set; } = false;
     }
 
+    /// <summary>
+    /// EXPERIMENTAL: The stream compresses zlib-related stream format in parallel, using TPL Dataflow library.
+    /// </summary>
     internal sealed class DeflateParallelStream : Stream
     {
         #region Fields and Properties
@@ -119,7 +95,7 @@ namespace Joveler.Compression.ZLib
 
         private readonly ActionBlock<ZLibParallelCompressJob> _compWriteChunk;
 
-        
+
         private long _inSeq = 0;
         private long _outSeq = 0;
         private long _latestSeq = -1;
@@ -147,7 +123,7 @@ namespace Joveler.Compression.ZLib
         public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; }
         public long TotalOut { get; private set; }
-        
+
         public long WaitSeq => Interlocked.Read(ref _waitSeq);
 
         private static int CalcOutBlockSize(int rawBlockSize) => rawBlockSize + (rawBlockSize >> 3); // 9/8 * rawBlockSize
@@ -173,18 +149,18 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Create parallel-compressing DeflateStream.
         /// </summary>
-        public DeflateParallelStream(Stream baseStream, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
+        public DeflateParallelStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
         {
             ZLibInit.Manager.EnsureLoaded();
 
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
 
             _disposed = false;
-            _leaveOpen = pcompOpts.LeaveOpen;
+            _leaveOpen = compOpts.LeaveOpen;
 
             _format = format;
-            _compLevel = pcompOpts.Level;
-            _windowBits = pcompOpts.WindowBits;
+            _compLevel = compOpts.Level;
+            _windowBits = compOpts.WindowBits;
             _writeTimeout = pcompOpts.WriteTimeout;
 
             int threadCount = pcompOpts.Threads;
@@ -195,12 +171,12 @@ namespace Joveler.Compression.ZLib
             _threads = threadCount;
 
             // Calculate the buffer size
-            CheckBlockSize(pcompOpts.BlockSize);
-            _inBlockSize = pcompOpts.BlockSize;
-            _outBlockSize = CalcOutBlockSize(pcompOpts.BlockSize);
+            CheckBlockSize(pcompOpts.ChunkSize);
+            _inBlockSize = pcompOpts.ChunkSize;
+            _outBlockSize = CalcOutBlockSize(pcompOpts.ChunkSize);
             Debug.Assert(_inBlockSize <= _outBlockSize);
 
-            _pool = pcompOpts.BufferPool ?? ArrayPool<byte>.Shared;
+            _pool = compOpts.BufferPool ?? ArrayPool<byte>.Shared;
             _inputBuffer = new PooledBuffer(_pool, _inBlockSize);
             _nextDictBuffer = null;
             _writeChecksum = FormatChecksum(_format);
@@ -248,7 +224,7 @@ namespace Joveler.Compression.ZLib
                 _zsHandles.Add(zsh);
             }
         }
-#endregion
+        #endregion
 
         #region Disposable Pattern
         ~DeflateParallelStream()
@@ -346,9 +322,9 @@ namespace Joveler.Compression.ZLib
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
 
-            // Do nothing if the instance was already aborted.
+            // Throw if the instance was already aborted.
             if (_abortTokenSrc.IsCancellationRequested)
-                return;
+                throw new InvalidOperationException("The stream had been aborted.");
 
             // Pool the input buffer until it is full.
             bool enqueued = false;
@@ -490,6 +466,10 @@ namespace Joveler.Compression.ZLib
                 throw new ObjectDisposedException(nameof(ZLibInit));
             if (BaseStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
+
+            // Throw if the instance was already aborted.
+            if (_abortTokenSrc.IsCancellationRequested)
+                throw new InvalidOperationException("The stream had been aborted.");
 
             // Check exceptions in Task instances.
             CheckBackgroundExceptions();
@@ -701,7 +681,7 @@ namespace Joveler.Compression.ZLib
                     { // Finish the deflate stream
                         bytesRead = DeflateBlockFinish(job, zsh, bytesRead);
                     }
-                    
+
 #if DEBUG_PARALLEL
                     Console.WriteLine($"-- compressed: {job}");
 #endif
