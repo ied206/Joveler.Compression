@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -27,8 +27,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-// ReSharper disable UnusedMember.Global
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.XZ
 {
@@ -36,7 +34,7 @@ namespace Joveler.Compression.XZ
     {
         #region LoadManager
         internal static XZLoadManager Manager = new XZLoadManager();
-        internal static XZLoader Lib => Manager.Lib;
+        internal static XZLoader? Lib => Manager.Lib;
         #endregion
 
         #region GlobalInit, GlobalCleanup
@@ -50,6 +48,9 @@ namespace Joveler.Compression.XZ
         public static Version Version()
         {
             Manager.EnsureLoaded();
+
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
 
             /*
              * Note from "lzma\version.h"
@@ -65,7 +66,7 @@ namespace Joveler.Compression.XZ
              * or 5.1.0 stable.
              */
 
-            uint verInt = Lib.LzmaVersionNumber();
+            uint verInt = Lib.LzmaVersionNumber?.Invoke() ?? throw new EntryPointNotFoundException(nameof(Lib.LzmaVersionNumber));
             int major = (int)(verInt / 10000000u);
             int minor = (int)(verInt % 10000000u / 10000u);
             int revision = (int)(verInt % 10000u / 10u);
@@ -78,8 +79,11 @@ namespace Joveler.Compression.XZ
         {
             Manager.EnsureLoaded();
 
-            IntPtr ptr = Lib.LzmaVersionString();
-            return Marshal.PtrToStringAnsi(ptr);
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            IntPtr ptr = Lib.LzmaVersionString?.Invoke() ?? throw new EntryPointNotFoundException(nameof(Lib.LzmaVersionString));
+            return Marshal.PtrToStringAnsi(ptr) ?? string.Empty;
         }
         #endregion
 
@@ -110,8 +114,11 @@ namespace Joveler.Compression.XZ
         {
             Manager.EnsureLoaded();
 
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return Lib.LzmaEasyEncoderMemUsage(preset);
+            return Lib.LzmaEasyEncoderMemUsage?.Invoke(preset) ?? throw new EntryPointNotFoundException(nameof(Lib.LzmaEasyEncoderMemUsage));
         }
 
         /// <summary>
@@ -126,7 +133,10 @@ namespace Joveler.Compression.XZ
         {
             Manager.EnsureLoaded();
 
-            return Lib.LzmaEasyEncoderMemUsage(compOpts.Preset);
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return Lib.LzmaEasyEncoderMemUsage?.Invoke(compOpts.Preset) ?? throw new EntryPointNotFoundException(nameof(Lib.LzmaEasyEncoderMemUsage));
         }
 
         /// <summary>

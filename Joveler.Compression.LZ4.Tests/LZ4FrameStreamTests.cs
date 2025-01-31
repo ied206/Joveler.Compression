@@ -1,9 +1,6 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
-    Copyright (c) 2011-2016, Yann Collet
-
-    C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Written by Hajin Jang (BSD 2-Clause)
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -29,35 +26,82 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-// ReSharper disable InconsistentNaming
 
 namespace Joveler.Compression.LZ4.Tests
 {
     [TestClass]
-    [TestCategory("Joveler.Compression.Zstd")]
     public class LZ4FrameStreamTests
     {
+        private class CompressTestOptions
+        {
+            public bool StreamFlush { get; set; } = false;
+            public bool AutoFlush { get; set; } = true;
+            public bool EnableContentSize { get; set; } = false;
+            public bool UseSpan { get; set; } = false;
+
+            public static IReadOnlyList<CompressTestOptions> CreateTestSet()
+            {
+                bool[] bArr = { true, false };
+                List<CompressTestOptions> testOptsList = new List<CompressTestOptions>();
+                foreach (bool streamFlush in bArr)
+                {
+                    foreach (bool autoFlush in bArr)
+                    {
+                        foreach (bool enableContentSize in bArr)
+                        {
+                            foreach (bool useSpan in bArr)
+                            {
+                                CompressTestOptions testOpts = new CompressTestOptions
+                                {
+                                    StreamFlush = streamFlush,
+                                    AutoFlush = autoFlush,
+                                    EnableContentSize = enableContentSize,
+                                    UseSpan = useSpan,
+                                };
+                                testOptsList.Add(testOpts);
+                            }
+                        }
+                    }
+                }
+                return testOptsList;
+            }
+        }
+
         #region Compress
         [TestMethod]
         public void Compress()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, false);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, false);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, false);
+            IReadOnlyList<CompressTestOptions> testOptsList = CompressTestOptions.CreateTestSet();
+
+            foreach (CompressTestOptions testOpts in testOptsList)
+            {
+                CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, -1, testOpts);
+                CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, -1, testOpts);
+                CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, -1, testOpts);
+            }
         }
 
         [TestMethod]
-        [TestCategory("Joveler.Compression.LZ4")]
-        public void CompressSpan()
+        [DoNotParallelize]
+        public void CompressParallel()
         {
-            CompressTemplate("A.pdf", LZ4CompLevel.Fast, true, false, true);
-            CompressTemplate("B.txt", LZ4CompLevel.High, true, true, true);
-            CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, false, false, true);
+            IReadOnlyList<CompressTestOptions> testOptsList = CompressTestOptions.CreateTestSet();
+
+            foreach (CompressTestOptions testOpts in testOptsList)
+            {
+                CompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, 1, testOpts);
+                CompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, 2, testOpts);
+                CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, 3, testOpts);
+                // Stress test
+                CompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max64KB, Environment.ProcessorCount + 4, testOpts);
+            }
         }
 
-        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, bool autoFlush, bool enableContentSize, bool useSpan)
+        private static void CompressTemplate(string sampleFileName, LZ4CompLevel compLevel, FrameBlockSizeId blockSizeId, int threads, CompressTestOptions testOpts)
         {
             if (sampleFileName == null)
                 throw new ArgumentNullException(nameof(sampleFileName));
@@ -71,22 +115,51 @@ namespace Joveler.Compression.LZ4.Tests
                 string tempLz4File = tempDecompFile + ".lz4";
 
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+                string sampleLz4File = sampleFile + ".lz4";
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                    LZ4FrameStream lzs;
+                    if (threads < 0)
                     {
-                        Level = compLevel,
-                        AutoFlush = autoFlush,
-                        LeaveOpen = true,
-                    };
-                    if (enableContentSize)
-                        compOpts.ContentSize = (ulong)sampleFs.Length;
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                        {
+                            Level = compLevel,
+                            AutoFlush = testOpts.AutoFlush,
+                            BlockSizeId = blockSizeId,
+                            LeaveOpen = true,
+                        };
+                        if (testOpts.EnableContentSize)
+                            compOpts.ContentSize = (ulong)sampleFs.Length;
 
-                    using (FileStream lz4CompFs = new FileStream(tempLz4File, FileMode.Create, FileAccess.Write, FileShare.None))
-                    using (LZ4FrameStream lzs = new LZ4FrameStream(lz4CompFs, compOpts))
+                        lzs = new LZ4FrameStream(lz4CompFs, compOpts);
+                    }
+                    else
                     {
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                        {
+                            Level = compLevel,
+                            BlockSizeId = blockSizeId,
+                            LeaveOpen = true,
+                        };
+                        if (testOpts.EnableContentSize)
+                            compOpts.ContentSize = (ulong)sampleFs.Length;
+                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
+
+
+                        lzs = new LZ4FrameStream(lz4CompFs, compOpts, pcompOpts);
+                    }
+
+                    using (lzs)
+                    {
+                        if (testOpts.StreamFlush)
+                            lzs.Flush();
+
 #if !NETFRAMEWORK
-                        if (useSpan)
+                        if (testOpts.UseSpan)
                         {
                             byte[] buffer = new byte[64 * 1024];
 
@@ -103,13 +176,14 @@ namespace Joveler.Compression.LZ4.Tests
                             sampleFs.CopyTo(lzs);
                         }
 
-                        lzs.Flush();
-
-                        Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
-                        Assert.AreEqual(lz4CompFs.Length, lzs.TotalOut);
+                        if (testOpts.StreamFlush)
+                            lzs.Flush();
                     }
-                }
 
+                    Console.WriteLine($"[RAW]        expected=[{sampleFs.Length,7}] actual=[{lzs.TotalIn,7}]");
+                    Console.WriteLine($"[Compressed] sample  =[{new FileInfo(sampleLz4File).Length,7}] actual=[{lzs.TotalOut,7}]");
+                    Assert.AreEqual(sampleFs.Length, lzs.TotalIn);
+                }
 
                 Assert.IsTrue(TestHelper.RunLZ4(tempLz4File, tempDecompFile) == 0);
 
@@ -132,6 +206,135 @@ namespace Joveler.Compression.LZ4.Tests
                 if (Directory.Exists(destDir))
                     Directory.Delete(destDir, true);
             }
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        public void MemDiagCompress()
+        {
+            MemDiagCompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, -1);
+            MemDiagCompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, -1);
+            MemDiagCompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, -1);
+        }
+
+        [TestMethod]
+        [DoNotParallelize]
+        public void MemDiagCompressParallel()
+        {
+            MemDiagCompressTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, 1);
+            MemDiagCompressTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, 2);
+            MemDiagCompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, 3);
+            // Stress test
+            MemDiagCompressTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max64KB, Environment.ProcessorCount + 4);
+        }
+
+        private static void MemDiagCompressTemplate(string sampleFileName, LZ4CompLevel compLevel, FrameBlockSizeId blockSizeId, int threads)
+        {
+            long beforeMemUsage = GC.GetTotalMemory(true);
+
+            try
+            {
+                string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+                using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (MemoryStream compMs = new MemoryStream())
+                {
+                    ArrayPool<byte> pool = ArrayPool<byte>.Create();
+
+                    LZ4FrameStream lzs;
+                    if (threads < 0)
+                    {
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                        {
+                            Level = compLevel,
+                            AutoFlush = false,
+                            BlockSizeId = blockSizeId,
+                            LeaveOpen = true,
+                            BufferPool = pool,
+                        };
+
+                        lzs = new LZ4FrameStream(compMs, compOpts);
+                    }
+                    else
+                    {
+                        LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                        {
+                            Level = compLevel,
+                            BlockSizeId = blockSizeId,
+                            LeaveOpen = true,
+                            BufferPool = pool,
+                        };
+                        LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
+                        lzs = new LZ4FrameStream(compMs, compOpts, pcompOpts);
+                    }
+
+                    using (lzs)
+                    {
+                        sampleFs.CopyTo(lzs);
+                    }
+                }
+            }
+            finally
+            {
+                long afterMemUsage = GC.GetTotalMemory(true);
+
+                Console.WriteLine($"[Before] {beforeMemUsage,7}");
+                Console.WriteLine($"[After ] {afterMemUsage,7}");
+            }
+        }
+
+        [TestMethod]
+        public void CompressParallelException()
+        {
+            CompressParallelExceptionTemplate("A.pdf", LZ4CompLevel.Fast, FrameBlockSizeId.Max64KB, 1);
+            CompressParallelExceptionTemplate("B.txt", LZ4CompLevel.High, FrameBlockSizeId.Default, 2);
+            CompressParallelExceptionTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max256KB, 3);
+            // Stress test
+            CompressParallelExceptionTemplate("C.bin", LZ4CompLevel.VeryHigh, FrameBlockSizeId.Max64KB, Environment.ProcessorCount + 4);
+        }
+
+        private static void CompressParallelExceptionTemplate(string sampleFileName, LZ4CompLevel compLevel, FrameBlockSizeId blockSizeId, int threads)
+        {
+            bool exceptThrown = false;
+
+            string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
+
+            using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (MemoryStream compMs = new MemoryStream())
+            {
+                LZ4FrameCompressOptions compOpts = new LZ4FrameCompressOptions()
+                {
+                    Level = compLevel,
+                    BlockSizeId = blockSizeId,
+                    LeaveOpen = true,
+                };
+                LZ4FrameParallelCompressOptions pcompOpts = new LZ4FrameParallelCompressOptions()
+                {
+                    Threads = threads,
+                };
+
+                try
+                {
+                    using (LZ4FrameStream lzs = new LZ4FrameStream(compMs, compOpts, pcompOpts))
+                    {
+                        sampleFs.CopyTo(lzs);
+                        compMs.Dispose();
+                    } // lzs.Dispose() must throw exception.
+                }
+                catch (AggregateException)
+                {
+                    exceptThrown = true;
+                }
+                catch (Exception)
+                {
+                    exceptThrown = false;
+                }
+            }
+
+            Assert.IsTrue(exceptThrown);
         }
         #endregion
 

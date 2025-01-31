@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2023 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -31,7 +31,6 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using System;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.Zstd
@@ -280,7 +279,7 @@ namespace Joveler.Compression.Zstd
     [StructLayout(LayoutKind.Sequential)]
     internal struct Bounds
     {
-        public UIntPtr Error; // size_t
+        public nuint Error; // size_t
         public int LowerBound;
         public int UpperBound;
     }
@@ -323,11 +322,11 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// size of input buffer
         /// </summary>
-        public UIntPtr Size;
+        public nuint Size;
         /// <summary>
         /// position where reading stopped. Will be updated. Necessarily 0 <= pos <= size
         /// </summary>
-        public UIntPtr Pos;
+        public nuint Pos;
     }
     #endregion
 
@@ -342,11 +341,11 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// size of output buffer
         /// </summary>
-        public UIntPtr Size;
+        public nuint Size;
         /// <summary>
         /// position where writing stopped. Will be updated. Necessarily 0 <= pos <= size
         /// </summary>
-        public UIntPtr Pos;
+        public nuint Pos;
     }
     #endregion
 

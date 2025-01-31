@@ -1,9 +1,6 @@
 ﻿/*
-    Derived from LZ4 header files (BSD 2-Clause)
-    Copyright (c) 2011-2016, Yann Collet
-
-    C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Written by Hajin Jang (BSD 2-Clause)
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:

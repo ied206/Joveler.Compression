@@ -26,28 +26,19 @@ using System.IO;
 
 namespace Joveler.Compression.ZLib.Checksum
 {
-    #region BaseChecksum
-    public abstract class ChecksumBase<T> where T : unmanaged
+    #region ZLibChecksumBase
+    public abstract class ZLibChecksumBase<T> where T : unmanaged
     {
         #region Fields and Properties
-        protected readonly int _bufferSize = 64 * 1024;
-
-        public virtual T InitChecksum { get; private set; }
-        public virtual T Checksum { get; protected set; }
+        protected int DefaultBufferSize { get; } = 1024 * 1024;
+        public T InitChecksum { get; }
+        public T Checksum { get; protected set; }
         #endregion
 
         #region Constructor
-        protected ChecksumBase(T initChecksum)
+        protected ZLibChecksumBase(T initChecksum)
         {
             InitChecksum = initChecksum;
-            Reset();
-        }
-
-        protected ChecksumBase(T initChecksum, int bufferSize)
-        {
-            InitChecksum = initChecksum;
-            _bufferSize = bufferSize;
-
             Reset();
         }
         #endregion
@@ -81,10 +72,15 @@ namespace Joveler.Compression.ZLib.Checksum
 
         public T Append(Stream stream)
         {
-            byte[] buffer = new byte[_bufferSize];
+            return Append(stream, DefaultBufferSize);
+        }
+
+        public T Append(Stream stream, int bufferSize)
+        {
+            byte[] buffer = new byte[bufferSize];
             while (true)
             {
-                int bytesRead = stream.Read(buffer, 0, _bufferSize);
+                int bytesRead = stream.Read(buffer, 0, bufferSize);
                 if (bytesRead == 0)
                     break;
 
@@ -106,8 +102,15 @@ namespace Joveler.Compression.ZLib.Checksum
         #endregion
 
         #region Reset
-        public abstract void Reset();
-        public abstract void Reset(T reset);
+        public void Reset()
+        {
+            Checksum = InitChecksum;
+        }
+
+        public void Reset(T reset)
+        {
+            Checksum = reset;
+        }
         #endregion
 
         #region AppendCore
@@ -126,7 +129,7 @@ namespace Joveler.Compression.ZLib.Checksum
         protected abstract T AppendCore(T checksum, ReadOnlySpan<byte> span);
         #endregion
 
-        #region Combine
+        #region CombineCore
         /// <summary>
         /// Please override this method to implement actual checksum combination.
         /// Must not affect internal Checksum property, make it works like a static method.

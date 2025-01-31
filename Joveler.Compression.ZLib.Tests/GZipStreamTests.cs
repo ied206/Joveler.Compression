@@ -134,13 +134,16 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
+                        };
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
                             Threads = threads,
                         };
-                        zs = new GZipStream(archiveFs, pcompOpts);
+                        zs = new GZipStream(archiveFs, compOpts, pcompOpts);
                     }
 
                     using (zs)
@@ -229,7 +232,7 @@ namespace Joveler.Compression.ZLib.Tests
             try
             {
                 string sampleFile = Path.Combine(TestSetup.SampleDir, sampleFileName);
-                
+
                 using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (MemoryStream compMs = new MemoryStream())
                 {
@@ -248,14 +251,17 @@ namespace Joveler.Compression.ZLib.Tests
                     }
                     else
                     {
-                        ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                        ZLibCompressOptions compOpts = new ZLibCompressOptions()
                         {
                             Level = level,
                             LeaveOpen = true,
-                            Threads = threads,
                             BufferPool = pool,
                         };
-                        zs = new GZipStream(compMs, pcompOpts);
+                        ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                        {
+                            Threads = threads,
+                        };
+                        zs = new GZipStream(compMs, compOpts, pcompOpts);
                     }
 
                     using (zs)
@@ -292,25 +298,31 @@ namespace Joveler.Compression.ZLib.Tests
             using (FileStream sampleFs = new FileStream(sampleFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (MemoryStream compMs = new MemoryStream())
             {
-                ZLibThreadedCompressOptions pcompOpts = new ZLibThreadedCompressOptions()
+                ZLibCompressOptions compOpts = new ZLibCompressOptions()
                 {
                     Level = level,
                     LeaveOpen = true,
+                };
+                ZLibParallelCompressOptions pcompOpts = new ZLibParallelCompressOptions()
+                {
                     Threads = threads,
                 };
 
                 try
                 {
-                    using (GZipStream zs = new GZipStream(compMs, pcompOpts))
+                    using (GZipStream zs = new GZipStream(compMs, compOpts, pcompOpts))
                     {
                         sampleFs.CopyTo(zs);
                         compMs.Dispose();
                     } // zs.Dispose() must throw exception.
-                } 
-                catch (AggregateException ex)
+                }
+                catch (AggregateException)
                 {
                     exceptThrown = true;
-                    Console.WriteLine(ex);
+                }
+                catch (Exception)
+                {
+                    exceptThrown = false;
                 }
             }
 

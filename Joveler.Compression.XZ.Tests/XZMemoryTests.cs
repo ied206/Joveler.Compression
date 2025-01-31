@@ -33,7 +33,7 @@ namespace Joveler.Compression.XZ.Tests
     public class XZMemoryTests
     {
         #region EncoderMemUsage
-        private void EncoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
+        private static void EncoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
         {
             void PrintMemUsage(ulong usage, int threads = 0)
             {
@@ -73,7 +73,7 @@ namespace Joveler.Compression.XZ.Tests
         #endregion
 
         #region DecoderMemUsage
-        private void DecoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
+        private static void DecoderMemUsageTemplate(LzmaCompLevel level, bool extreme)
         {
             void PrintMemUsage(ulong memUsage)
             {

@@ -33,7 +33,7 @@ namespace Joveler.Compression.ZLib.Buffer
         protected readonly object _bufLock = new object();
 
         protected byte[] _buf;
-        protected int _size = 0;
+        protected int _capacity = 0;
         /// <summary>
         /// Index of first valid data position of the buffer.
         /// Have a range of [0.._dataEndIdx].
@@ -51,7 +51,7 @@ namespace Joveler.Compression.ZLib.Buffer
         public bool Disposed => _disposed;
 
         public byte[] Buf => _buf;
-        public int Size => _size;
+        public int Capacity => _capacity;
 
         /// <summary>
         /// Index of first valid data position of the buffer.
@@ -67,7 +67,7 @@ namespace Joveler.Compression.ZLib.Buffer
             {
                 lock (_bufLock)
                 {
-                    if (value < 0 || _size < value || _dataEndIdx < value)
+                    if (value < 0 || _capacity < value || _dataEndIdx < value)
                         throw new ArgumentOutOfRangeException(nameof(DataStartIdx));
                     _dataStartIdx = value;
                 }
@@ -87,26 +87,26 @@ namespace Joveler.Compression.ZLib.Buffer
             {
                 lock (_bufLock)
                 {
-                    if (value < 0 || _size < value || value < _dataStartIdx)
+                    if (value < 0 || _capacity < value || value < _dataStartIdx)
                         throw new ArgumentOutOfRangeException(nameof(DataEndIdx));
                     _dataEndIdx = value;
                 }
             }
         }
         public int ReadableSize => _dataEndIdx - _dataStartIdx;
-        public int WritableSize => _size - _dataEndIdx;
+        public int WritableSize => _capacity - _dataEndIdx;
 
         // Buf/Span/Memory properties are not thread-safe, use with caution!
-        public Span<byte> Span => _buf.AsSpan(0, _size);
+        public Span<byte> Span => _buf.AsSpan(0, _capacity);
         public ReadOnlySpan<byte> ReadablePortionSpan => _buf.AsSpan(_dataStartIdx, _dataEndIdx - _dataStartIdx);
-        public Span<byte> WritablePortionSpan => _buf.AsSpan(_dataEndIdx, _size - _dataEndIdx);
+        public Span<byte> WritablePortionSpan => _buf.AsSpan(_dataEndIdx, _capacity - _dataEndIdx);
 
-        public Memory<byte> Memory => _buf.AsMemory(0, _size);
+        public Memory<byte> Memory => _buf.AsMemory(0, _capacity);
         public ReadOnlyMemory<byte> ReadablePortionMemory => _buf.AsMemory(_dataStartIdx, _dataEndIdx - _dataStartIdx);
-        public Memory<byte> WritablePortionMemory => _buf.AsMemory(_dataEndIdx, _size - _dataEndIdx);
+        public Memory<byte> WritablePortionMemory => _buf.AsMemory(_dataEndIdx, _capacity - _dataEndIdx);
 
         public bool IsEmpty => _dataEndIdx == _dataStartIdx;
-        public bool IsFull => _size == _dataEndIdx;
+        public bool IsFull => _capacity == _dataEndIdx;
 
         public PooledBufferBase(ArrayPool<byte> pool, int size)
         {
@@ -114,7 +114,7 @@ namespace Joveler.Compression.ZLib.Buffer
             _buf = _pool.Rent(size);
             _dataStartIdx = 0;
             _dataEndIdx = 0;
-            _size = size;
+            _capacity = size;
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace Joveler.Compression.ZLib.Buffer
             _buf = Array.Empty<byte>();
             _dataStartIdx = 0;
             _dataEndIdx = 0;
-            _size = 0;
+            _capacity = 0;
         }
 
         ~PooledBufferBase()
@@ -153,7 +153,7 @@ namespace Joveler.Compression.ZLib.Buffer
                     }
 
                     // Dispose unmanaged resources, and set large fields to null.
-                    if (0 < _size)
+                    if (0 < _capacity)
                     {
                         // Return the buffer to the pool
                         _pool.Return(_buf);
@@ -161,7 +161,7 @@ namespace Joveler.Compression.ZLib.Buffer
                         // Reset to the empty buffer
                         _dataStartIdx = 0;
                         _dataEndIdx = 0;
-                        _size = 0;
+                        _capacity = 0;
                         _buf = Array.Empty<byte>();
                     }
 
@@ -196,7 +196,7 @@ namespace Joveler.Compression.ZLib.Buffer
 
                 Debug.Assert(_dataStartIdx <= _dataEndIdx);
                 return readLength;
-            }    
+            }
         }
 
         public int Write(byte[] buffer, int offset, int count)
@@ -222,7 +222,7 @@ namespace Joveler.Compression.ZLib.Buffer
             ReadOnlySpan<byte> inputSpan = span;
             lock (_bufLock)
             {
-                if (_size <= _dataEndIdx + span.Length)
+                if (_capacity <= _dataEndIdx + span.Length)
                 {
                     if (autoExpand)
                     { // Expand buffer
@@ -231,17 +231,17 @@ namespace Joveler.Compression.ZLib.Buffer
                     }
                     else
                     { // Write as much as possible
-                        inputSpan = span.Slice(0, _size - _dataEndIdx);
+                        inputSpan = span.Slice(0, _capacity - _dataEndIdx);
                     }
                 }
 
                 // Copy inputSpan to a writable portion of the buffer
-                inputSpan.CopyTo(_buf.AsSpan(_dataEndIdx, _size - _dataEndIdx));
+                inputSpan.CopyTo(_buf.AsSpan(_dataEndIdx, _capacity - _dataEndIdx));
 
                 _dataEndIdx += inputSpan.Length;
 
                 Debug.Assert(_dataStartIdx <= _dataEndIdx);
-                Debug.Assert(_dataEndIdx <= _size);
+                Debug.Assert(_dataEndIdx <= _capacity);
                 return inputSpan.Length;
             }
         }
@@ -267,9 +267,9 @@ namespace Joveler.Compression.ZLib.Buffer
             {
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(PooledBuffer));
-                if (newSize < _size)
+                if (newSize < _capacity)
                     return false;
-                if (newSize == _size)
+                if (newSize == _capacity)
                     return true;
 
                 byte[] oldBuffer = _buf;
@@ -278,11 +278,11 @@ namespace Joveler.Compression.ZLib.Buffer
                 if (0 < _dataEndIdx - _dataStartIdx)
                     System.Buffer.BlockCopy(oldBuffer, _dataStartIdx, newBuffer, _dataStartIdx, _dataEndIdx - _dataStartIdx);
 
-                if (0 < _size) // Buffer of zero size does not belong to the pool.
+                if (0 < _capacity) // Buffer of zero size does not belong to the pool.
                     _pool.Return(oldBuffer);
 
                 _buf = newBuffer;
-                _size = newSize;
+                _capacity = newSize;
 
                 return true;
             }
@@ -300,17 +300,17 @@ namespace Joveler.Compression.ZLib.Buffer
                     return false;
 
                 byte[] oldBuffer = _buf;
-                byte[] newBuffer = _pool.Rent(_size);
+                byte[] newBuffer = _pool.Rent(_capacity);
 
                 System.Buffer.BlockCopy(oldBuffer, _dataStartIdx + len, newBuffer, 0, _dataEndIdx - _dataStartIdx - len);
 
-                if (0 < _size) // Buffer of zero size does not belong to the pool.
+                if (0 < _capacity) // Buffer of zero size does not belong to the pool.
                     _pool.Return(oldBuffer);
 
                 _buf = newBuffer;
                 _dataEndIdx -= len + _dataStartIdx;
                 _dataStartIdx = 0;
-                Debug.Assert(0 <= _dataEndIdx && _dataEndIdx <= _size);
+                Debug.Assert(0 <= _dataEndIdx && _dataEndIdx <= _capacity);
 
                 return true;
             }

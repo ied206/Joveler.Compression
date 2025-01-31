@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -27,11 +27,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 
 namespace Joveler.Compression.XZ
 {
-    [Serializable]
     public class XZException : Exception
     {
         public LzmaRet ReturnCode { get; set; }
@@ -47,7 +45,14 @@ namespace Joveler.Compression.XZ
             [LzmaRet.BufError] = "Unexpected end of input",
         };
 
-        private static string GetErrorMessage(LzmaRet ret) => ErrorMsgDict.ContainsKey(ret) ? ErrorMsgDict[ret] : ret.ToString();
+        private static string GetErrorMessage(LzmaRet ret)
+        {
+            bool hasMsg = ErrorMsgDict.TryGetValue(ret, out string? msg);
+            if (hasMsg && msg != null)
+                return msg;
+            else
+                return ret.ToString();
+        }
 
         public XZException(LzmaRet ret) : base(GetErrorMessage(ret))
         {
@@ -76,20 +81,5 @@ namespace Joveler.Compression.XZ
                     throw new XZException(ret);
             }
         }
-
-        #region Serializable
-        protected XZException(SerializationInfo info, StreamingContext ctx)
-        {
-            ReturnCode = (LzmaRet)info.GetValue(nameof(ReturnCode), typeof(LzmaRet));
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            info.AddValue(nameof(ReturnCode), ReturnCode);
-            base.GetObjectData(info, context);
-        }
-        #endregion
     }
 }

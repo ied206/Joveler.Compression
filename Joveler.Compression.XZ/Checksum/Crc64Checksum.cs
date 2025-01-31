@@ -1,8 +1,6 @@
 ﻿/*
-    Derived from liblzma header files (Public Domain)
-
-    C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Written by Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -26,12 +24,11 @@
 */
 
 using System;
-using System.Security.Cryptography;
 
 namespace Joveler.Compression.XZ.Checksum
 {
     #region Crc64Checksum
-    public sealed class Crc64Checksum : BaseChecksum<ulong>
+    public sealed class Crc64Checksum : XZChecksumBase<ulong>
     {
         #region Const
         public const ulong InitCrc64 = 0;
@@ -43,21 +40,10 @@ namespace Joveler.Compression.XZ.Checksum
             XZInit.Manager.EnsureLoaded();
         }
 
-        public Crc64Checksum(int bufferSize) : base(InitCrc64, bufferSize)
+        [Obsolete($"Instance-level bufferSize is deprecated, use default constructor instead.")]
+        public Crc64Checksum(int bufferSize) : base(InitCrc64)
         {
             XZInit.Manager.EnsureLoaded();
-        }
-        #endregion
-
-        #region Reset
-        public override void Reset()
-        {
-            Checksum = InitCrc64;
-        }
-
-        public override void Reset(ulong reset)
-        {
-            Checksum = reset;
         }
         #endregion
 
@@ -65,57 +51,22 @@ namespace Joveler.Compression.XZ.Checksum
         /// <inheritdoc/>
         protected override unsafe ulong AppendCore(ulong checksum, byte[] buffer, int offset, int count)
         {
-            fixed (byte* bufPtr = buffer.AsSpan(offset))
-            {
-                return XZInit.Lib.LzmaCrc64(bufPtr, new UIntPtr((uint)count), checksum);
-            }
+            return AppendCore(checksum, buffer.AsSpan(offset, count));
         }
 
         /// <inheritdoc/>
         protected override unsafe ulong AppendCore(ulong checksum, ReadOnlySpan<byte> span)
         {
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             fixed (byte* bufPtr = span)
             {
-                return XZInit.Lib.LzmaCrc64(bufPtr, new UIntPtr((uint)span.Length), checksum);
+                return XZInit.Lib.LzmaCrc64?.Invoke(bufPtr, (nuint)span.Length, checksum) ??
+                    throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaCrc64));
             }
         }
         #endregion
-    }
-    #endregion
-
-    #region Crc64Algorithm
-    public sealed class Crc64Algorithm : HashAlgorithm
-    {
-        private Crc64Checksum _crc64;
-
-        public Crc64Algorithm()
-        {
-            Initialize();
-        }
-
-        public override void Initialize()
-        {
-            XZInit.Manager.EnsureLoaded();
-
-            _crc64 = new Crc64Checksum();
-        }
-
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
-        {
-            _crc64.Append(array, ibStart, cbSize);
-        }
-
-#if NETCOREAPP
-        protected override void HashCore(ReadOnlySpan<byte> source)
-        {
-            _crc64.Append(source);
-        }
-#endif
-
-        protected override byte[] HashFinal()
-        {
-            return BitConverter.GetBytes(_crc64.Checksum);
-        }
     }
     #endregion
 }

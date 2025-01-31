@@ -2,35 +2,43 @@
 
 Cross-platform [zlib](https://zlib.net/) pinvoke library for .NET.
 
+## Features
+
+Joveler.Compression.ZLib exposes fast zlib capabilities with backed by zlib-ng.
+
+- ZLibStream, the stream implementation conforms [RFC 1950](https://www.ietf.org/rfc/rfc1950.txt).
+- Improved DeflateStream and GZipStream, conforming [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt) and [RFC 1952](https://www.ietf.org/rfc/rfc1952.txt).
+- (EXPERIMENTAL) Parallel compression support on ZLibStream, DeflateStream and GZipStream.
+- Fast native implementation of Adler32 and CRC32 checksum.
+
 ## Support
 
 ### Targeted .NET platforms
 
-- .NET Core 3.1
+- .NET 8.0
 - .NET Standard 2.0
-- .NET Framework 4.6
-
-#### Discontinued target frameworks
-
-| Platform | Last Supported Version |
-|----------|------------------------|
-| .NET Framework 4.5 | [ZLibWrapper](https://www.nuget.org/packages/Joveler.ZLibWrapper) |
-| .NET Standard 1.3 | [v2.1.2](https://www.nuget.org/packages/Joveler.Compression.ZLib/2.1.2) |
-| .NET Framework 4.5.1 | [v4.1.0](https://www.nuget.org/packages/Joveler.Compression.ZLib/4.1.0) |
+- .NET Framework 4.6.2
 
 ### Supported OS platforms
 
-- Windows (x86, x64, arm64)
-- Linux (x64, arm, arm64)
-- macOS (x64, arm64)
+| Platform | Architecture | Minimum Target | Tested |
+|----------|--------------|----------------|--------|
+| Windows  | x86          | Windows 7 SP1  | Yes    |
+|          | x64          | Windows 7 SP1  | Yes    |
+|          | arm64        | Windows 7 SP1  | Yes    |
+| Linux    | x64          | Ubuntu 20.04   | Yes    |
+|          | armhf        | Ubuntu 20.04   | Yes    |
+|          | arm64        | Ubuntu 20.04   | Yes    |
+| macOS    | x64          | macOS 11       | Yes    |
+|          | arm64        | macOS 11       | Yes    |
 
-### Tested zlib versions
+### Supported zlib versions
 
-- zlib-ng 2.1.3 compat ABI (Included)
+- zlib-ng 2.2.3 compat ABI (Included)
     - Compatible with traditional zlib ABI, such as `zlib1.dll`.
 - zlib 1.3
     - Supports both `zlib1.dll` and `zlibwapi.dll` on Windows.
-- zlib-ng 2.1.3 modern ABI
+- zlib-ng 2.2.3 modern ABI
 
 ## Usage
 

@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2022 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:

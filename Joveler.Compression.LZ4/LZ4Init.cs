@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -28,17 +28,15 @@
 */
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Joveler.Compression.LZ4
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class LZ4Init
     {
         #region LoadManager
         internal static LZ4LoadManager Manager = new LZ4LoadManager();
-        internal static LZ4Loader Lib => Manager.Lib;
+        internal static LZ4Loader? Lib => Manager.Lib;
         #endregion
 
         #region GlobalInit, GlobalCleanup
@@ -53,7 +51,7 @@ namespace Joveler.Compression.LZ4
         {
             Manager.EnsureLoaded();
 
-            int verInt = (int)Lib.VersionNumber();
+            int verInt = (int)Lib!.VersionNumber!();
             int major = verInt / 10000;
             int minor = verInt % 10000 / 100;
             int revision = verInt % 100;
@@ -65,8 +63,8 @@ namespace Joveler.Compression.LZ4
         {
             Manager.EnsureLoaded();
 
-            IntPtr ptr = Lib.VersionString();
-            return Marshal.PtrToStringAnsi(ptr);
+            IntPtr ptr = Lib!.VersionString!();
+            return Marshal.PtrToStringAnsi(ptr) ?? "";
         }
         #endregion
     }

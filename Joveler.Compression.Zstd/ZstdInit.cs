@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2023 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -36,7 +36,7 @@ namespace Joveler.Compression.Zstd
     {
         #region LoadManager
         internal static ZstdLoadManager Manager = new ZstdLoadManager();
-        internal static ZstdLoader Lib => Manager.Lib;
+        internal static ZstdLoader? Lib => Manager.Lib;
         #endregion
 
         #region GlobalInit, GlobalCleanup
@@ -62,7 +62,10 @@ namespace Joveler.Compression.Zstd
         {
             Manager.EnsureLoaded();
 
-            int verInt = (int)Lib.VersionNumber();
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            int verInt = (int)Lib.VersionNumber!();
             int major = verInt / 10000;
             int minor = verInt % 10000 / 100;
             int revision = verInt % 100;
@@ -74,8 +77,11 @@ namespace Joveler.Compression.Zstd
         {
             Manager.EnsureLoaded();
 
-            IntPtr ptr = Lib.VersionString();
-            return Marshal.PtrToStringAnsi(ptr);
+            if (Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            IntPtr ptr = Lib.VersionString!();
+            return Marshal.PtrToStringAnsi(ptr) ?? string.Empty;
         }
         #endregion
     }

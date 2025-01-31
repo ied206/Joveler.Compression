@@ -1,7 +1,14 @@
 # ChangeLog
 
-## v4.x
+## v5.x
 
+### v5.0.0
+
+- (EXPERIMENTAL) Provides parallel lz4 compression.
+- (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0, to use TPL Dataflow library.
+- Upgrades packaged lz4 binaries to 1.10.0.
+
+## v4.x
 
 ### v4.1.0
 

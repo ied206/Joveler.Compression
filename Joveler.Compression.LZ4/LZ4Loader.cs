@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -73,10 +73,12 @@ namespace Joveler.Compression.LZ4
             CreateFrameCompressContext = GetFuncPtr<LZ4F_createCompressionContext>(nameof(LZ4F_createCompressionContext));
             FreeFrameCompressContext = GetFuncPtr<LZ4F_freeCompressionContext>(nameof(LZ4F_freeCompressionContext));
             FrameCompressBegin = GetFuncPtr<LZ4F_compressBegin>(nameof(LZ4F_compressBegin));
+            FrameCompressBeginUsingDict = GetFuncPtr<LZ4F_compressBegin_usingDict>(nameof(LZ4F_compressBegin_usingDict));
             FrameCompressBound = GetFuncPtr<LZ4F_compressBound>(nameof(LZ4F_compressBound));
             FrameCompressUpdate = GetFuncPtr<LZ4F_compressUpdate>(nameof(LZ4F_compressUpdate));
             FrameFlush = GetFuncPtr<LZ4F_flush>(nameof(LZ4F_flush));
             FrameCompressEnd = GetFuncPtr<LZ4F_compressEnd>(nameof(LZ4F_compressEnd));
+            FrameGetBlockSize = GetFuncPtr<LZ4F_getBlockSize>(nameof(LZ4F_getBlockSize));
             #endregion
 
             #region FrameDecompression
@@ -85,6 +87,32 @@ namespace Joveler.Compression.LZ4
             GetFrameInfo = GetFuncPtr<LZ4F_getFrameInfo>(nameof(LZ4F_getFrameInfo));
             FrameDecompress = GetFuncPtr<LZ4F_decompress>(nameof(LZ4F_decompress));
             ResetDecompressContext = GetFuncPtr<LZ4F_resetDecompressionContext>(nameof(LZ4F_resetDecompressionContext));
+            #endregion
+
+            #region CDict - Bulk processing dictionary compression
+            FrameCreateCDict = GetFuncPtr<LZ4F_createCDict>(nameof(LZ4F_createCDict));
+            FrameFreeCDict = GetFuncPtr<LZ4F_freeCDict>(nameof(LZ4F_freeCDict));
+            FrameCompressBeginUsingCDict = GetFuncPtr<LZ4F_compressBegin_usingCDict>(nameof(LZ4F_compressBegin_usingCDict));
+            #endregion
+
+            #region xxHash
+            XXHVersionNumber = GetFuncPtr<LZ4_XXH_versionNumber>(nameof(LZ4_XXH_versionNumber));
+
+            XXH32 = GetFuncPtr<LZ4_XXH32>(nameof(LZ4_XXH32));
+            XXH32CreateState = GetFuncPtr<LZ4_XXH32_createState>(nameof(LZ4_XXH32_createState));
+            XXH32FreeState = GetFuncPtr<LZ4_XXH32_freeState>(nameof(LZ4_XXH32_freeState));
+            XXH32CopyState = GetFuncPtr<LZ4_XXH32_copyState>(nameof(LZ4_XXH32_copyState));
+            XXH32Reset = GetFuncPtr<LZ4_XXH32_reset>(nameof(LZ4_XXH32_reset));
+            XXH32Update = GetFuncPtr<LZ4_XXH32_update>(nameof(LZ4_XXH32_update));
+            XXH32Digest = GetFuncPtr<LZ4_XXH32_digest>(nameof(LZ4_XXH32_digest));
+
+            XXH64 = GetFuncPtr<LZ4_XXH64>(nameof(LZ4_XXH64));
+            XXH64CreateState = GetFuncPtr<LZ4_XXH64_createState>(nameof(LZ4_XXH64_createState));
+            XXH64FreeState = GetFuncPtr<LZ4_XXH64_freeState>(nameof(LZ4_XXH64_freeState));
+            XXH64CopyState = GetFuncPtr<LZ4_XXH64_copyState>(nameof(LZ4_XXH64_copyState));
+            XXH64Reset = GetFuncPtr<LZ4_XXH64_reset>(nameof(LZ4_XXH64_reset));
+            XXH64Update = GetFuncPtr<LZ4_XXH64_update>(nameof(LZ4_XXH64_update));
+            XXH64Digest = GetFuncPtr<LZ4_XXH64_digest>(nameof(LZ4_XXH64_digest));
             #endregion
         }
 
@@ -105,10 +133,12 @@ namespace Joveler.Compression.LZ4
             CreateFrameCompressContext = null;
             FreeFrameCompressContext = null;
             FrameCompressBegin = null;
+            FrameCompressBeginUsingDict = null;
             FrameCompressBound = null;
             FrameCompressUpdate = null;
             FrameFlush = null;
             FrameCompressEnd = null;
+            FrameGetBlockSize = null;
             #endregion
 
             #region FrameDecompression
@@ -118,6 +148,26 @@ namespace Joveler.Compression.LZ4
             FrameDecompress = null;
             ResetDecompressContext = null;
             #endregion
+
+            #region xxHash
+            XXHVersionNumber = null;
+
+            XXH32 = null;
+            XXH32CreateState = null;
+            XXH32FreeState = null;
+            XXH32CopyState = null;
+            XXH32Reset = null;
+            XXH32Update = null;
+            XXH32Digest = null;
+
+            XXH64 = null;
+            XXH64CreateState = null;
+            XXH64FreeState = null; ;
+            XXH64CopyState = null;
+            XXH64Reset = null;
+            XXH64Update = null;
+            XXH64Digest = null;
+            #endregion
         }
         #endregion
 
@@ -125,25 +175,25 @@ namespace Joveler.Compression.LZ4
         #region Version - VersionNumber, VersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint LZ4_versionNumber();
-        internal LZ4_versionNumber VersionNumber;
+        internal LZ4_versionNumber? VersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr LZ4_versionString();
-        internal LZ4_versionString VersionString;
+        internal LZ4_versionString? VersionString;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint LZ4F_getVersion();
-        internal LZ4F_getVersion GetFrameVersion;
+        internal LZ4F_getVersion? GetFrameVersion;
         #endregion
 
         #region Error - IsError, GetErrorName
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate uint LZ4F_isError(UIntPtr code); // size_t
-        internal LZ4F_isError FrameIsError;
+        internal delegate uint LZ4F_isError(nuint code); // size_t
+        internal LZ4F_isError? FrameIsError;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate IntPtr LZ4F_getErrorName(UIntPtr code); // size_t
-        internal LZ4F_getErrorName GetErrorName;
+        internal delegate IntPtr LZ4F_getErrorName(nuint code); // size_t
+        internal LZ4F_getErrorName? GetErrorName;
         #endregion
 
         #region FrameCompress
@@ -164,10 +214,10 @@ namespace Joveler.Compression.LZ4
         /// If @return != zero, context creation failed.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_createCompressionContext(
+        internal delegate nuint LZ4F_createCompressionContext(
             ref IntPtr cctxPtr,
             uint version);
-        internal LZ4F_createCompressionContext CreateFrameCompressContext;
+        internal LZ4F_createCompressionContext? CreateFrameCompressContext;
 
         /// <summary>
         /// A created compression context can be employed multiple times for consecutive streaming operations.
@@ -179,8 +229,8 @@ namespace Joveler.Compression.LZ4
         /// Note2 : LZ4F_freeCompressionContext() works fine with NULL input pointers (do nothing).
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_freeCompressionContext(IntPtr cctx);
-        internal LZ4F_freeCompressionContext FreeFrameCompressContext;
+        internal delegate nuint LZ4F_freeCompressionContext(IntPtr cctx);
+        internal LZ4F_freeCompressionContext? FreeFrameCompressContext;
 
         /// <summary>
         ///  will write the frame header into dstBuffer.
@@ -192,12 +242,22 @@ namespace Joveler.Compression.LZ4
         /// or an error code (which can be tested using LZ4F_isError())
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_compressBegin(
+        internal delegate nuint LZ4F_compressBegin(
             IntPtr cctx,
             byte* dstBuffer,
-            UIntPtr dstCapacity, // size_t
+            nuint dstCapacity,
             FramePreferences prefsPtr);
-        internal LZ4F_compressBegin FrameCompressBegin;
+        internal LZ4F_compressBegin? FrameCompressBegin;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate nuint LZ4F_compressBegin_usingDict(
+            IntPtr cctx,
+            byte* dstBuffer,
+            nuint dstCapacity,
+            byte* dictBuffer,
+            nuint dictSize,
+            FramePreferences prefsPtr);
+        internal LZ4F_compressBegin_usingDict? FrameCompressBeginUsingDict;
 
         /// <summary>
         /// Provides minimum dstCapacity required to guarantee success of
@@ -216,10 +276,10 @@ namespace Joveler.Compression.LZ4
         /// @return doesn't include frame header, as it was already generated by LZ4F_compressBegin().
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_compressBound(
-            UIntPtr srcSize, // size_t
+        internal delegate nuint LZ4F_compressBound(
+            nuint srcSize, // size_t
             FramePreferences prefsPtr);
-        internal LZ4F_compressBound FrameCompressBound;
+        internal LZ4F_compressBound? FrameCompressBound;
 
         /// <summary>
         /// LZ4F_compressUpdate() can be called repetitively to compress as much data as necessary.
@@ -240,14 +300,14 @@ namespace Joveler.Compression.LZ4
         /// or an error code if it fails (which can be tested using LZ4F_isError())
         /// </return>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_compressUpdate(
+        internal delegate nuint LZ4F_compressUpdate(
             IntPtr cctx,
             byte* dstBuffer,
-            UIntPtr dstCapacity, // size_t
+            nuint dstCapacity, // size_t
             byte* srcBuffer,
-            UIntPtr srcSize, // size_t
+            nuint srcSize, // size_t
             FrameCompressOptions cOptPtr);
-        internal LZ4F_compressUpdate FrameCompressUpdate;
+        internal LZ4F_compressUpdate? FrameCompressUpdate;
 
         /// <summary>
         ///  When data must be generated and sent immediately, without waiting for a block to be completely filled,
@@ -263,12 +323,12 @@ namespace Joveler.Compression.LZ4
         /// or an error code if it fails (which can be tested using LZ4F_isError())
         /// </return>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_flush(
+        internal delegate nuint LZ4F_flush(
             IntPtr cctx,
             byte* dstBuffer,
-            UIntPtr dstCapacity, // size_t
+            nuint dstCapacity, // size_t
             FrameCompressOptions cOptPtr);
-        internal LZ4F_flush FrameFlush;
+        internal LZ4F_flush? FrameFlush;
 
         /// <summary>
         ///  To properly finish an LZ4 frame, invoke LZ4F_compressEnd().
@@ -285,12 +345,16 @@ namespace Joveler.Compression.LZ4
         /// A successful call to LZ4F_compressEnd() makes `cctx` available again for another compression task.
         /// </return>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_compressEnd(
+        internal delegate nuint LZ4F_compressEnd(
             IntPtr cctx,
             byte* dstBuffer,
-            UIntPtr dstCapacity, // size_t
+            nuint dstCapacity, // size_t
             FrameCompressOptions cOptPtr);
-        internal LZ4F_compressEnd FrameCompressEnd;
+        internal LZ4F_compressEnd? FrameCompressEnd;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate nuint LZ4F_getBlockSize(FrameBlockSizeId blockSizeId);
+        internal LZ4F_getBlockSize? FrameGetBlockSize;
         #endregion
 
         #region FrameDecompress
@@ -307,10 +371,10 @@ namespace Joveler.Compression.LZ4
         /// The @return is an errorCode, which can be tested using LZ4F_isError().
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_createDecompressionContext(
+        internal delegate nuint LZ4F_createDecompressionContext(
             ref IntPtr cctxPtr,
             uint version);
-        internal LZ4F_createDecompressionContext CreateFrameDecompressContext;
+        internal LZ4F_createDecompressionContext? CreateFrameDecompressContext;
 
         /// <summary>
         /// dctx memory can be released using LZ4F_freeDecompressionContext();
@@ -321,8 +385,8 @@ namespace Joveler.Compression.LZ4
         /// That is, it should be == 0 if decompression has been completed fully and correctly.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_freeDecompressionContext(IntPtr dctx);
-        internal LZ4F_freeDecompressionContext FreeFrameDecompressContext;
+        internal delegate nuint LZ4F_freeDecompressionContext(IntPtr dctx);
+        internal LZ4F_freeDecompressionContext? FreeFrameDecompressContext;
 
         /*
         /// <summary>
@@ -335,7 +399,7 @@ namespace Joveler.Compression.LZ4
         /// or an error code, which can be tested using LZ4F_isError()
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_headerSize(IntPtr src, UIntPtr srcSize);
+        internal delegate nuint LZ4F_headerSize(IntPtr src, nuint srcSize);
         internal LZ4F_headerSize FrameHeaderSize;
         */
 
@@ -385,12 +449,12 @@ namespace Joveler.Compression.LZ4
         ///     note 2 : frame parameters are copied into an already allocated LZ4F_frameInfo_t structure.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_getFrameInfo(
+        internal delegate nuint LZ4F_getFrameInfo(
             IntPtr dctx,
             FrameInfo frameInfoPtr,
             IntPtr srcCapacity,
-            UIntPtr srcSizePtr); // size_t
-        internal LZ4F_getFrameInfo GetFrameInfo;
+            nuint srcSizePtr); // size_t
+        internal LZ4F_getFrameInfo? GetFrameInfo;
 
         /// <summary>
         /// Call this function repetitively to regenerate data compressed in `srcBuffer`.
@@ -425,14 +489,14 @@ namespace Joveler.Compression.LZ4
         ///  After a frame is fully decoded, dctx can be used again to decompress another frame.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr LZ4F_decompress(
+        internal delegate nuint LZ4F_decompress(
             IntPtr dctx,
             byte* dstBuffer,
-            ref UIntPtr dstSizePtr, // size_t
+            ref nuint dstSizePtr, // size_t
             byte* srcBuffer,
-            ref UIntPtr srcSizePtr, // size_t
+            ref nuint srcSizePtr, // size_t
             FrameDecompressOptions dOptPtr);
-        internal LZ4F_decompress FrameDecompress;
+        internal LZ4F_decompress? FrameDecompress;
 
         /// <summary>
         /// In case of an error, the context is left in "undefined" state.
@@ -442,7 +506,160 @@ namespace Joveler.Compression.LZ4
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void LZ4F_resetDecompressionContext(IntPtr dctx);
-        internal LZ4F_resetDecompressionContext ResetDecompressContext;
+        internal LZ4F_resetDecompressionContext? ResetDecompressContext;
+        #endregion
+
+        #region CDict - Bulk processing dictionary compression
+        /// <summary>
+        /// When compressing multiple messages / blocks using the same dictionary, it's recommended to initialize it just once.
+        /// LZ4_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
+        /// LZ4_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
+        /// </summary>
+        /// <param name="dictBuffer">
+        /// @dictBuffer can be released after LZ4_CDict creation, since its content is copied within CDict.
+        /// </param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate IntPtr LZ4F_createCDict(
+           byte* dictBuffer,
+           nuint dictSize);
+        internal LZ4F_createCDict? FrameCreateCDict;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate IntPtr LZ4F_freeCDict(
+           IntPtr CDict);
+        internal LZ4F_freeCDict? FrameFreeCDict;
+
+        /// <summary>
+        /// Inits streaming dictionary compression, and writes the frame header into dstBuffer.
+        /// </summary>
+        /// <param name="cctx"></param>
+        /// <param name="dstBuffer">@dstCapacity must be >= LZ4F_HEADER_SIZE_MAX bytes.</param>
+        /// <param name="dstCapacity"></param>
+        /// <param name="cdict">
+        /// must outlive the compression session.
+        /// </param>
+        /// <param name="prefsPtr">
+        /// @prefsPtr is optional : one may provide NULL as argument,
+        /// note however that it's the only way to insert a @dictID in the frame header.
+        /// </param>
+        /// <returns>
+        /// number of bytes written into dstBuffer for the header,
+        /// or an error code, which can be tested using LZ4F_isError().
+        /// </returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate nuint LZ4F_compressBegin_usingCDict(
+            IntPtr cctx,
+            byte* dstBuffer,
+            nuint dstCapacity,
+            IntPtr cdict,
+            FramePreferences prefsPtr);
+        internal LZ4F_compressBegin_usingCDict? FrameCompressBeginUsingCDict;
+        #endregion
+
+        #region xxHash
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate uint LZ4_XXH_versionNumber();
+        internal LZ4_XXH_versionNumber? XXHVersionNumber;
+
+        /// <summary>
+        /// Calculate the 32-bit hash of sequence "length" bytes stored at memory address "input".
+        /// The memory between input & input+length must be valid (allocated and read-accessible).
+        /// "seed" can be used to alter the result predictably.
+        /// </summary>
+        /// <remarks>xxhash is not chainable.</remarks>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate uint LZ4_XXH32(
+            byte* input,
+            nuint length,
+            uint seed);
+        internal LZ4_XXH32? XXH32;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate IntPtr LZ4_XXH32_createState();
+        internal LZ4_XXH32_createState? XXH32CreateState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH32_freeState(
+            IntPtr statePtr);
+        internal LZ4_XXH32_freeState? XXH32FreeState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void LZ4_XXH32_copyState(
+            IntPtr dstState, IntPtr srcState);
+        internal LZ4_XXH32_copyState? XXH32CopyState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH32_reset(
+            IntPtr statePtr, uint seed);
+        internal LZ4_XXH32_reset? XXH32Reset;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH32_update(
+            IntPtr statePtr, byte* ipnut, nuint length);
+        internal LZ4_XXH32_update? XXH32Update;
+
+        /// <summary>
+        /// In xxhash, you cannot continue feeding the data after calling the digest().
+        /// </summary>
+        /// <param name="statePtr"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate uint LZ4_XXH32_digest(
+            IntPtr statePtr);
+        internal LZ4_XXH32_digest? XXH32Digest;
+
+        /// <summary>
+        /// Calculate the 64-bit hash of sequence of length "len" stored at memory address "input".
+        /// "seed" can be used to alter the result predictably.
+        /// This function runs faster on 64-bit systems, but slower on 32-bit systems (see benchmark).
+        /// </summary>
+        /// <remarks>xxhash is not chainable.</remarks>
+        /// <param name="input"></param>
+        /// <param name="length"></param>
+        /// <param name="seed"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong LZ4_XXH64(
+            byte* input,
+            nuint length,
+            ulong seed);
+        internal LZ4_XXH64? XXH64;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate IntPtr LZ4_XXH64_createState();
+        internal LZ4_XXH64_createState? XXH64CreateState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH64_freeState(
+            IntPtr statePtr);
+        internal LZ4_XXH64_freeState? XXH64FreeState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void LZ4_XXH64_copyState(
+            IntPtr dstState, IntPtr srcState);
+        internal LZ4_XXH64_copyState? XXH64CopyState;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH64_reset(
+            IntPtr statePtr, ulong seed);
+        internal LZ4_XXH64_reset? XXH64Reset;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate XXHashErrorCode LZ4_XXH64_update(
+            IntPtr statePtr, byte* ipnut, nuint length);
+        internal LZ4_XXH64_update? XXH64Update;
+
+        /// <summary>
+        /// In xxhash, you cannot continue feeding the data after calling the digest().
+        /// </summary>
+        /// <param name="statePtr"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate ulong LZ4_XXH64_digest(
+            IntPtr statePtr);
+        internal LZ4_XXH64_digest? XXH64Digest;
         #endregion
         #endregion
     }

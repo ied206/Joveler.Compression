@@ -99,7 +99,7 @@ namespace Benchmark
                     LeaveOpen = true,
                 };
 
-                Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
+                Joveler.Compression.XZ.XZParallelCompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelCompressOptions
                 {
                     Threads = 2,
                     TimeOut = TimeOutValue,
@@ -128,7 +128,7 @@ namespace Benchmark
 
             Joveler.Compression.XZ.XZDecompressOptions decompOpts = new Joveler.Compression.XZ.XZDecompressOptions();
 
-            Joveler.Compression.XZ.XZThreadedDecompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedDecompressOptions
+            Joveler.Compression.XZ.XZParallelDecompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelDecompressOptions
             {
                 Threads = 2,
                 TimeOut = TimeOutValue,

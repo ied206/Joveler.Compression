@@ -21,21 +21,18 @@
     3. This notice may not be removed or altered from any source distribution.
 */
 
-using Joveler.Compression.ZLib.Buffer;
+using Joveler.Compression.LZ4.Buffer;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Joveler.Compression.ZLib
+namespace Joveler.Compression.LZ4
 {
-    /// <summary>
-    /// The stream which compresses zlib-related stream format in parallel.
-    /// </summary>
-    internal sealed class ParallelCompressJob : IDisposable
+    internal sealed class LZ4ParallelCompressJob : IDisposable, IEquatable<LZ4ParallelCompressJob>, IComparable<LZ4ParallelCompressJob>
     {
         public long Seq { get; }
         public bool IsLastBlock { get; set; } = false;
-        public bool IsEofBlock => Seq == EofBlockSeq;
 
         /// <summary>
         /// Acquired in the constructor, released in CompressThreadMain().
@@ -47,29 +44,19 @@ namespace Joveler.Compression.ZLib
         public ReferableBuffer? DictBuffer { get; }
         public PooledBuffer OutBuffer { get; }
 
-        public int RawInputSize { get; set; } = 0;
-        public uint Checksum { get; set; } = 0;
 
         private bool _disposed = false;
 
-        public const int DictWindowSize = 32 * 1024;
+        public const int DictWindowSize = 64 * 1024;
 
-        /// <summary>
-        /// Seq of -1 means the eof block.
-        /// WorkerThreads will terminate when receiving the eof block.
-        /// </summary>
-        /// <remarks>
-        /// N * NormalJob -> FinalJob -> Threads * EofJob
-        /// </remarks>
-        public const int EofBlockSeq = -1;
-        public const int WaitSeqInit = -2;
+        public const int WaitSeqInit = -1;
 
         /// <summary>
         /// Create an first/normal/final job which contains two block of input, one being the current data and another as a dictionary (last input).
         /// Most of the jobs are a normal job.
         /// </summary>
         /// <remarks>
-        /// FirstJob -> N * NormalJob -> FinalJob -> Threads * EofJob
+        /// FirstJob -> N * NormalJob -> FinalJob
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
@@ -79,7 +66,7 @@ namespace Joveler.Compression.ZLib
         /// In other blocks, dictBuffer is set to the previous block's InBuffer.
         /// </param>
         /// <param name="outBufferSize"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
+        public LZ4ParallelCompressJob(ArrayPool<byte> pool, long seqNum, int inBufferSize, ReferableBuffer? dictBuffer, int outBufferSize)
         {
             Seq = seqNum;
 
@@ -104,7 +91,7 @@ namespace Joveler.Compression.ZLib
         /// </remarks>
         /// <param name="pool"></param>
         /// <param name="seqNum"></param>
-        public ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
+        public LZ4ParallelCompressJob(ArrayPool<byte> pool, long seqNum)
         {
             Seq = seqNum;
 
@@ -115,7 +102,7 @@ namespace Joveler.Compression.ZLib
             InBuffer.AcquireRef();
         }
 
-        ~ParallelCompressJob()
+        ~LZ4ParallelCompressJob()
         {
             Dispose(false);
         }
@@ -174,6 +161,69 @@ namespace Joveler.Compression.ZLib
                 return int.MaxValue;
 
             return (int)newVal;
+        }
+
+        public override string ToString()
+        {
+            char isFirstFlag = Seq == 0 ? 'F' : ' ';
+            char isLastFlag = IsLastBlock ? 'L' : ' ';
+            return $"[JOB #{Seq,3}] f({isFirstFlag}{isLastFlag}): in={InBuffer} dict={DictBuffer?.ToString() ?? "null"} out={OutBuffer}";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not LZ4ParallelCompressJob other)
+                return false;
+            return Equals(other);
+        }
+
+        public bool Equals(LZ4ParallelCompressJob? other)
+        {
+            if (other == null)
+                return false;
+
+            return Seq == other.Seq;
+        }
+
+        public int CompareTo(LZ4ParallelCompressJob? other)
+        {
+            if (other == null)
+                throw new ArgumentNullException(nameof(other));
+
+            return Seq.CompareTo(other.Seq);
+        }
+
+        public override int GetHashCode()
+        {
+            return Seq.GetHashCode();
+        }
+    }
+
+    internal sealed class LZ4ParallelCompressJobComparator : IComparer<LZ4ParallelCompressJob>, IEqualityComparer<LZ4ParallelCompressJob>
+    {
+        public int Compare(LZ4ParallelCompressJob? x, LZ4ParallelCompressJob? y)
+        {
+            if (x == null)
+                throw new ArgumentNullException(nameof(x));
+            if (y == null)
+                throw new ArgumentNullException(nameof(x));
+
+            return x.CompareTo(y);
+        }
+
+        public bool Equals(LZ4ParallelCompressJob? x, LZ4ParallelCompressJob? y)
+        {
+            if (x == null)
+                return y == null;
+            if (y == null)
+                return false;
+
+            return x.Equals(y);
+        }
+
+        public int GetHashCode(LZ4ParallelCompressJob obj)
+        {
+            return obj.GetHashCode();
         }
     }
 }

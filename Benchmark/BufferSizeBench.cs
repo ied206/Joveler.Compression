@@ -322,7 +322,7 @@ namespace Benchmark
 
                 // LZMA2 threaded compression with -9 option takes a lot of memory.
                 // To prevent memory starvation and make test results consistent, test only 1 threads.
-                Joveler.Compression.XZ.XZThreadedCompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedCompressOptions
+                Joveler.Compression.XZ.XZParallelCompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelCompressOptions
                 {
                     Threads = 1,
                 };
@@ -352,7 +352,7 @@ namespace Benchmark
 
                 // LZMA2 threaded compression with -9 option takes a lot of memory.
                 // To prevent memory starvation and make test results consistent, test only 1 threads.
-                Joveler.Compression.XZ.XZThreadedDecompressOptions threadOpts = new Joveler.Compression.XZ.XZThreadedDecompressOptions
+                Joveler.Compression.XZ.XZParallelDecompressOptions threadOpts = new Joveler.Compression.XZ.XZParallelDecompressOptions
                 {
                     Threads = 1,
                 };

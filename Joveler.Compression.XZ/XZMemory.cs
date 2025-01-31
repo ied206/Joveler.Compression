@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -25,6 +25,8 @@
     SOFTWARE.
 */
 
+using System;
+
 namespace Joveler.Compression.XZ
 {
     public static class XZMemory
@@ -41,8 +43,11 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return XZInit.Lib.LzmaEasyEncoderMemUsage(preset);
+            return XZInit.Lib.LzmaEasyEncoderMemUsage?.Invoke(preset) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaEasyEncoderMemUsage));
         }
 
         /// <summary>
@@ -56,7 +61,10 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaEasyEncoderMemUsage(compOpts.Preset);
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaEasyEncoderMemUsage?.Invoke(compOpts.Preset) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaEasyEncoderMemUsage));
         }
 
         /// <summary>
@@ -70,9 +78,12 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
             LzmaMt mtOpts = LzmaMt.Create(preset, threads);
-            return XZInit.Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return XZInit.Lib.LzmaStreamEncoderMtMemUsage?.Invoke(mtOpts) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaStreamEncoderMtMemUsage));
         }
 
         /// <summary>
@@ -82,12 +93,28 @@ namespace Joveler.Compression.XZ
         /// Number of bytes of memory required for encoding with the given options. 
         /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
         /// </returns>
-        public static ulong ThreadedEncoderMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        public static ulong ParallelEncoderMemUsage(XZCompressOptions compOpts, XZParallelCompressOptions threadOpts)
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             LzmaMt mtOpts = compOpts.ToLzmaMt(threadOpts);
-            return XZInit.Lib.LzmaStreamEncoderMtMemUsage(mtOpts);
+            return XZInit.Lib.LzmaStreamEncoderMtMemUsage?.Invoke(mtOpts) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaStreamEncoderMtMemUsage));
+        }
+
+        /// <summary>
+        /// Calculate approximate memory usage of multithreaded .xz encoder
+        /// </summary>
+        /// <returns>
+        /// Number of bytes of memory required for encoding with the given options. 
+        /// If an error occurs, for example due to unsupported preset or filter chain, UINT64_MAX is returned.
+        /// </returns>
+        [Obsolete($"Renamed to [{nameof(ParallelEncoderMemUsage)}].")]
+        public static ulong ThreadedEncoderMemUsage(XZCompressOptions compOpts, XZThreadedCompressOptions threadOpts)
+        {
+            return ParallelEncoderMemUsage(compOpts, threadOpts.ToParallel());
         }
 
         /// <summary>
@@ -101,8 +128,11 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
             uint preset = XZCompressOptions.ToPreset(level, extremeFlag);
-            return XZInit.Lib.LzmaEasyDecoderMemUsage(preset);
+            return XZInit.Lib.LzmaEasyDecoderMemUsage?.Invoke(preset) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaEasyDecoderMemUsage));
         }
 
         /// <summary>
@@ -116,7 +146,10 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaEasyDecoderMemUsage(compOpts.Preset);
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaEasyDecoderMemUsage?.Invoke(compOpts.Preset) ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaEasyDecoderMemUsage));
         }
         #endregion
     }

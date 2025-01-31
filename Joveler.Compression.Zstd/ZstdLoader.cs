@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2023 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -185,11 +185,11 @@ namespace Joveler.Compression.Zstd
         #region Version - VersionNumber, VersionString
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint ZSTD_versionNumber();
-        internal ZSTD_versionNumber VersionNumber;
+        internal ZSTD_versionNumber? VersionNumber;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr ZSTD_versionString();
-        internal ZSTD_versionString VersionString;
+        internal ZSTD_versionString? VersionString;
         #endregion
 
         #region Helper - CompressBound, IsError, GetErrorName, MinCLevel, MaxCLevel, DefaultCLevel
@@ -199,8 +199,8 @@ namespace Joveler.Compression.Zstd
         /// <param name="srcSize"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_compressBound(UIntPtr srcSize); // size_t
-        internal ZSTD_compressBound CompressBound;
+        internal delegate nuint ZSTD_compressBound(nuint srcSize); // size_t
+        internal ZSTD_compressBound? CompressBound;
 
         /// <summary>
         /// tells if a `size_t` function result is an error code
@@ -208,8 +208,8 @@ namespace Joveler.Compression.Zstd
         /// <param name="code"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate uint ZSTD_isError(UIntPtr code); // size_t
-        internal ZSTD_isError IsError;
+        internal delegate uint ZSTD_isError(nuint code); // size_t
+        internal ZSTD_isError? IsError;
 
         /// <summary>
         /// provides readable string from an error code
@@ -217,43 +217,43 @@ namespace Joveler.Compression.Zstd
         /// <param name="code"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate IntPtr ZSTD_getErrorName(UIntPtr code); // size_t
-        internal ZSTD_getErrorName GetErrorName;
+        internal delegate IntPtr ZSTD_getErrorName(nuint code); // size_t
+        internal ZSTD_getErrorName? GetErrorName;
 
         /// <summary>
         /// minimum negative compression level allowed, requires v1.4.0+
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int ZSTD_minCLevel();
-        internal ZSTD_minCLevel MinCLevel;
+        internal ZSTD_minCLevel? MinCLevel;
 
         /// <summary>
         /// maximum compression level available
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int ZSTD_maxCLevel();
-        internal ZSTD_maxCLevel MaxCLevel;
+        internal ZSTD_maxCLevel? MaxCLevel;
 
         /// <summary>
         /// default compression level, specified by ZSTD_CLEVEL_DEFAULT, requires v1.5.0+
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int ZSTD_defaultCLevel();
-        internal ZSTD_defaultCLevel DefaultCLevel;
+        internal ZSTD_defaultCLevel? DefaultCLevel;
         #endregion
 
         #region Compression Streaming
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr ZSTD_createCStream();
-        internal ZSTD_createCStream CreateCStream;
+        internal ZSTD_createCStream? CreateCStream;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_freeCStream(IntPtr zcs);
-        internal ZSTD_freeCStream FreeCStream;
+        internal delegate nuint ZSTD_freeCStream(IntPtr zcs);
+        internal ZSTD_freeCStream? FreeCStream;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CCtx_reset(IntPtr cctx, ResetDirective reset);
-        internal ZSTD_CCtx_reset CCtxReset;
+        internal delegate nuint ZSTD_CCtx_reset(IntPtr cctx, ResetDirective reset);
+        internal ZSTD_CCtx_reset? CCtxReset;
 
         /// <summary>
         /// Behaves about the same as ZSTD_compressStream, with additional control on end directive.
@@ -290,12 +290,12 @@ namespace Joveler.Compression.Zstd
         /// <param name="endOp"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_compressStream2(
+        internal delegate nuint ZSTD_compressStream2(
             IntPtr cctx,
             OutBuffer output,
             InBuffer input,
             EndDirective endOp);
-        internal ZSTD_compressStream2 CompressStream2;
+        internal ZSTD_compressStream2? CompressStream2;
 
         /// <summary>
         /// recommended size for input buffer
@@ -304,8 +304,8 @@ namespace Joveler.Compression.Zstd
         /// However, note that these recommendations are from the perspective of a C caller program.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CStreamInSize();
-        internal ZSTD_CStreamInSize CStreamInSize;
+        internal delegate nuint ZSTD_CStreamInSize();
+        internal ZSTD_CStreamInSize? CStreamInSize;
 
         /// <summary>
         /// recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block.
@@ -314,8 +314,8 @@ namespace Joveler.Compression.Zstd
         /// However, note that these recommendations are from the perspective of a C caller program.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CStreamOutSize();
-        internal ZSTD_CStreamOutSize CStreamOutSize;
+        internal delegate nuint ZSTD_CStreamOutSize();
+        internal ZSTD_CStreamOutSize? CStreamOutSize;
 
         /// <summary>
         /// Returns ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
@@ -330,9 +330,9 @@ namespace Joveler.Compression.Zstd
         internal delegate CParameter ZSTD_getCParams(
             int compressionLevel,
             ulong estimatedSrcSize,
-            UIntPtr dictSize // size_t
+            nuint dictSize // size_t
         );
-        internal ZSTD_getCParams GetCParams;
+        internal ZSTD_getCParams? GetCParams;
 
         /// <summary>
         /// Ensure param values remain within authorized range.
@@ -341,8 +341,8 @@ namespace Joveler.Compression.Zstd
         /// 0 on success, or an error code (can be checked with ZSTD_isError())
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_checkCParams(CParameter cParams);
-        internal ZSTD_checkCParams CheckCParams;
+        internal delegate nuint ZSTD_checkCParams(CParameter cParams);
+        internal ZSTD_checkCParams? CheckCParams;
 
         /// <summary>
         /// optimize params for a given `srcSize` and `dictSize`. This function never fails (wide contract)
@@ -357,12 +357,12 @@ namespace Joveler.Compression.Zstd
         /// `dictSize` must be `0` when there is no dictionary.
         /// </param>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_adjustCParams(
+        internal delegate nuint ZSTD_adjustCParams(
             CParameter cParams,
             ulong srcSize,
-            UIntPtr dictSize // size_t
+            nuint dictSize // size_t
         );
-        internal ZSTD_adjustCParams AdjustCParams;
+        internal ZSTD_adjustCParams? AdjustCParams;
 
         /// <summary>
         /// All parameters must belong to an interval with lower and upper bounds,
@@ -375,7 +375,7 @@ namespace Joveler.Compression.Zstd
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate Bounds ZSTD_cParam_getBounds(CParameter cParam);
-        internal ZSTD_cParam_getBounds CParamGetBounds;
+        internal ZSTD_cParam_getBounds? CParamGetBounds;
 
         /// <summary>
         /// Set one compression parameter, selected by enum ZSTD_cParameter.
@@ -391,8 +391,8 @@ namespace Joveler.Compression.Zstd
         /// an error code (which can be tested using ZSTD_isError()).
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CCtx_setParameter(IntPtr cctx, CParameter param, int value);
-        internal ZSTD_CCtx_setParameter CCtxSetParameter;
+        internal delegate nuint ZSTD_CCtx_setParameter(IntPtr cctx, CParameter param, int value);
+        internal ZSTD_CCtx_setParameter? CCtxSetParameter;
 
         /// <summary>
         /// Total input data size to be compressed as a single frame.
@@ -412,26 +412,26 @@ namespace Joveler.Compression.Zstd
         ///          this value is automatically overridden by srcSize instead.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CCtx_setPledgedSrcSize(IntPtr cctx, ulong pledgedSrcSize);
-        internal ZSTD_CCtx_setPledgedSrcSize CCtxSetPledgedSrcSize;
+        internal delegate nuint ZSTD_CCtx_setPledgedSrcSize(IntPtr cctx, ulong pledgedSrcSize);
+        internal ZSTD_CCtx_setPledgedSrcSize? CCtxSetPledgedSrcSize;
         #endregion
 
         #region Decompression Streaming
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate IntPtr ZSTD_createDStream();
-        internal ZSTD_createDStream CreateDStream;
+        internal ZSTD_createDStream? CreateDStream;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_freeDStream(IntPtr zds);
-        internal ZSTD_freeDStream FreeDStream;
+        internal delegate nuint ZSTD_freeDStream(IntPtr zds);
+        internal ZSTD_freeDStream? FreeDStream;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DCtx_reset(IntPtr dctx, ResetDirective reset);
-        internal ZSTD_DCtx_reset DctxReset;
+        internal delegate nuint ZSTD_DCtx_reset(IntPtr dctx, ResetDirective reset);
+        internal ZSTD_DCtx_reset? DctxReset;
 
         /*
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_initDStream(IntPtr zds);
+        internal delegate nuint ZSTD_initDStream(IntPtr zds);
         internal ZSTD_initDStream InitDStream;
         */
 
@@ -462,11 +462,11 @@ namespace Joveler.Compression.Zstd
         ///       or is implied for operations starting some new decompression job (`ZSTD_initDStream`, `ZSTD_decompressDCtx()`,
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_decompressStream(
+        internal delegate nuint ZSTD_decompressStream(
             IntPtr zds,
             OutBuffer output,
             InBuffer input);
-        internal ZSTD_decompressStream DecompressStream;
+        internal ZSTD_decompressStream? DecompressStream;
 
         /// <summary>
         /// recommended size for input buffer
@@ -475,8 +475,8 @@ namespace Joveler.Compression.Zstd
         /// However, note that these recommendations are from the perspective of a C caller program.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DStreamInSize();
-        internal ZSTD_DStreamInSize DStreamInSize;
+        internal delegate nuint ZSTD_DStreamInSize();
+        internal ZSTD_DStreamInSize? DStreamInSize;
 
         /// <summary>
         /// recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances.
@@ -485,8 +485,8 @@ namespace Joveler.Compression.Zstd
         /// However, note that these recommendations are from the perspective of a C caller program.
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DStreamOutSize();
-        internal ZSTD_DStreamOutSize DStreamOutSize;
+        internal delegate nuint ZSTD_DStreamOutSize();
+        internal ZSTD_DStreamOutSize? DStreamOutSize;
 
         /// <summary>
         /// Set one compression parameter, selected by enum ZSTD_dParameter.
@@ -498,8 +498,8 @@ namespace Joveler.Compression.Zstd
         /// 0, or an error code (which can be tested using ZSTD_isError()).
         /// </returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DCtx_setParameter(IntPtr dctx, DParameter param, int value);
-        internal ZSTD_DCtx_setParameter DCtxSetParameter;
+        internal delegate nuint ZSTD_DCtx_setParameter(IntPtr dctx, DParameter param, int value);
+        internal ZSTD_DCtx_setParameter? DCtxSetParameter;
 
 #if false
         /// <summary>
@@ -510,8 +510,8 @@ namespace Joveler.Compression.Zstd
         /// </summary>
         /// <returns>0, or an error code (which can be tested using ZSTD_isError()).</returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DCtx_setMaxWindowSize(IntPtr dctx, UIntPtr maxWindowSize);
-        internal ZSTD_DCtx_setMaxWindowSize DCtxSetMaxWindowSize;
+        internal delegate nuint ZSTD_DCtx_setMaxWindowSize(IntPtr dctx, nuint maxWindowSize);
+        internal ZSTD_DCtx_setMaxWindowSize? DCtxSetMaxWindowSize;
 #endif
         #endregion
 
@@ -534,8 +534,8 @@ namespace Joveler.Compression.Zstd
         /// <param name="cctx"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_toFlushNow(IntPtr cctx);
-        internal ZSTD_toFlushNow ToFlushNow;
+        internal delegate nuint ZSTD_toFlushNow(IntPtr cctx);
+        internal ZSTD_toFlushNow? ToFlushNow;
         #endregion
 
         #region Dictionary and Prefix API
@@ -560,8 +560,8 @@ namespace Joveler.Compression.Zstd
         ///          to precisely select how dictionary content must be interpreted. */</remarks>
         /// <returns>0, or an error code (which can be tested with ZSTD_isError()).</returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_CCtx_loadDictionary(IntPtr cctx, byte* dict, UIntPtr dictSize);
-        internal ZSTD_CCtx_loadDictionary CctxLoadDictionary;
+        internal delegate nuint ZSTD_CCtx_loadDictionary(IntPtr cctx, byte* dict, nuint dictSize);
+        internal ZSTD_CCtx_loadDictionary? CctxLoadDictionary;
 
         /// <summary>
         /// Create an internal DDict from dict buffer,
@@ -581,8 +581,8 @@ namespace Joveler.Compression.Zstd
         /// </remarks>
         /// <returns>0, or an error code (which can be tested with ZSTD_isError()).</returns>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_DCtx_loadDictionary(IntPtr cctx, byte* dict, UIntPtr dictSize);
-        internal ZSTD_DCtx_loadDictionary DctxLoadDictionary;
+        internal delegate nuint ZSTD_DCtx_loadDictionary(IntPtr cctx, byte* dict, nuint dictSize);
+        internal ZSTD_DCtx_loadDictionary? DctxLoadDictionary;
         #endregion
 
         #region Memory Management
@@ -590,15 +590,15 @@ namespace Joveler.Compression.Zstd
         /// These functions give the _current_ memory usage of selected object.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_sizeof_CStream(IntPtr zcs);
-        internal ZSTD_sizeof_CStream SizeOfCStream;
+        internal delegate nuint ZSTD_sizeof_CStream(IntPtr zcs);
+        internal ZSTD_sizeof_CStream? SizeOfCStream;
 
         /// <summary>
         /// These functions give the _current_ memory usage of selected object.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_sizeof_DStream(IntPtr zds);
-        internal ZSTD_sizeof_DStream SizeOfDStream;
+        internal delegate nuint ZSTD_sizeof_DStream(IntPtr zds);
+        internal ZSTD_sizeof_DStream? SizeOfDStream;
 
         /// <summary>
         /// ZSTD_estimateCStreamSize() will provide a memory budget large enough for streaming compression 
@@ -612,8 +612,8 @@ namespace Joveler.Compression.Zstd
         /// Size estimates assume that no external sequence producer is registered.
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_estimateCStreamSize(int maxCompressionLevel);
-        internal ZSTD_estimateCStreamSize EstimateCStreamSize;
+        internal delegate nuint ZSTD_estimateCStreamSize(int maxCompressionLevel);
+        internal ZSTD_estimateCStreamSize? EstimateCStreamSize;
 
         /// <summary>
         /// ZSTD_estimateCStreamSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
@@ -622,8 +622,8 @@ namespace Joveler.Compression.Zstd
         /// 
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_estimateCStreamSize_usingCParams(CompressionParameters compressionLevel);
-        internal ZSTD_estimateCStreamSize_usingCParams EstimateCStreamSizeUsingCParams;
+        internal delegate nuint ZSTD_estimateCStreamSize_usingCParams(CompressionParameters compressionLevel);
+        internal ZSTD_estimateCStreamSize_usingCParams? EstimateCStreamSizeUsingCParams;
 
         /// <summary>
         /// ZSTD_DStream memory budget depends on frame's window Size.
@@ -637,15 +637,15 @@ namespace Joveler.Compression.Zstd
         /// In this case, get total size by adding ZSTD_estimate?DictSize
         /// </remarks>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_estimateDStreamSize(UIntPtr maxWindowSize);
-        internal ZSTD_estimateDStreamSize EstimateDStreamSize;
+        internal delegate nuint ZSTD_estimateDStreamSize(nuint maxWindowSize);
+        internal ZSTD_estimateDStreamSize? EstimateDStreamSize;
 
         /// <summary>
         /// ZSTD_DStream memory budget depends on window Size, deducted from a valid frame Header.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate UIntPtr ZSTD_estimateDStreamSize_fromFrame(IntPtr src, UIntPtr srcSize);
-        internal ZSTD_estimateDStreamSize_fromFrame EstimateDStreamSizeFromFrame;
+        internal delegate nuint ZSTD_estimateDStreamSize_fromFrame(IntPtr src, nuint srcSize);
+        internal ZSTD_estimateDStreamSize_fromFrame? EstimateDStreamSizeFromFrame;
         #endregion
 
         // TODO: Frame size functions

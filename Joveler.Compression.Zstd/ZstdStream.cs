@@ -3,7 +3,7 @@
     Copyright (c) 2016-present, Yann Collet, Facebook, Inc. All rights reserved.
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2020-2023 Hajin Jang
+    Copyright (C) 2020-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -222,7 +222,7 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// A buffer to feed zstd custom dictionary.
         /// </summary>
-        public byte[] DictBuffer { get; set; } = null;
+        public byte[]? DictBuffer { get; set; } = null;
         #endregion
     }
 
@@ -246,13 +246,13 @@ namespace Joveler.Compression.Zstd
         /// <summary>
         /// A buffer to feed zstd custom dictionary.
         /// </summary>
-        public byte[] DictBuffer { get; set; } = null;
+        public byte[]? DictBuffer { get; set; } = null;
         #endregion
     }
     #endregion
 
     #region ZstdStream
-    public unsafe sealed class ZstdStream : Stream
+    public sealed class ZstdStream : Stream
     {
         #region enum Mode
         private enum Mode
@@ -279,7 +279,7 @@ namespace Joveler.Compression.Zstd
         private int _decompSrcCount = 0;
 
         // Property
-        public Stream BaseStream { get; private set; }
+        public Stream? BaseStream { get; private set; }
         public long TotalIn { get; private set; } = 0;
         public long TotalOut { get; private set; } = 0;
 
@@ -302,6 +302,9 @@ namespace Joveler.Compression.Zstd
             // From FIO_createCResources()
             ZstdInit.Manager.EnsureLoaded();
 
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
             // Check arguments
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             if (compOpts.MTWorkers < 0)
@@ -313,7 +316,7 @@ namespace Joveler.Compression.Zstd
 
             // Get recommended size for input buffer.
             /*
-            UIntPtr srcBufSize = ZstdInit.Lib.CStreamInSize();
+            nuint srcBufSize = ZstdInit.Lib.CStreamInSize();
             if (uint.MaxValue < srcBufSize.ToUInt64())
                 _srcBufSize = uint.MaxValue;
             else
@@ -323,7 +326,7 @@ namespace Joveler.Compression.Zstd
 
             /*
             // Get recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block.
-            UIntPtr destBufSize = ZstdInit.Lib.CStreamOutSize();
+            nuint destBufSize = ZstdInit.Lib.CStreamOutSize();
             if (uint.MaxValue < destBufSize.ToUInt64())
                 _bufSize = uint.MaxValue;
             else
@@ -338,7 +341,7 @@ namespace Joveler.Compression.Zstd
             _buf = new byte[_bufSize];
 
             // Prepare cctx
-            _cstream = ZstdInit.Lib.CreateCStream();
+            _cstream = ZstdInit.Lib.CreateCStream!();
             if (_cstream == IntPtr.Zero)
             {
                 // Unable to create cctx
@@ -346,7 +349,7 @@ namespace Joveler.Compression.Zstd
             }
 
             // Set advanced compression parameters
-            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.CompressionLevel, compOpts.CompressionLevel));
+            ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter!(_cstream, CParameter.CompressionLevel, compOpts.CompressionLevel));
             ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.WindowLog, (int)compOpts.WindowLog));
             ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ChainLog, (int)compOpts.ChainLog));
             ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.HashLog, (int)compOpts.HashLog));
@@ -372,7 +375,7 @@ namespace Joveler.Compression.Zstd
             {
                 fixed (byte* bufPtr = compOpts.DictBuffer)
                 {
-                    ZstdInit.Lib.CctxLoadDictionary(_cstream, bufPtr, (UIntPtr)compOpts.DictBuffer.Length);
+                    ZstdInit.Lib.CctxLoadDictionary!(_cstream, bufPtr, (nuint)compOpts.DictBuffer.Length);
                 }
             }
 
@@ -380,7 +383,7 @@ namespace Joveler.Compression.Zstd
             if (0 < compOpts.ContentSize)
             {
                 ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetParameter(_cstream, CParameter.ContentSizeFlag, 1));
-                ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetPledgedSrcSize(_cstream, compOpts.ContentSize));
+                ZstdException.CheckReturnValue(ZstdInit.Lib.CCtxSetPledgedSrcSize!(_cstream, compOpts.ContentSize));
             }
             else
             {
@@ -395,6 +398,9 @@ namespace Joveler.Compression.Zstd
         {
             ZstdInit.Manager.EnsureLoaded();
 
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
             // Check arguments
             BaseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
             _mode = Mode.Decompress;
@@ -406,7 +412,7 @@ namespace Joveler.Compression.Zstd
             _buf = new byte[_bufSize];
 
             // From FIO_createDResources
-            _dstream = ZstdInit.Lib.CreateDStream();
+            _dstream = ZstdInit.Lib.CreateDStream!();
             if (_dstream == IntPtr.Zero)
             { // Unable to create dctx
                 throw new InvalidOperationException("allocation error: cannot create ZSTD_DStream");
@@ -417,7 +423,7 @@ namespace Joveler.Compression.Zstd
             {
                 fixed (byte* bufPtr = decompOpts.DictBuffer)
                 {
-                    ZstdException.CheckReturnValue(ZstdInit.Lib.DctxLoadDictionary(_dstream, bufPtr, (UIntPtr)decompOpts.DictBuffer.Length));
+                    ZstdException.CheckReturnValue(ZstdInit.Lib.DctxLoadDictionary!(_dstream, bufPtr, (nuint)decompOpts.DictBuffer.Length));
                 }
             }
         }
@@ -433,17 +439,20 @@ namespace Joveler.Compression.Zstd
         {
             if (disposing && !_disposed)
             {
+                if (ZstdInit.Lib == null)
+                    throw new ObjectDisposedException(nameof(ZstdInit));
+
                 if (_cstream != IntPtr.Zero)
                 {
                     FinishWrite();
 
-                    ZstdInit.Lib.FreeCStream(_cstream);
+                    ZstdInit.Lib.FreeCStream!(_cstream);
                     _cstream = IntPtr.Zero;
                 }
 
                 if (_dstream != IntPtr.Zero)
                 {
-                    ZstdInit.Lib.FreeDStream(_dstream);
+                    ZstdInit.Lib.FreeDStream!(_dstream);
                     _dstream = IntPtr.Zero;
                 }
 
@@ -484,6 +493,11 @@ namespace Joveler.Compression.Zstd
             if (_mode != Mode.Decompress)
                 throw new NotSupportedException("Read() not supported on compression");
 
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(ZstdStream));
+
             // Reached end of stream
             if (_decompSrcIdx == DecompressComplete)
                 return 0;
@@ -498,14 +512,14 @@ namespace Joveler.Compression.Zstd
                 OutBuffer outBuf = new OutBuffer()
                 {
                     Dst = dest,
-                    Size = (UIntPtr)span.Length,
-                    Pos = UIntPtr.Zero,
+                    Size = (nuint)span.Length,
+                    Pos = 0,
                 };
 
                 int outBufPosBak = 0;
 
                 // C#'s indexing is limited to int.MaxValue.
-                while (outBuf.Pos.ToUInt32() < outBuf.Size.ToUInt32())
+                while (outBuf.Pos < outBuf.Size)
                 {
                     // If we are out of buffer to decompress, read it from BaseStream.
                     if (_decompSrcIdx == _decompSrcCount)
@@ -527,18 +541,18 @@ namespace Joveler.Compression.Zstd
                     InBuffer inBuf = new InBuffer()
                     {
                         Src = src,
-                        Size = (UIntPtr)_decompSrcCount,
-                        Pos = (UIntPtr)_decompSrcIdx,
+                        Size = (nuint)_decompSrcCount,
+                        Pos = (nuint)_decompSrcIdx,
                     };
 
                     // Call ZSTD_decompressStream()
-                    UIntPtr ret = ZstdInit.Lib.DecompressStream(_dstream, outBuf, inBuf);
+                    nuint ret = ZstdInit.Lib.DecompressStream!(_dstream, outBuf, inBuf);
                     ZstdException.CheckReturnValueWithDStream(ret, _dstream);
-                    ulong readSizeHint = ret.ToUInt64();
+                    ulong readSizeHint = ret;
 
                     // How many source bytes are decompressed?
                     // _decompSrcIdx += (int)inBuf.Pos.ToUInt32() - _decompSrcIdx;
-                    _decompSrcIdx = (int)inBuf.Pos.ToUInt32();
+                    _decompSrcIdx = (int)inBuf.Pos;
 
                     // How many destination bytes are written?
                     int outBufPos = (int)outBuf.Pos;
@@ -553,7 +567,7 @@ namespace Joveler.Compression.Zstd
                         break;
 
                     // Is outBuf full?
-                    if (outBuf.Pos.ToUInt64() == outBuf.Size.ToUInt64())
+                    if (outBuf.Pos == outBuf.Size)
                         break;
                 }
             }
@@ -584,6 +598,11 @@ namespace Joveler.Compression.Zstd
             if (_mode != Mode.Compress)
                 throw new NotSupportedException("Write() not supported on decompression");
 
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(ZstdStream));
+
             fixed (byte* src = span)
             fixed (byte* dest = _buf)
             {
@@ -592,27 +611,27 @@ namespace Joveler.Compression.Zstd
                 InBuffer inBuf = new InBuffer()
                 {
                     Src = src,
-                    Size = (UIntPtr)span.Length,
-                    Pos = (UIntPtr)0,
+                    Size = (nuint)span.Length,
+                    Pos = 0,
                 };
                 OutBuffer outBuf = new OutBuffer()
                 {
                     Dst = dest,
-                    Size = (UIntPtr)_bufSize,
-                    Pos = (UIntPtr)0,
+                    Size = (nuint)_bufSize,
+                    Pos = 0,
                 };
 
                 // C#'s indexing is limited to int.MaxValue.
-                while (inBuf.Pos.ToUInt32() < inBuf.Size.ToUInt32())
+                while (inBuf.Pos < inBuf.Size)
                 {
-                    UIntPtr ret = UIntPtr.Zero;
+                    nuint ret = 0;
 
                     // How many bytes are ready to be flushed?
                     // ret = ZstdInit.Lib.ToFlushNow(_cstream);
                     // ulong toFlushNow = ret.ToUInt64();
 
                     // Compress the input buffer
-                    ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, endDirective);
+                    ret = ZstdInit.Lib.CompressStream2!(_cstream, outBuf, inBuf, endDirective);
                     ZstdException.CheckReturnValueWithCStream(ret, _cstream);
                     // ulong stillToFlush = ret.ToUInt64();
 
@@ -626,7 +645,7 @@ namespace Joveler.Compression.Zstd
                         BaseStream.Write(_buf, 0, outBufPos);
                         TotalOut += outBufPos;
                     }
-                    outBuf.Pos = (UIntPtr)0;
+                    outBuf.Pos = (nuint)0;
 
                     // Check remaining input buffer 
                     int inBufPos = (int)inBuf.Pos;
@@ -643,29 +662,37 @@ namespace Joveler.Compression.Zstd
 
         private unsafe void FinishWrite()
         {
+            if (_mode != Mode.Compress)
+                throw new NotSupportedException("Write() not supported on decompression");
+
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(ZstdStream));
+
             fixed (byte* dest = _buf)
             {
                 InBuffer inBuf = new InBuffer()
                 {
                     Src = null,
-                    Size = UIntPtr.Zero,
-                    Pos = UIntPtr.Zero,
+                    Size = 0,
+                    Pos = 0,
                 };
                 OutBuffer outBuf = new OutBuffer()
                 {
                     Dst = dest,
-                    Size = (UIntPtr)_bufSize,
-                    Pos = UIntPtr.Zero,
+                    Size = (nuint)_bufSize,
+                    Pos = 0,
                 };
 
                 ulong stillToFlush = 0;
                 do
                 {
-                    UIntPtr ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, EndDirective.End);
+                    nuint ret = ZstdInit.Lib.CompressStream2!(_cstream, outBuf, inBuf, EndDirective.End);
                     ZstdException.CheckReturnValue(ret);
 
                     // stillToFlush must be 0 to finish.
-                    stillToFlush = ret.ToUInt64();
+                    stillToFlush = ret;
 
                     // Write output buffer to baseStream, and reset it
                     int outBufPos = (int)outBuf.Pos;
@@ -674,7 +701,7 @@ namespace Joveler.Compression.Zstd
                         BaseStream.Write(_buf, 0, outBufPos);
                         TotalOut += outBufPos;
                     }
-                    outBuf.Pos = (UIntPtr)0;
+                    outBuf.Pos = 0;
                 }
                 while (0 < stillToFlush);
             }
@@ -684,6 +711,11 @@ namespace Joveler.Compression.Zstd
         /// <inheritdoc />
         public override void Flush()
         {
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+            if (BaseStream == null)
+                throw new ObjectDisposedException(nameof(ZstdStream));
+
             if (_mode == Mode.Compress)
             {
                 /*
@@ -692,20 +724,20 @@ namespace Joveler.Compression.Zstd
                     InBuffer inBuf = new InBuffer()
                     {
                         Src = null,
-                        Size = UIntPtr.Zero,
-                        Pos = UIntPtr.Zero,
+                        Size = nuint.Zero,
+                        Pos = nuint.Zero,
                     };
                     OutBuffer outBuf = new OutBuffer()
                     {
                         Dst = dest,
-                        Size = (UIntPtr)_bufSize,
-                        Pos = UIntPtr.Zero,
+                        Size = (nuint)_bufSize,
+                        Pos = nuint.Zero,
                     };
 
                     ulong stillToFlush = 0;
                     do
                     {
-                        UIntPtr ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, EndDirective.Flush);
+                        nuint ret = ZstdInit.Lib.CompressStream2(_cstream, outBuf, inBuf, EndDirective.Flush);
                         ZstdException.CheckReturnValue(ret);
 
                         // stillToFlush must be 0 to finish.
@@ -718,7 +750,7 @@ namespace Joveler.Compression.Zstd
                             BaseStream.Write(_buf, 0, outBufPos);
                             TotalOut += outBufPos;
                         }
-                        outBuf.Pos = (UIntPtr)0;
+                        outBuf.Pos = (nuint)0;
                     }
                     while (0 < stillToFlush);
                 }
@@ -733,9 +765,9 @@ namespace Joveler.Compression.Zstd
         }
 
         /// <inheritdoc />
-        public override bool CanRead => _mode == Mode.Decompress && BaseStream.CanRead;
+        public override bool CanRead => _mode == Mode.Decompress && BaseStream != null && BaseStream.CanRead;
         /// <inheritdoc />
-        public override bool CanWrite => _mode == Mode.Compress && BaseStream.CanWrite;
+        public override bool CanWrite => _mode == Mode.Compress && BaseStream != null && BaseStream.CanWrite;
         /// <inheritdoc />
         public override bool CanSeek => false;
 
@@ -788,7 +820,10 @@ namespace Joveler.Compression.Zstd
         {
             ZstdInit.Manager.EnsureLoaded();
 
-            return ZstdInit.Lib.MinCLevel();
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            return ZstdInit.Lib.MinCLevel!();
         }
 
         /// <summary>
@@ -799,7 +834,10 @@ namespace Joveler.Compression.Zstd
         {
             ZstdInit.Manager.EnsureLoaded();
 
-            return ZstdInit.Lib.MaxCLevel();
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            return ZstdInit.Lib.MaxCLevel!();
         }
 
         /// <summary>
@@ -809,7 +847,10 @@ namespace Joveler.Compression.Zstd
         {
             ZstdInit.Manager.EnsureLoaded();
 
-            return ZstdInit.Lib.DefaultCLevel();
+            if (ZstdInit.Lib == null)
+                throw new ObjectDisposedException(nameof(ZstdInit));
+
+            return ZstdInit.Lib.DefaultCLevel!();
         }
         #endregion
 
@@ -832,7 +873,7 @@ namespace Joveler.Compression.Zstd
         {
             if (bufferSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize));
-            return Math.Max(bufferSize, 4096);
+            return Math.Max(bufferSize, 16 * 1024);
         }
         #endregion
     }

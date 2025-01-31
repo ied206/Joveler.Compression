@@ -2,7 +2,7 @@
     Derived from liblzma header files (Public Domain)
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -36,14 +36,20 @@ namespace Joveler.Compression.XZ
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaPhysMem();
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaPhysMem?.Invoke() ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaPhysMem));
         }
 
         public static uint CpuThreads()
         {
             XZInit.Manager.EnsureLoaded();
 
-            return XZInit.Lib.LzmaCpuThreads();
+            if (XZInit.Lib == null)
+                throw new ObjectDisposedException(nameof(XZInit));
+
+            return XZInit.Lib.LzmaCpuThreads?.Invoke() ?? throw new EntryPointNotFoundException(nameof(XZInit.Lib.LzmaCpuThreads));
         }
         #endregion
 

@@ -1,5 +1,14 @@
 # ChangeLog
 
+## v6.x
+
+### v6.0.0
+
+- (EXPERIMENTAL) Provides parallel zlib compression.
+- (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0, to use TPL Dataflow library.
+- Provides APIs for combining two checksums.
+- Upgrades packaged zlib-ng binaries to 2.2.3.
+
 ## v5.x
 
 ### v5.0.0

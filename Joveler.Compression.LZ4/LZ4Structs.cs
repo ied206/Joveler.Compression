@@ -3,7 +3,7 @@
     Copyright (c) 2011-2016, Yann Collet
 
     C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2023 Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     Redistribution and use in source and binary forms, with or without modification,
     are permitted provided that the following conditions are met:
@@ -31,12 +31,8 @@ using System.Runtime.InteropServices;
 
 /*
  * This file includes definition from external C library.
- * This lines suppresses error and warning from code analyzer, due to this file's C-style naming.
+ * Should suppress error and warning from code analyzer, due to this file's C-style naming.
  */
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
-// ReSharper disable InconsistentNaming
-// ReSharper disable UnusedMember.Local
 #pragma warning disable 169
 
 namespace Joveler.Compression.LZ4
@@ -81,11 +77,24 @@ namespace Joveler.Compression.LZ4
 
         public FrameInfo()
         {
+
+        }
+
+        public FrameInfo(FrameBlockSizeId blockSizeId, FrameBlockMode blockMode, FrameContentChecksum contentChecksumFlag,
+            FrameType frameType, ulong contentSize, uint dictId, FrameBlockChecksum blockChecksumFlag)
+        {
+            BlockSizeId = blockSizeId;
+            BlockMode = blockMode;
+            ContentChecksumFlag = contentChecksumFlag;
+            FrameType = frameType;
+            ContentSize = contentSize;
+            DictId = dictId;
+            BlockChecksumFlag = blockChecksumFlag;
         }
     }
     #endregion
 
-    #region (internal) struct FramePreferences
+    #region (internal) class FramePreferences
     /// <summary>
     /// makes it possible to supply detailed compression parameters to the stream interface.
     /// It's not required to set all fields, as long as the structure was initially memset() to zero.
@@ -114,12 +123,11 @@ namespace Joveler.Compression.LZ4
         /// must be zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[3];
+        private readonly uint[] _reserved = new uint[3];
     }
     #endregion
 
-    #region (internal) struct FrameCompressOptions
+    #region (internal) class FrameCompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal class FrameCompressOptions
     {
@@ -131,12 +139,11 @@ namespace Joveler.Compression.LZ4
         /// must be zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[3] { 0, 0, 0 };
+        private readonly uint[] _reserved = [0, 0, 0];
     }
     #endregion
 
-    #region (internal) struct FrameDecompressOptions
+    #region (internal) class FrameDecompressOptions
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal class FrameDecompressOptions
     {
@@ -154,8 +161,7 @@ namespace Joveler.Compression.LZ4
         /// must be set to zero for forward compatibility
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("스타일", "IDE0044:읽기 전용 한정자 추가", Justification = "<보류 중>")]
-        private uint[] _reserved = new uint[2] { 0, 0 };
+        private readonly uint[] _reserved = [0, 0];
     }
     #endregion
 
@@ -252,6 +258,14 @@ namespace Joveler.Compression.LZ4
         /// LZ4HC_CLEVEL_MAX
         /// </summary>
         Level12 = 12,
+    }
+    #endregion
+
+    #region 
+    public enum XXHashErrorCode : int
+    {
+        Ok = 0,
+        Error,
     }
     #endregion
 }

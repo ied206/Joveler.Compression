@@ -44,10 +44,10 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-                if (_singleThreadStream != null)
-                    return _singleThreadStream.BaseStream;
-                if (_parallelCompressStream != null)
-                    return _parallelCompressStream.BaseStream;
+                if (_serialStream != null)
+                    return _serialStream.BaseStream;
+                if (_parallelStream != null)
+                    return _parallelStream.BaseStream;
                 throw new ObjectDisposedException("This stream had been disposed.");
             }
         }
@@ -59,10 +59,10 @@ namespace Joveler.Compression.ZLib
                 if (_disposed)
                     return _totalIn;
 
-                if (_singleThreadStream != null)
-                    _totalIn = _singleThreadStream.TotalIn;
-                if (_parallelCompressStream != null)
-                    _totalIn = _parallelCompressStream.TotalIn;
+                if (_serialStream != null)
+                    _totalIn = _serialStream.TotalIn;
+                if (_parallelStream != null)
+                    _totalIn = _parallelStream.TotalIn;
                 return _totalIn;
             }
         }
@@ -74,18 +74,31 @@ namespace Joveler.Compression.ZLib
                 if (_disposed)
                     return _totalOut;
 
-                if (_singleThreadStream != null)
-                    _totalOut = _singleThreadStream.TotalOut;
-                if (_parallelCompressStream != null)
-                    _totalOut = _parallelCompressStream.TotalOut;
+                if (_serialStream != null)
+                    _totalOut = _serialStream.TotalOut;
+                if (_parallelStream != null)
+                    _totalOut = _parallelStream.TotalOut;
                 return _totalOut;
             }
         }
 
+        private bool _isAborted = false;
+        public bool IsAborted
+        {
+            get
+            {
+                if (_serialStream != null)
+                    _isAborted = _serialStream.IsAborted;
+                if (_parallelStream != null)
+                    _isAborted = _parallelStream.IsAborted;
+                return _isAborted;
+            }
+        }
+
         // Singlethread Compress/Decompress
-        private DeflateSerialStream? _singleThreadStream = null;
+        private DeflateSerialStream? _serialStream = null;
         // Multithread Parallel Compress
-        private DeflateThreadedStream? _parallelCompressStream = null;
+        private DeflateParallelStream? _parallelStream = null;
 
         /// <summary>
         /// Default buffer size for internal buffer, to be used in single-threaded operation.
@@ -94,7 +107,7 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// Default block size for parallel compress operation.
         /// </summary>
-        internal const int DefaultBlockSize = DeflateThreadedStream.DefaultBlockSize;
+        internal const int DefaultChunkSize = DeflateParallelStream.DefaultChunkSize;
         #endregion
 
         #region Constructor
@@ -103,17 +116,17 @@ namespace Joveler.Compression.ZLib
         /// </summary>
         public DeflateStreamBase(Stream baseStream, ZLibCompressOptions compOpts, ZLibOperateFormat format)
         {
-            _singleThreadStream = new DeflateSerialStream(baseStream, compOpts, format);
+            _serialStream = new DeflateSerialStream(baseStream, compOpts, format);
         }
 
-        public DeflateStreamBase(Stream baseStream, ZLibThreadedCompressOptions pcompOpts, ZLibOperateFormat format)
+        public DeflateStreamBase(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts, ZLibOperateFormat format)
         {
-            _parallelCompressStream = new DeflateThreadedStream(baseStream, pcompOpts, format);
+            _parallelStream = new DeflateParallelStream(baseStream, compOpts, pcompOpts, format);
         }
 
         public DeflateStreamBase(Stream baseStream, ZLibDecompressOptions decompOpts, ZLibOperateFormat format)
         {
-            _singleThreadStream = new DeflateSerialStream(baseStream, decompOpts, format);
+            _serialStream = new DeflateSerialStream(baseStream, decompOpts, format);
         }
         #endregion
 
@@ -133,24 +146,26 @@ namespace Joveler.Compression.ZLib
                 }
 
                 // Dispose unmanaged resources, and set large fields to null.
-                if (_singleThreadStream != null)
+                if (_serialStream != null)
                 {
-                    _singleThreadStream.Dispose();
+                    _serialStream.Dispose();
 
-                    _totalIn = _singleThreadStream.TotalIn;
-                    _totalOut = _singleThreadStream.TotalOut;
+                    _totalIn = _serialStream.TotalIn;
+                    _totalOut = _serialStream.TotalOut;
+                    _isAborted = _serialStream.IsAborted;
 
-                    _singleThreadStream = null;
+                    _serialStream = null;
                 }
 
-                if (_parallelCompressStream != null)
+                if (_parallelStream != null)
                 {
-                    _parallelCompressStream.Dispose();
+                    _parallelStream.Dispose();
 
-                    _totalIn = _parallelCompressStream.TotalIn;
-                    _totalOut = _parallelCompressStream.TotalOut;
+                    _totalIn = _parallelStream.TotalIn;
+                    _totalOut = _parallelStream.TotalOut;
+                    _isAborted = _parallelStream.IsAborted;
 
-                    _parallelCompressStream = null;
+                    _parallelStream = null;
                 }
 
                 _disposed = true;
@@ -165,35 +180,35 @@ namespace Joveler.Compression.ZLib
         /// <inheritdoc />
         public override int Read(byte[] buffer, int offset, int count)
         { // Parallel decompression is not yet supported.
-            if (_singleThreadStream == null)
+            if (_serialStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
-            return _singleThreadStream.Read(buffer, offset, count);
+            return _serialStream.Read(buffer, offset, count);
         }
 
         /// <inheritdoc />
-#if NETCOREAPP3_1
-        public override unsafe int Read(Span<byte> span)
+#if NETCOREAPP
+        public override int Read(Span<byte> span)
 #else
-        public unsafe int Read(Span<byte> span)
+        public int Read(Span<byte> span)
 #endif
         { // Parallel decompression is not yet supported.
-            if (_singleThreadStream == null)
+            if (_serialStream == null)
                 throw new ObjectDisposedException("This stream had been disposed.");
-            return _singleThreadStream.Read(span);
+            return _serialStream.Read(span);
         }
 
         /// <inheritdoc />
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (_parallelCompressStream != null)
+            if (_parallelStream != null)
             {
-                _parallelCompressStream.Write(buffer, offset, count);
+                _parallelStream.Write(buffer, offset, count);
                 return;
             }
 
-            if (_singleThreadStream != null)
+            if (_serialStream != null)
             {
-                _singleThreadStream.Write(buffer, offset, count);
+                _serialStream.Write(buffer, offset, count);
                 return;
             }
 
@@ -202,20 +217,20 @@ namespace Joveler.Compression.ZLib
 
         /// <inheritdoc />
 #if NETCOREAPP
-        public override unsafe void Write(ReadOnlySpan<byte> span)
+        public override void Write(ReadOnlySpan<byte> span)
 #else
-        public unsafe void Write(ReadOnlySpan<byte> span)
+        public void Write(ReadOnlySpan<byte> span)
 #endif
         {
-            if (_parallelCompressStream != null)
+            if (_parallelStream != null)
             {
-                _parallelCompressStream.Write(span);
+                _parallelStream.Write(span);
                 return;
             }
 
-            if (_singleThreadStream != null)
+            if (_serialStream != null)
             {
-                _singleThreadStream.Write(span);
+                _serialStream.Write(span);
                 return;
             }
 
@@ -223,17 +238,34 @@ namespace Joveler.Compression.ZLib
         }
 
         /// <inheritdoc />
-        public override unsafe void Flush()
+        public override void Flush()
         {
-            if (_parallelCompressStream != null)
+            if (_parallelStream != null)
             {
-                _parallelCompressStream.Flush();
+                _parallelStream.Flush();
                 return;
             }
 
-            if (_singleThreadStream != null)
+            if (_serialStream != null)
             {
-                _singleThreadStream.Flush();
+                _serialStream.Flush();
+                return;
+            }
+
+            throw new ObjectDisposedException("This stream had been disposed.");
+        }
+
+        public void Abort()
+        {
+            if (_parallelStream != null)
+            {
+                _parallelStream.Abort();
+                return;
+            }
+
+            if (_serialStream != null)
+            {
+                _serialStream.Abort();
                 return;
             }
 
@@ -245,11 +277,12 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-                if (_parallelCompressStream != null)
-                    return _parallelCompressStream.CanRead;
-                else if (_singleThreadStream != null)
-                    return _singleThreadStream.CanRead;
-                throw new ObjectDisposedException("This stream had been disposed.");
+                if (_parallelStream != null)
+                    return _parallelStream.CanRead;
+                else if (_serialStream != null)
+                    return _serialStream.CanRead;
+                else
+                    return false;
             }
         }
         /// <inheritdoc />
@@ -257,11 +290,12 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-                if (_parallelCompressStream != null)
-                    return _parallelCompressStream.CanWrite;
-                else if (_singleThreadStream != null)
-                    return _singleThreadStream.CanWrite;
-                throw new ObjectDisposedException("This stream had been disposed.");
+                if (_parallelStream != null)
+                    return _parallelStream.CanWrite;
+                else if (_serialStream != null)
+                    return _serialStream.CanWrite;
+                else
+                    return false;
             }
         }
         /// <inheritdoc />
@@ -290,10 +324,10 @@ namespace Joveler.Compression.ZLib
         {
             get
             {
-                if (_parallelCompressStream != null)
-                    return _parallelCompressStream.CompressionRatio;
-                if (_singleThreadStream != null)
-                    return _singleThreadStream.CompressionRatio;
+                if (_parallelStream != null)
+                    return _parallelStream.CompressionRatio;
+                if (_serialStream != null)
+                    return _serialStream.CompressionRatio;
                 throw new ObjectDisposedException("This stream had been disposed.");
             }
         }
@@ -375,8 +409,8 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// (EXPERIMENTAL) Create parallel-compressing DeflateStream.
         /// </summary>
-        public DeflateStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
-            : base(baseStream, pcompOpts, ZLibOperateFormat.Deflate) { }
+        public DeflateStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts)
+            : base(baseStream, compOpts, pcompOpts, ZLibOperateFormat.Deflate) { }
 
         /// <summary>
         /// Create decompressing DeflateStream.
@@ -402,8 +436,8 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// (EXPERIMENTAL) Create parallel-compressing ZLibStream.
         /// </summary>
-        public ZLibStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
-            : base(baseStream, pcompOpts, ZLibOperateFormat.ZLib) { }
+        public ZLibStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts)
+            : base(baseStream, compOpts, pcompOpts, ZLibOperateFormat.ZLib) { }
 
         /// <summary>
         /// Create decompressing ZLibStream.
@@ -429,8 +463,8 @@ namespace Joveler.Compression.ZLib
         /// <summary>
         /// (EXPERIMENTAL) Create parallel-compressing GZipStream.
         /// </summary>
-        public GZipStream(Stream baseStream, ZLibThreadedCompressOptions pcompOpts)
-            : base(baseStream, pcompOpts, ZLibOperateFormat.GZip) { }
+        public GZipStream(Stream baseStream, ZLibCompressOptions compOpts, ZLibParallelCompressOptions pcompOpts)
+            : base(baseStream, compOpts, pcompOpts, ZLibOperateFormat.GZip) { }
 
         /// <summary>
         /// Create decompressing GZipStream.

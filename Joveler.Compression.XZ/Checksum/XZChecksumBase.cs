@@ -1,8 +1,6 @@
 ﻿/*
-    Derived from liblzma header files (Public Domain)
-
-    C# Wrapper written by Hajin Jang
-    Copyright (C) 2018-2020 Hajin Jang
+    Written by Hajin Jang
+    Copyright (C) 2018-present Hajin Jang
 
     MIT License
 
@@ -31,27 +29,18 @@ using System.IO;
 namespace Joveler.Compression.XZ.Checksum
 {
     #region BaseChecksum
-    public abstract class BaseChecksum<T>
+    public abstract class XZChecksumBase<T> where T : unmanaged
     {
         #region Fields and Properties
-        protected readonly int _bufferSize = 64 * 1024;
-
-        public virtual T InitChecksum { get; private set; }
-        public virtual T Checksum { get; protected set; }
+        protected int DefaultBufferSize { get; } = 1024 * 1024;
+        public T InitChecksum { get; }
+        public T Checksum { get; protected set; }
         #endregion
 
         #region Constructor
-        protected BaseChecksum(T initChecksum)
+        protected XZChecksumBase(T initChecksum)
         {
             InitChecksum = initChecksum;
-            Reset();
-        }
-
-        protected BaseChecksum(T initChecksum, int bufferSize)
-        {
-            InitChecksum = initChecksum;
-            _bufferSize = bufferSize;
-
             Reset();
         }
         #endregion
@@ -85,10 +74,15 @@ namespace Joveler.Compression.XZ.Checksum
 
         public T Append(Stream stream)
         {
-            byte[] buffer = new byte[_bufferSize];
+            return Append(stream, DefaultBufferSize);
+        }
+
+        public T Append(Stream stream, int bufferSize)
+        {
+            byte[] buffer = new byte[bufferSize];
             while (true)
             {
-                int bytesRead = stream.Read(buffer, 0, _bufferSize);
+                int bytesRead = stream.Read(buffer, 0, bufferSize);
                 if (bytesRead == 0)
                     break;
 
@@ -100,22 +94,29 @@ namespace Joveler.Compression.XZ.Checksum
         #endregion
 
         #region Reset
-        public abstract void Reset();
-        public abstract void Reset(T reset);
+        public void Reset()
+        {
+            Checksum = InitChecksum;
+        }
+
+        public void Reset(T reset)
+        {
+            Checksum = reset;
+        }
         #endregion
 
         #region AppendCore
         /// <summary>
         /// Please override this method to implement actual checksum calculation.
         /// Must not affect internal Checksum property, make it works like a static method.
-        /// Arguments are prefilted by Append methods, so do not need to check them here.
+        /// Arguments are prefiltered by Append methods, so it does not need to be checked here.
         /// </summary>
         protected abstract T AppendCore(T checksum, byte[] buffer, int offset, int count);
 
         /// <summary>
-        /// /// Please override this method to implement actual checksum calculation.
+        /// Please override this method to implement actual checksum calculation.
         /// Must not affect internal Checksum property, make it works like a static method.
-        /// Arguments are prefilted by Append methods, so do not need to check them here.
+        /// Arguments are prefiltered by Append methods, so it does not need to be checked here.
         /// </summary>
         protected abstract T AppendCore(T checksum, ReadOnlySpan<byte> span);
         #endregion
