@@ -56,3 +56,37 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 `Joveler.Compression.LZ4` is licensed under [BSD 2-Clause license](./LICENSE).
 
+## Performance
+
+### Compression
+
+In singlethread compression, `Joveler.Compression.LZ4` ties with [K4os.Compression.LZ4](https://github.com/MiloszKrajewski/K4os.Compression.LZ4).
+
+In multithread compression, performance of `Joveler.Compression.LZ4` scales linearly when data requires a time to be compressed.
+
+| Method | SrcFileName       | Level   | Mean       |
+|--------|-------------------|---------|------------|
+| lz4    | bible_en_utf8.txt | Default | 155,165 μs |
+| lz4-T2 | bible_en_utf8.txt | Default | 156,913 μs |
+| K4os   | bible_en_utf8.txt | Default | 171,872 μs |
+| lz4    | bible_en_utf8.txt | Fastest | 8,658 μs   |
+| lz4-T2 | bible_en_utf8.txt | Fastest | 10,089 μs  |
+| K4os   | bible_en_utf8.txt | Fastest | 9,562 μs   |
+| lz4    | bible_kr_utf8.txt | Default | 194,444 μs |
+| lz4-T2 | bible_kr_utf8.txt | Default | 172,994 μs |
+| K4os   | bible_kr_utf8.txt | Default | 207,119 μs |
+| lz4    | bible_kr_utf8.txt | Fastest | 10,219 μs  |
+| lz4-T2 | bible_kr_utf8.txt | Fastest | 10,460 μs  |
+| K4os   | bible_kr_utf8.txt | Fastest | 11,406 μs  |
+| lz4    | ooffice.dll       | Default | 140,671 μs |
+| lz4-T2 | ooffice.dll       | Default | 101,661 μs |
+| K4os   | ooffice.dll       | Default | 156,425 μs |
+| lz4    | ooffice.dll       | Fastest | 10,762 μs  |
+| lz4-T2 | ooffice.dll       | Fastest | 9,557 μs   |
+| K4os   | ooffice.dll       | Fastest | 13,531 μs  |
+| lz4    | reymont.pdf       | Default | 335,907 μs |
+| lz4-T2 | reymont.pdf       | Default | 218,780 μs |
+| K4os   | reymont.pdf       | Default | 363,534 μs |
+| lz4    | reymont.pdf       | Fastest | 13,985 μs  |
+| lz4-T2 | reymont.pdf       | Fastest | 10,868 μs  |
+| K4os   | reymont.pdf       | Fastest | 15,343 μs  |

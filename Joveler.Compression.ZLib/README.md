@@ -72,3 +72,44 @@ See [USAGE.md](./USAGE.md).
 ## License
 
 `Joveler.Compression.ZLib` is licensed under [zlib license](./LICENSE).
+
+## Performance
+
+### Compression
+
+In multithread compression, performance of `Joveler.Compression.ZLib` scales linearly.
+
+| Method        | SrcFileName       | Level   | Mean         |
+|---------------|-------------------|---------|--------------|
+| zlib-ng       | bible_en_utf8.txt | Best    | 143,856 μs   |
+| zlib-ng-T2    | bible_en_utf8.txt | Best    | 75,710 μs    |
+| BCL           | bible_en_utf8.txt | Best    | 288,823 μs   |
+| SharpCompress | bible_en_utf8.txt | Best    | 382,411 μs   |
+| zlib-ng       | bible_en_utf8.txt | Default | 64,329 μs    |
+| zlib-ng-T2    | bible_en_utf8.txt | Default | 34,439 μs    |
+| BCL           | bible_en_utf8.txt | Default | 146,495 μs   |
+| SharpCompress | bible_en_utf8.txt | Default | 202,771 μs   |
+| zlib-ng       | bible_kr_utf8.txt | Best    | 189,140 μs   |
+| zlib-ng-T2    | bible_kr_utf8.txt | Best    | 97,509 μs    |
+| BCL           | bible_kr_utf8.txt | Best    | 295,126 μs   |
+| SharpCompress | bible_kr_utf8.txt | Best    | 402,066 μs   |
+| zlib-ng       | bible_kr_utf8.txt | Default | 75,758 μs    |
+| zlib-ng-T2    | bible_kr_utf8.txt | Default | 39,735 μs    |
+| BCL           | bible_kr_utf8.txt | Default | 190,129 μs   |
+| SharpCompress | bible_kr_utf8.txt | Default | 262,210 μs   |
+| zlib-ng       | ooffice.dll       | Best    | 208,351 μs   |
+| zlib-ng-T2    | ooffice.dll       | Best    | 106,654 μs   |
+| BCL           | ooffice.dll       | Best    | 385,086 μs   |
+| SharpCompress | ooffice.dll       | Best    | 541,706 μs   |
+| zlib-ng       | ooffice.dll       | Default | 91,696 μs    |
+| zlib-ng-T2    | ooffice.dll       | Default | 48,151 μs    |
+| BCL           | ooffice.dll       | Default | 224,886 μs   |
+| SharpCompress | ooffice.dll       | Default | 316,129 μs   |
+| zlib-ng       | reymont.pdf       | Best    | 276,046 μs   |
+| zlib-ng-T2    | reymont.pdf       | Best    | 141,333 μs   |
+| BCL           | reymont.pdf       | Best    | 718,390 μs   |
+| SharpCompress | reymont.pdf       | Best    | 1,017,190 μs |
+| zlib-ng       | reymont.pdf       | Default | 126,523 μs   |
+| zlib-ng-T2    | reymont.pdf       | Default | 66,190 μs    |
+| BCL           | reymont.pdf       | Default | 260,016 μs   |
+| SharpCompress | reymont.pdf       | Default | 369,338 μs   |
