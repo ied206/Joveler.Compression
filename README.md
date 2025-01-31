@@ -8,8 +8,6 @@ Home repository of compression pinvoke libraries for .NET.
 
 | CI Server       | Branch  | Build Status   |
 |-----------------|---------|----------------|
-| AppVeyor        | Master  | [![CI Master Branch Build Status](https://ci.appveyor.com/api/projects/status/9t1fg4vyavqowb3p/branch/master?svg=true)](https://ci.appveyor.com/project/ied206/joveler-compression/branch/master) |
-| AppVeyor        | Develop | [![CI Develop Branch Build Status](https://ci.appveyor.com/api/projects/status/9t1fg4vyavqowb3p/branch/develop?svg=true)](https://ci.appveyor.com/project/ied206/joveler-compression/branch/develop) |
 | Azure Pipelines | Master  | [![Azure Pipelines CI Master Branch Build Status](https://ied206.visualstudio.com/Joveler.Compression/_apis/build/status/ied206.Joveler.Compression?branchName=master)](https://dev.azure.com/ied206/Joveler.Compression/_build) |
 | Azure Pipelines | Develop | [![Azure Pipelines CI Develop Branch Build Status](https://ied206.visualstudio.com/Joveler.Compression/_apis/build/status/ied206.Joveler.Compression?branchName=develop)](https://dev.azure.com/ied206/Joveler.Compression/_build) |
 
