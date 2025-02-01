@@ -10,7 +10,7 @@
 
     <PackageId>Joveler.Compression.XZ</PackageId>
     <Title>Joveler.Compression.XZ</Title>
-    <Version>5.0.0</Version>
+    <Version>5.0.1</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>XZ Utils (liblzma) pinvoke library for .NET.
@@ -22,8 +22,7 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
-    <PackageReleaseNotes>- (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0.
-- Upgrades packaged xz4 binaries to 5.6.4.</PackageReleaseNotes>
+    <PackageReleaseNotes>- Recompiles incorrectly packaged linux arm/arm64 xz4 binaries.</PackageReleaseNotes>
     <PackageTags>xz xz-utils liblzma lzma lzma2 compress compression decompress decompression archive crc32 crc64 crc checksum native pinvoke interop</PackageTags>
     <PackageReadmeFile>NUGET_README.md</PackageReadmeFile>
   </PropertyGroup>

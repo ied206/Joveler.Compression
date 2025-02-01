@@ -5,22 +5,18 @@
 #   ./liblzma-posix.sh ~/build/native/xz-5.4.3
 
 function print_help() {
-    echo "Usage: $0 [-a armhf|aarch64] [-T TARGET_TRIPLE] <SRC_DIR>" >&2
+    echo "Usage: $0 [-a x86_64|armhf|aarch64] <SRC_DIR>" >&2
     echo "" >&2
     echo "-a: Specify architecture for cross-compiling (Linux only, Optional)" >&2
-    echo "-T: Specify target triple for cross-compiling (Optional)" >&2
 }
 
 # Check script arguments
 CROSS_ARCH=""
 CROSS_TRIPLE=""
-while getopts "a:T:h" opt; do
+while getopts "a:h" opt; do
     case $opt in
         a) # pre-defined Architecture for cross-compile
             CROSS_ARCH=$OPTARG
-            ;;
-        T) # any Target Triple for cross-compile
-            CROSS_TRIPLE=$OPTARG
             ;;
         h)
             print_help
@@ -72,46 +68,57 @@ DEST_DIR="${BASE_DIR}/build"
 # Set target triple (for Linux) or mac_arch (for macOS)
 TARGET_TRIPLE=""
 TARGET_MAC_ARCH=""
-if [[ "${OS}" == Linux ]]; then
-    if [[ "${CROSS_ARCH}" == i686 ]]; then
-        TARGET_TRIPLE="i686-linux-gnu"
-    elif [[ "${CROSS_ARCH}" == x86_64 ]]; then
-        TARGET_TRIPLE="x86_64-linux-gnu"
-    elif [[ "${CROSS_ARCH}" == armhf ]]; then
-        TARGET_TRIPLE="arm-linux-gnueabihf"
-    elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
-        TARGET_TRIPLE="aarch64-linux-gnu"
-    elif [[ "${CROSS_ARCH}" != "" ]]; then
-        echo "[${ARCH}] is not a pre-defined architecture" >&2
-        exit 1
-    fi
-
-    if [[ "${CROSS_ARCH}" != "" ]]; then
+if [[ "${CROSS_ARCH}" != "" ]]; then
+    if [[ "${OS}" == Linux ]]; then
+        if [[ "${CROSS_ARCH}" == i686 ]]; then
+            TARGET_TRIPLE="i686-linux-gnu"
+        elif [[ "${CROSS_ARCH}" == x86_64 ]]; then
+            TARGET_TRIPLE="x86_64-linux-gnu"
+        elif [[ "${CROSS_ARCH}" == armhf ]]; then
+            TARGET_TRIPLE="arm-linux-gnueabihf"
+        elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
+            TARGET_TRIPLE="aarch64-linux-gnu"
+        else
+            echo "[${ARCH}] is not a pre-defined architecture" >&2
+            exit 1
+        fi
         DEST_DIR="${DEST_DIR}-${CROSS_ARCH}"
-    elif [[ "${CROSS_TRIPLE}" != "" ]]; then
-        TARGET_TRIPLE="${CROSS_TRIPLE}"
-        DEST_DIR="${DEST_DIR}-${CROSS_TRIPLE}"
-    fi
-    if [ "${TARGET_TRIPLE}" != "" ]; then
-        echo "(Cross compile) Target triple set to [${TARGET_TRIPLE}]"
-    fi 
-elif [[ "${OS}" == Darwin ]]; then
-    # https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
-    # https://gist.github.com/andrewgrant/477c7037b1fc0dd7275109d3f2254ea9
-    if [[ "${CROSS_ARCH}" == x86_64 ]]; then
-        TARGET_ARCH="x86_64"
-        #TARGET_ARCH="x86_64-apple-macos"
-    elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
-        TARGET_ARCH="arm64"
-        #TARGET_ARCH="arm64-apple-macos"
-    elif [[ "${CROSS_ARCH}" != "" ]]; then
-        echo "[${ARCH}] is not a pre-defined architecture" >&2
-        exit 1
-    fi
 
-    if [ "${CROSS_ARCH}" != "" ]; then
+        if [ "${TARGET_TRIPLE}" == "" ]; then
+            echo "(Cross compile) Target triple [${TARGET_TRIPLE}] is invalid" >&2
+        fi
+        echo "(Cross compile) Target triple set to [${TARGET_TRIPLE}]"
+
+        # Check toolcahin for cross-compile 
+        which ${TARGET_TRIPLE}-gcc > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Please install ${TARGET_TRIPLE}-gcc" >&2
+            echo "Run \"sudo apt install gcc-${TARGET_TRIPLE}\"." >&2
+            exit 1
+        fi
+        which ${TARGET_TRIPLE}-strip > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Please install ${TARGET_TRIPLE}-strip" >&2
+            echo "Run \"sudo apt install binutils-${TARGET_TRIPLE}\"." >&2
+            exit 1
+        fi
+        STRIP="${TARGET_TRIPLE}-strip"
+    elif [[ "${OS}" == Darwin ]]; then
+        # https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
+        # https://gist.github.com/andrewgrant/477c7037b1fc0dd7275109d3f2254ea9
+        if [[ "${CROSS_ARCH}" == x86_64 ]]; then
+            TARGET_ARCH="x86_64"
+            #TARGET_ARCH="x86_64-apple-macos"
+        elif [[ "${CROSS_ARCH}" == aarch64 || "${CROSS_ARCH}" == arm64 ]]; then
+            TARGET_ARCH="arm64"
+            #TARGET_ARCH="arm64-apple-macos"
+        else
+            echo "[${ARCH}] is not a pre-defined architecture" >&2
+            exit 1
+        fi
+
         echo "(Cross compile) Target architecture set to [${CROSS_ARCH}]"
-    fi 
+    fi
 fi
 
 # Create dest directory
