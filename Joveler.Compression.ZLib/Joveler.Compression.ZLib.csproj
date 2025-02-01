@@ -27,7 +27,7 @@ Supports Windows, Linux and macOS.</Description>
 - Provides APIs for combining two checksums.
 - Upgrades packaged zlib-ng binaries to 2.2.3.</PackageReleaseNotes>
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
-    <PackageReadmeFile>NUGET_README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
