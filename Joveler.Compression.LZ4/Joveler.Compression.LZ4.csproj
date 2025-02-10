@@ -23,7 +23,7 @@ Supports Windows, Linux and macOS.</Description>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
     <PackageReleaseNotes>- Fix broken .NET Framework MSBuild script for copying native DLLs.</PackageReleaseNotes>
     <PackageTags>lz4 lz4-hc lz4hc lz4-frame compress compression decompress decompression archive native pinvoke interop</PackageTags>
-    <PackageReadmeFile>NUGET_README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
@@ -83,6 +83,8 @@ Supports Windows, Linux and macOS.</Description>
   </ItemGroup>
   <!-- NuGet Pacakge -->
   <ItemGroup>
+    <!-- Nuget README -->
+    <None Include="NUGET_README.md" Pack="true" PackagePath="\README.md" />
     <!-- Build Script for .NET Framework -->
     <None Include="Joveler.Compression.LZ4.netfx.targets" Pack="true" PackagePath="build\net462\Joveler.Compression.LZ4.targets" />
     <!-- NuGet Pacakge Icon -->

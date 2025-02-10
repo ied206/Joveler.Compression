@@ -24,7 +24,7 @@ Supports Windows, Linux and macOS.</Description>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageReleaseNotes>- Fix broken .NET Framework MSBuild script for copying native DLLs.</PackageReleaseNotes>
     <PackageTags>zlib deflate gzip compress compression decompress decompression archive adler32 crc32 crc checksum native pinvoke interop</PackageTags>
-    <PackageReadmeFile>NUGET_README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- PackageReference -->
   <ItemGroup>
