@@ -2,7 +2,15 @@
 
 ## v5.x
 
+### v5.0.1
+
+Released in 2025-02-10
+
+- Fix broken .NET Framework MSBuild script for copying native DLLs.
+
 ### v5.0.0
+
+Released in 2025-01-31
 
 - (EXPERIMENTAL) Provides parallel lz4 compression.
 - (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0, to use TPL Dataflow library.

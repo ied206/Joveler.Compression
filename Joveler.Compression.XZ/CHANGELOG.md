@@ -2,7 +2,21 @@
 
 ## v5.x
 
+### v5.0.2
+
+Released in 2025-02-10
+
+- Fix broken .NET Framework MSBuild script for copying native DLLs.
+
+### v5.0.1
+
+Released in 2025-02-01
+
+- Recompiles incorrectly packaged linux arm/arm64 xz4 binaries.
+
 ### v5.0.0
+
+Released in 2025-01-31
 
 - (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0.
 - Upgrades packaged xz4 binaries to 5.6.4.
