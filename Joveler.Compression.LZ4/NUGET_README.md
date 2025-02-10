@@ -10,7 +10,7 @@ Joveler.Compression.LZ4 can be installed via [nuget](https://www.nuget.org/packa
 
 ## Performance
 
-**WARNING**: The library supports many customizable options, but performance is a bit slow due to pinvoke overhead. See [README.md](https://github.com/ied206/Joveler.Compression/blob/v4.1.0/Joveler.Compression.LZ4/README.md) for details.
+**WARNING**: The library supports many customizable options, but performance is a bit slow due to pinvoke overhead. See [README.md](https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.LZ4/README.md) for details.
 
 ## Features
 
