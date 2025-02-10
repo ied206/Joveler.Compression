@@ -2,6 +2,12 @@
 
 ## v6.x
 
+### v6.0.1
+
+Released on 2025-02-10
+
+- Fix broken .NET Framework MSBuild script for copying native DLLs.
+
 ### v6.0.0
 
 Released on 2025-01-31
