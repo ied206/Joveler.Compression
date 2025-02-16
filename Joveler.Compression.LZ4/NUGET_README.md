@@ -10,16 +10,18 @@ Joveler.Compression.LZ4 can be installed via [nuget](https://www.nuget.org/packa
 
 ## Performance
 
-**WARNING**: The library supports many customizable options, but performance is a bit slow due to pinvoke overhead. See [README.md](https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.LZ4/README.md) for details.
+**WARNING**: Due to LZ4's performant nature, P/Invoke overhead has a more negative effect on LZ4 than on conventional compression algorithms.
+
+The overhead becomes trivial enough if you handle big files and focus on multithreaded high-level compression.
+
+In decompression, pure managed implementation is much faster than this native wrapper.
+
+See project README for more details.
 
 ## Features
 
 - LZ4FrameStream, the stream for [lz4 frame format](https://github.com/lz4/lz4/blob/master/doc/lz4_Frame_format.md).
 - (EXPERIMENTAL) Parallel compression support on LZ4FrameStream.
-
-## Tested liblz4 versions
-
-- 1.9.4 (Included)
 
 ## Support
 
@@ -45,3 +47,7 @@ Joveler.Compression.LZ4 can be installed via [nuget](https://www.nuget.org/packa
 ### Supported LZ4 versions
 
 - 1.10.0 (Included)
+
+## Usage
+
+Please refer to the project homepage.

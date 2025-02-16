@@ -5,11 +5,8 @@
 ## Features
 
 - XZStream, the stream for [.xz file format](https://tukaani.org/xz/xz-file-format.txt).
+- Parallel compression and decompression of XZStream.
 - Fast native implementation of CRC32 and CRC64 checksums.
-
-## Usage
-
-Please refer the [project homepage](https://github.com/ied206/Joveler.Compression/blob/master/Joveler.Compression.XZ/USAGE.md).
 
 ## Support
 
@@ -36,3 +33,6 @@ Please refer the [project homepage](https://github.com/ied206/Joveler.Compressio
 
 - 5.6.4 (Included)
 
+## Usage
+
+Please refer to the project homepage.

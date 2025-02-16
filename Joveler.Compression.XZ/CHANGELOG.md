@@ -20,6 +20,7 @@ Released on 2025-01-31
 
 - (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0.
 - Upgrades packaged xz4 binaries to 5.6.4.
+- Adds support for nullable reference type information.
 
 ## v4.x
 

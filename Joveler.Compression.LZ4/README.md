@@ -10,9 +10,15 @@ Joveler.Compression.LZ4 can be installed via [nuget](https://www.nuget.org/packa
 
 ## Performance
 
-Please keep in mind that `Joveler.Compression.LZ4` have been uploaded to the nuget because it supports many customizable options, not best in performance.
+Due to LZ4's performant nature, P/Invoke overhead has a more negative effect on LZ4 than on conventional compression algorithms.
 
-Decompression of `Joveler.Compression.LZ4` is similar or slightly faster than the pure C# implementation, [K4os.Compression.LZ4](https://github.com/MiloszKrajewski/K4os.Compression.LZ4). In the meanwhile the compression is about 50% faster to 2000% slower. Please be careful about performance when using it on production.
+If you mostly handle big files and focus on multithreaded high-level compression, `Joveler.Compression.LZ4` is the right choice.
+
+If you mostly handle small files and are focused on performant single-threaded use, consider using [K4os.Compression.LZ4](https://github.com/MiloszKjewski/K4os.Compression.LZ4), the pure C# implementation. Its performance generally ties in with the native pinvoke method. 
+
+Suppose your use case involves mostly decompression, use [K4os.Compression.LZ4](https://github.com/MiloszKjewski/K4os.Compression.LZ4) as it is consistently faster.
+
+Read the [Benchmark](#Benchmark) section for more details.
 
 ## Features
 
@@ -56,7 +62,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 `Joveler.Compression.LZ4` is licensed under [BSD 2-Clause license](./LICENSE).
 
-## Performance
+## Benchmark
 
 ### Compression
 
@@ -90,3 +96,26 @@ In multithread compression, performance of `Joveler.Compression.LZ4` scales line
 | lz4    | reymont.pdf       | Fastest | 13,985 μs  |
 | lz4-T2 | reymont.pdf       | Fastest | 10,868 μs  |
 | K4os   | reymont.pdf       | Fastest | 15,343 μs  |
+
+### Decompression
+
+[K4os.Compression.LZ4](https://github.com/MiloszKrajewski/K4os.Compression.LZ4) is about twice faster than `Joveler.Compression.LZ4`.
+
+| Method | SrcFileName       | Level   | Mean       |
+|--------|-------------------|---------|------------|
+| lz4    | bible_en_utf8.txt  | Default | 4,598.377 μs |
+| K4os   | bible_en_utf8.txt  | Default | 2,728.262 μs |
+| lz4    | bible_en_utf8.txt  | Fastest | 4,966.349 μs |
+| K4os   | bible_en_utf8.txt  | Fastest | 2,807.782 μs |
+| lz4    | bible_kr_utf8.txt  | Default | 5,673.352 μs |
+| K4os   | bible_kr_utf8.txt  | Default | 3,845.430 μs |
+| lz4    | bible_kr_utf8.txt  | Fastest | 6,114.985 μs |
+| K4os   | bible_kr_utf8.txt  | Fastest | 3,753.987 μs |
+| lz4    | ooffice.dll       | Default | 7,170.132 μs |
+| K4os   | ooffice.dll       | Default | 4,635.963 μs | 
+| lz4    | ooffice.dll       | Fastest | 7,587.325 μs | 
+| K4os   | ooffice.dll       | Fastest | 4,743.326 μs | 
+| lz4    | reymont.pdf       | Default | 6,546.353 μs | 
+| K4os   | reymont.pdf       | Default | 4,529.416 μs | 
+| lz4    | reymont.pdf       | Fastest | 7,243.303 μs | 
+| K4os   | reymont.pdf       | Fastest | 4,760.949 μs | 
