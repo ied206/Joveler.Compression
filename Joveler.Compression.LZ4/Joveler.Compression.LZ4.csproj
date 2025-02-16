@@ -10,7 +10,7 @@
     
     <PackageId>Joveler.Compression.LZ4</PackageId>
     <Title>Joveler.Compression.LZ4</Title>
-    <Version>5.0.1</Version>
+    <Version>5.0.2</Version>
     <Authors>Hajin Jang</Authors>
     <Company>Joveler</Company>
     <Description>lz4 pinvoke library for .NET.
@@ -21,7 +21,7 @@ Supports Windows, Linux and macOS.</Description>
     <RepositoryUrl>https://github.com/ied206/Joveler.Compression</RepositoryUrl>
     <PackageIcon>images\Logo.png</PackageIcon>
     <PackageProjectUrl>https://github.com/ied206/Joveler.Compression</PackageProjectUrl>
-    <PackageReleaseNotes>- Fix broken .NET Framework MSBuild script for copying native DLLs.</PackageReleaseNotes>
+    <PackageReleaseNotes>- Update NuGet README.</PackageReleaseNotes>
     <PackageTags>lz4 lz4-hc lz4hc lz4-frame compress compression decompress decompression archive native pinvoke interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

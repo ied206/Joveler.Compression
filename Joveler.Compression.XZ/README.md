@@ -11,6 +11,7 @@ Joveler.Compression.XZ can be installed via [nuget](https://www.nuget.org/packag
 ## Features
 
 - XZStream, the stream for [.xz file format](https://tukaani.org/xz/xz-file-format.txt).
+- Parallel compression and decompression of XZStream.
 - Fast native implementation of CRC32 and CRC64 checksums.
 
 ## Support

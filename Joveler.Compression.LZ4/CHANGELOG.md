@@ -2,6 +2,10 @@
 
 ## v5.x
 
+### v5.0.2
+
+- Update NuGet README.
+
 ### v5.0.1
 
 Released on 2025-02-10
@@ -15,6 +19,7 @@ Released on 2025-01-31
 - (EXPERIMENTAL) Provides parallel lz4 compression.
 - (BREAKING CHANGE) Now targets .NET 8.0/.NET Framework 4.6.2/.NET Standard 2.0, to use TPL Dataflow library.
 - Upgrades packaged lz4 binaries to 1.10.0.
+- Adds support for nullable reference type information.
 
 ## v4.x
 
