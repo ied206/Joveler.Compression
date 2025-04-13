@@ -116,8 +116,9 @@ if [[ "${CROSS_ARCH}" != "" ]]; then
             echo "[${ARCH}] is not a pre-defined architecture" >&2
             exit 1
         fi
+        DEST_DIR="${DEST_DIR}-${TARGET_ARCH}"
 
-        echo "(Cross compile) Target architecture set to [${CROSS_ARCH}]"
+        echo "(Cross compile) Target architecture set to [${TARGET_ARCH}]"
     fi
 fi
 
