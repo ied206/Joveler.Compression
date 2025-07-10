@@ -78,8 +78,10 @@ namespace Joveler.Compression.XZ
     /// values from lzma_get_progress().
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal unsafe class LzmaStream
+    internal unsafe struct LzmaStream
     {
+        public LzmaStream() { }
+
         /// <summary>
         ///  Pointer to the next input byte.
         /// </summary>
